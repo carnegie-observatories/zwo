@@ -337,6 +337,17 @@ static int handle_asi(const char* command,char* answer,int buflen)
     do { p=strchr(zwo_model,' '); if (p) *p='_'; } while (p); /* v0021 */
     sprintf(answer,"%d %d %d %d %d %s",zwo_width,zwo_height,  /* v0022 */
       zwo_cooler,zwo_color,zwo_bitDepth,zwo_model);           /* v0027 */
+#if 1 /* NEW v0033 */
+    { ASI_CONTROL_CAPS caps; int num=0,i;
+      ASIGetNumOfControls(asi_id,&num);
+      for (i=0; i<num; i++) {
+        ASIGetControlCaps(asi_id,i,&caps);
+        printf("%24s %5ld %11ld %6ld %d %d %s\n",caps.Name,
+          caps.MinValue,caps.MaxValue,caps.DefaultValue,
+          caps.IsAutoSupported,caps.IsWritable,caps.Description);
+      }
+    }
+#endif
   } else
   if (!strcmp(cmd,"ASIGetSerialNumber")) { ASI_SN sn; int i;
     ASIGetSerialNumber(asi_id,&sn);    /* NEW v0030 */
