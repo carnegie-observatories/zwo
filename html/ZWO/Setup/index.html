@@ -1,0 +1,486 @@
+<HTML>
+<title>ZWO-Guider Software Documentation</title>
+<center>
+<h1>ZWO-Guider Computer Setup</h1>
+<p> </p>
+The Observatories of the Carnegie Institution for Science
+(Carnegie Observatories), Pasadena, CA
+<p> </p>
+Christoph C. Birk (birk AT carnegiescience DOT edu)
+<p> </p>
+<a href="../guider3.png"><img src="../guider3.png" width=300 height=188></a>
+</center>
+
+<p> </p>
+<hr> <!-- ===================================================== -->
+<p> </p>
+
+Location of this document: 
+http://instrumentation.obs.carnegiescience.edu/Software/ZWO/Setup/setup.html
+<p> </p>
+
+<!---
+This document decscribes the ZWO-Guider software from a technical point of
+view and is directed at the support staff at SBS and LCO.
+-->
+
+<p> </p>
+<hr> <!-- ===================================================== -->
+<p> </p>
+
+
+<li>HowTo make a <a href="#usb">bootable USB</a> drive
+<li>HowTo setup the <a href="#rpi">Raspberry Pi</a> 
+<dd>Add the <em>zwoserver</em> as a <a href="#systemd">systemd</a> service </dd>
+<li>HowTo setup the <a href="#nuc">NUC</a>
+<p> </p>
+
+<p> </p>
+<hr> <!-- ===================================================== -->
+<p> </p>
+
+<a name="usb"></a>
+<h2>Bootable USB drive</h2>
+
+<ol>
+<li>Startup "diskutil" (macOS)
+<br>format USB drive as "MS-DOS (FAT)"
+<li>Download the "CentOS" ISO 
+    ( <a href="https://www.centos.org/download/">https://www.centos.org/download/</a> )
+<br>NUC: "DVD ISO" (4.6 GB)
+<li>Create a bootable USB drive via <em>Etcher</em> 
+    ( <a href="https://etcher.io/">https://etcher.io/</a> )
+<p> </p>
+<a href="./etcher.png"><img src="./etcher.png" width=396 height=186></a>
+</ol>
+
+<p> </p>
+<hr> <!-- ===================================================== -->
+<p> </p>
+
+<a name="rpi"></a>
+<h2>RaspberryPi-4 Setup</h2>
+
+Specifications: 
+<a href="https://www.raspberrypi.com/products/raspberry-pi-4-model-b">raspberrypi.com</a> 
+<dd>Quad Core "Cortex A72", 1.5 GHz, 4 GB RAM (USB3, Gb-ethernet) </dd>
+<dd>arch   </dd>
+<dd>more /proc/cpuinfo </dd>
+<dd>more /proc/meminfo </dd>
+<dd>more /proc/version </dd>
+<table border>
+<tr><td>MAC# </td>
+    <td>arch  </td>
+    <td>cpuinfo  </td>
+    <td>meminfo  </td>
+    <td>Linux version  </td>
+    <td>Status  </td>
+    </tr>
+<tr><td>e4:5f:01:5f:c4:02  </td>
+    <td>aarch64 </td>
+    <td>4 cores: rPi 4 Model B Rev 1.4  </td>
+    <td>3882992 kB  </td>
+    <td>Linux 6.6.51+rpt-rpi-v8 (Debian)  </td>
+    <td>SBS (lab-pi-01)  </td>
+    </tr>
+<tr><td>e4:5f:01:5f:c5:c2  </td>
+    <td>aarch64 </td>
+    <td>4 cores: rPi 4 Model B Rev 1.4  </td>
+    <td>3883060 kB  </td>
+    <td>Linux 6.6.31+rpt-rpi-v8 (Debian)  </td>
+    <td>SBS  </td>
+    </tr>
+<tr><td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    </tr>
+<tr><td>e4:5f:01:69:1f:b5  </td>
+    <td>armv7l  </td>
+    <td>4 cores: ARMv7 Processor rev 3 (v7l)  </td>
+    <td>3931056 kB  </td>
+    <td>PiOS: 5.15.32-v7l+  </td>
+    <td>LCO  </td>
+    </tr>
+<tr><td>e4:5f:01:80:a5:13  </td>
+    <td>armv7l  </td>
+    <td>4 cores: ARMv7 Processor rev 3 (v7l)  </td>
+    <td>3931056 kB  </td>
+    <td>PiOS: 5.15.32-v7l+  </td>
+    <td>LCO  </td>
+    </tr>
+<tr><td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    </tr>
+<tr><td>dc:a6:32:88:00:c3  </td>
+    <td>aarch64  </td>
+    <td>4 cores: ARMV8 (BCM2835)  </td>
+    <td>3885396 kB  </td>
+    <td>Linux-6.1.21-v8+ (Ubuntu)  </td>
+    <td>LCO/G2019  </td>
+    </tr>
+<tr><td>dc:a6:32:88:01:c8  </td>
+    <td>aarch64  </td>
+    <td>4 cores: ARMV8 (BCM2835) </td>
+    <td>3885396 kB  </td>
+    <td>Linux-6.1.21-v8+ (Ubuntu)  </td>
+    <td>LCO/G2019  </td>
+    </tr>
+<tr><td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    </tr>
+<tr><td>e4:5f:01:7a:46:32  </td>
+    <td>aarch64  </td>
+    <td>4 cores: ARMV8 (BCM2835) </td>
+    <td>3884240 kB  </td>
+    <td>Linux-6.1.0-rpi4-rpi-v8 (Debian)</td>
+    <td>LCO/PFS  </td>
+    </tr>
+<tr><td>d8:3a:dd:5b:4c:49  </td>
+    <td>aarch64  </td>
+    <td>4 cores: ARMV8 (BCM2835) </td>
+    <td>3884240 kB  </td>
+    <td>Linux-6.1.0-rpi4-rpi-v8 (Debian)</td>
+    <td>LCO/PFS  </td>
+    </tr>
+<tr><td>e4:5f:01:8a:1e:44  </td>
+    <td>aarch64  </td>
+    <td>4 cores: ARMV8 (BCM2835) </td>
+    <td>3884240 kB  </td>
+    <td>Linux-6.1.0-rpi4-rpi-v8 (Debian)</td>
+    <td>LCO/PFS  </td>
+    </tr>
+<tr><td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    <td>  </td>
+    </tr>
+<tr><td>d8:3a:dd:7c:d8:22  </td>
+    <td>aarch64  </td>
+    <td>4 cores: ARMV8 (BCM2835) </td>
+    <td>3884240 kB  </td>
+    <td>Linux-6.1.0-rpi4-rpi-v8 (Debian)</td>
+    <td>SBS/MIKE  </td>
+    </tr>
+<tr><td>e4:5f:01:7c:d8:c4  </td>
+    <td>aarch64  </td>
+    <td>4 cores: ARMV8 (BCM2835) </td>
+    <td>3884240 kB  </td>
+    <td>Linux-6.1.0-rpi4-rpi-v8 (Debian)</td>
+    <td>SBS/MIKE  </td>
+    </tr>
+</table>
+
+
+<br>ASI294: 1 W (idle), 2.5 W (fan), 9.0 W (peak/cooling=55%), 6.0/8.0 W (stable running, dT=20/25 C)
+<br>rpPi4: 2.5 W (idle) 4.8-5.6 W (under load)
+<p>
+Temperature profile with rPi-board in box with heatsinks installed (vcgencmd measure_temp):
+<table border>
+<tr><td>Exposure [s] </td>
+    <td>Frame-Rate [Hz] </td>
+    <td>CPU [%] </td>
+    <td>Temperature [C] </td>
+    </tr>
+<tr><td>idle </td>
+    <td>0 </td>
+    <td>0 </td>
+    <td>58 </td>
+    </tr>
+<tr><td>2 </td>
+    <td>0.5 </td>
+    <td>4 </td>
+    <td>59 </td>
+    </tr>
+<tr><td>0.5 </td>
+    <td>2 </td>
+    <td>9 </td>
+    <td>63 </td>
+    </tr>
+<tr><td>0.2 </td>
+    <td>5 </td>
+    <td>19 </td>
+    <td>67 </td>
+    </tr>
+<tr><td>0.1 </td>
+    <td>10 </td>
+    <td>32 </td>
+    <td>71 </td>
+    </tr>
+<tr><td>0.05 </td>
+    <td>13 (670 Mb/s)</td>
+    <td>72 </td>
+    <td>76 </td>
+    </tr>
+</table>
+
+<p></p>
+Order:
+<a href="https://vilros.com/collections/raspberry-pi-kits">Vilros</a> (sold out)
+<dd>32 GB microSD card (NOOBS-3.5 pre-installed),
+    power supply,
+    microHDMI to HDMI cable,
+    heat sinks,
+    case. </dd>
+<p></p>
+If the SD-card of the rPi does not have the OS (Noobs or PiOS) preinstalled, please go to 
+<br><a href="https://www.raspberrypi.com/software/">www.raspberrypi.com/software/</a> 
+<br>and follow the instructions to install PiOS.
+<br><b>Note</b>: The 64-bit version has been successfully tested (2023-05-15, CCB)
+using the  'RaspberryPi Imager'.
+<ul>Advanced Options (Raspberry Pi Imager v1.7.4 or 1.8.xxx)
+<li>Set hostname <b>raspberrypi</b>
+<li>Enable SSH (pasword authentication)
+<li>Set username and password (pi,xxxx4xx)
+<li>Set locale (America/Los_Angeles,US keyboard, the timezone 
+    may be adjusted later at LCO)
+</ul>
+<b>Note</b>: If the <i>RaspberryPiImager</i> complains about an expired SSL 
+certificate, then (on the rPi-software page) go to "See all download options" 
+and download the desired PiOS version to your computer. 
+<br>Then select the "Use custom .img from your computer" option in the 
+<i>RaspberryPiImager</i>.
+
+<p></p>
+<h2>Setup Steps</h2>
+<ol>
+<li><a href="#setuprPi">Setup</a> the RaspberryPi
+<li>Install the <a href="#ZWOlibs">ZWO libraries</a>
+<li>Install the <a href="#ZWOserver">ZWO server</a>
+</ol>
+
+<a name="setuprPi"></a>
+<h3>1) Setup the RaspberryPi</h3>
+Some of these steps are not necessary if PiOS has been installed using the 
+'RaspberryPi Imager'.
+<ol>
+<li>insert the microSD drive into its slot and connect a monitor, keyboard and mouse
+<li>set username (pi) and password (xxxx4xx)
+<li>find the MAC (eth0) address using the 'ifconfig' command --&gt; local DHCP server
+<li>'raspi-config' allows to configure (network, start-up, etc) after the initial setup
+    (eg. disable auto-login, enable SSH)
+<dd>or select <i>Preferences--&gt;RaspberryPiConfiguration</i> from the Raspberry
+    menu. </dd>
+<li>edit .bashrc
+<dd>alias dir='ls -lF' </dd>
+<dd>export LD_LIBRARY_PATH=/usr/local/lib </dd>
+</ol>
+
+<a name="ZWOlibs"></a>
+<h3>2) Install the ZWO libraries</h3>
+<ol>
+<li>download (to ~/Downloads) the 
+    <a href="https://astronomy-imaging-camera.com/software-drivers">ASI</a>
+    Linux &amp; Mac SDK (on the Developer tab)
+<dd><a href="./ASI_linux_mac_SDK_V1.20.2.tar.bz2">ASI_linux_mac_SDK_V1.20.2.tar.bz2</a> </dd>
+<li>install the ASI library - following the README.txt 
+    (<b>Note</b>: the camera should <b>not</b> be connected)
+<dd>tar xf ASI_linux_mac_SDK_V1.20.2.tar.bz2 </dd>
+<dd>cd ASI_linux_mac_SDK_V1.20.2/lib </dd>
+<dd>32-bit: sudo cp ./armv7/libASICamera2.so.1.20.2 /usr/local/lib </dd>
+<dd>64-bit: sudo cp ./armv8/libASICamera2.so.1.20.2 /usr/local/lib </dd>
+<dd>sudo install asi.rules /lib/udev/rules.d </dd>
+<dd>connect camera to USB-3 port </dd>
+<dd>cat /sys/module/usbcore/parameters/usbfs_memory_mb <dd>
+<dd> should return 200 </dd> </dd>
+<li>download (to ~/Downloads) the 
+    <a href="https://astronomy-imaging-camera.com/software-drivers">EFW</a>
+    Linux &amp; Mac SDK (on the Developer tab)
+<dd><a href="./EFW_linux_mac_SDK_V1.7.tar.bz2">EFW_linux_mac_SDK_V1.7.tar.bz2</a> </dd>
+<li>install the EFW library - the filter wheel is not used with the guider
+    but the 'zwoserver' needs it for CASCA
+<dd>tar xf EFW_linux_mac_SDK_V1.7.tar.bz2  </dd>
+<dd>cd EFW_linux_mac_SDK_V1.7/lib </dd>
+<dd>32-bit: sudo cp ./armv7/libEFWFilter.so.1.7 /usr/local/lib </dd>
+<dd>64-bit: sudo cp ./armv8/libEFWFilter.so.1.7 /usr/local/lib </dd>
+<dd>sudo install efw.rules /lib/udev/rules.d </dd>
+<li>setup the library links
+<dd>cd /usr/local/lib </dd>
+<dd>sudo ln -s libASICamera2.so.1.20.2 libASICamera2.so </dd>
+<dd>sudo ln -s libEFWFilter.so.1.7 libEFWFilter.so </dd>
+</ol>
+
+<a name="ZWOserver"></a>
+<h3>3) Install the ZWO server</h3>
+<ol>
+<li>mkdir $HOME/ZWO; cd $HOME/ZWO and download the
+    <a href="./zwoserver-0033.tar.gz">zwoserver.tar.gz</a> source code
+<li>build the 'zwoserver' executable (XXXX represents the build number, eg. 0033)
+<dd>tar xf zwoserverXXXX.tar.gz </dd>
+<dd>cd src-XXXX </dd>
+<dd>make zwoserver </dd>
+<a name="systemd"> </a>
+<li>setup auto-starting 'zwoserver' at boot (systemd)
+<dd>create /home/pi/<a href="./zwo.sh.txt">zwo.sh</a> 
+    (ensure 'zwoserver' is in the proper directory or create a link) </dd>
+<dd>chmod u+x zwo.sh </dd>
+<dd>sudo cp <a href="./zwo.service.txt">zwo.service</a> /etc/systemd/system </dd>
+<dd>sudo systemctl daemon-reload </dd>
+<dd>sudo systemctl start zwo </dd>
+<dd>sudo systemctl status zwo </dd>
+<dd>sudo systemctl enable zwo </dd>
+<dd>verify that 'zwoserver' runs after a reboot of the RaspberryPi </dd>
+</ol>
+
+
+<b>Notes</b>:
+<li>max. transfer rate 13 Hz (1800x1800x2 bytes/frame) ~670 Mb/s
+<li>Heat dissipation: rPi+ZWO: 14 W (Andor+NUC: 32 W)
+
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<a name="nuc"></a>
+<h2>NUC Setup</h2>
+
+Specifications:
+<br>nuc01..03: Dual Core (4 Threads) "Intel i5-7260U", 2.2 GHz, 8 GB RAM, 256 GB SSD, 13 (10) Watts 
+<br>nuc04..04: Quad Core (8 Threads) "Intel i5-8259U", 2.3 GHz, 16 GB RAM, 512 GB SSD, 10 (8) Watts
+<p>
+Steps:
+<ol>
+<li>Install <a href="#installnuc">CentOS-7</a> ("DVD")
+<br>Povilas reports that the "ZwoGuider" has been tested under
+    <i>CentOS-6.7</i>, <i>Ubuntu-20.04</i> <i>PiOS-5.15</i>
+    and <i>macOS-12.2 (M1)</i>.
+<li>Update and install <a href="#updatenuc">additional packages</a>
+<li>Install <a href="#cxt">CXT</a> (X11 Toolkit)
+<li>Install <a href="#zwoguider">ZWO-Guider</a> software
+<li>Integration into the Magellan <a href="#magenv">Environment</a>
+</ol>
+
+<a name="installnuc"></a>
+<h3>1) Install CentOS-7 (DVD-Distribution)</h3>
+<ol>
+<li>Insert the <a href="#usb">bootable USB drive</a> into the 
+    NUC, power it up and press "F10" 
+<br><a href="./nucboot.jpg"><img src="./nucboot.jpg" width=504 height=378></a>
+<li>Select <em>USB</em>
+<br><a href="./centos_inst.jpg"><img src="./centos_inst.jpg" width=504 height=378></a>
+<li>Select <em>Test this media &amp; and install CentOS 7</em>
+<br><a href="./centos_lang.jpg"><img src="./centos_lang.jpg" width=504 height=378></a>
+<li>Select <em>English (United States)</em>
+<br><a href="./centos_summ.jpg"><img src="./centos_summ.jpg" width=504 height=378></a>
+    <a href="./centos_time.jpg"><img src="./centos_time.jpg" width=504 height=378></a>
+<li>Date &amp; Time: Set the timezone "Los Angeles" or "Santiago" -- Network time "On"
+<br><a href="./centos_dest1.jpg"><img src="./centos_dest1.jpg" width=320 height=240></a>
+    <a href="./centos_dest2.jpg"><img src="./centos_dest2.jpg" width=320 height=240></a>
+<li>Installation Destination: 
+<br>Select "I would like to make additional space available" and
+<br>Select "Delete All" if over-writing an existing installation.
+<br><a href="./centos_soft.jpg"><img src="./centos_soft.jpg" width=504 height=378></a>
+<li>Software Selection: "Development Workstation" + "Development Tools" + "Platform Development"
+<br><a href="./centos_netw.jpg"><img src="./centos_netw.jpg" width=504 height=378></a>
+<li>Network: "on", set hostname "nucXX"
+<li>Click on "Begin Installation"
+<br><a href="./centos_acct.jpg"><img src="./centos_acct.jpg" width=320 height=240></a>
+    <a href="./centos_root.jpg"><img src="./centos_root.jpg" width=320 height=240></a>
+    <a href="./centos_user.jpg"><img src="./centos_user.jpg" width=320 height=240></a>
+<li>Root: password XXXX4XX
+<li>User: "andor", password: same as 'root' (+"Admin" privileges) TODO change user name 
+<li>After installation: reboot, remove USB
+</ol>
+
+First Login:
+<ol>
+<li>Accept license
+<li>Set hostname/network (if not done earlier)
+<li>Set language: English
+<li>Typing: English/US
+<p><a href="./centos_wifi.jpg"><img src="./centos_wifi.jpg" width=504 height=378></a>
+<li>Disable <em>Wi-Fi</em>
+<p><a href="./centos_priv.jpg"><img src="./centos_priv.jpg" width=504 height=378></a>
+<li>Disable <em>Location Services</em>
+<li>Skip "Accounts Setup"
+</ol>
+
+<a name="updatenuc"></a>
+<h3>2) Update and install additional packages</h3>
+
+I recommend waiting a few minutes before updating the system, because
+the "yumBackend" might be running for a while after the first startup.
+<br>
+The <em>Update</em> is necessary because the default installation does
+not install the proper kernel sources. These are required to build the
+<i>Andor</i> driver.
+<ol>
+<li>sudo yum update -y
+<li>sudo yum install epel-release -y
+<li>sudo yum groupinstall "MATE Desktop" -y
+<li>logout and login
+<p><a href="./nuclogin.jpg"><img src="./nuclogin.jpg" width=504 height=378></a>
+<li>Select the <em>MATE</em> desktop
+<li>Delete the bottom <i>Panel</i> (rightClick--delete)
+<li>Add "Window List" to the top <i>Panel</i> (rightClick--AddToPanel--WindowList)
+<li>sudo yum install xorg-x11-fonts-75dpi -y
+</ol>
+
+<p>
+<a name="cxt"></a>
+<h3>3) Install CXT (X11 Toolkit)</h3>
+<ol>
+<li>copy <a href="./cxt.tar.gz">cxt.tar.gz</a> into the directory $HOME
+<li>tar xf cxt.tar.gz
+<li>cd CXT
+<li>make
+<li>ln -s libcxt.a libcxt64.a
+</ol>
+
+<a name="zwoguider"></a>
+<h3>4) Install ZWO-Guider</h3>
+<ol>
+<li>copy <a href="./zwoguider-0314.tar.gz">zwoguider.tar.gz</a> into the directory $HOME/ZWO
+<li>tar xf zwoguider-vvvv.tar.gz
+<li>cd src-vvvv
+<li>make zwoguider
+<li>cd $HOME
+<li>ln -s ZWO/src-vvvv/zwoguider
+</ol>
+
+
+<a name="magenv"></a>
+<h3>5) Integration into the Magellan Environment</h3>
+<ol>
+<li>Update the DHCP server at LCO to provide an
+    IP number to the new NUC. 
+<br>It is necssary to provide the <b>same</b> number
+    each time the NUC boots, since some components of the
+    Magellan control system (eg. TCSIS) rely on <i>whitelists </i>
+    of IP numbers to enable access it their services.
+<li>Update the <i>whitelist</i> at the TCSIS to allow the
+    NUC to receive status information and send telescope offsets.
+</ol>
+
+<!--
+<pre>
+TODO: .ini files
+TODO: startup scripts
+</pre>
+-->
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<address>2021-11-09, 
+<a href="http://users.obs.carnegiescience.edu/birk/ChristophBirk.html">
+Christoph C. Birk</a>, Carnegie Observatories </address>
+
+<hr> <!-- ===================================================== -->
+
+</HTML>
+

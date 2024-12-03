@@ -1,0 +1,755 @@
+<HTML>
+<title>ZWO-Gcam</title>
+<center>
+<h1>ZWO-Gcam Software Documentation</h1>
+<p>
+The Observatories of the Carnegie Institution for Science
+(Carnegie Observatories), Pasadena, CA
+<p>Christoph C. Birk (birk AT carnegiescience DOT edu)
+<p>
+<a href="./gcamzwo.png"><img src="./gcamzwo.png" width=300 height=188></a>
+</center>
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+Location of this document: 
+http://instrumentation.obs.carnegiescience.edu/Software/ZWO/zwogcam.html
+<p>
+
+<!---
+This document decscribes the ZWO-Guider software from a technical point of
+view and is directed at the support staff at SBS and LCO.
+-->
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<li><a href="#news">News</a>
+<li><a href="#screen">Screen Shots</a> and Software Documentation
+
+<p> </a>
+<li>HowTo <a href="./Setup/setup.html">setup</a> the <em>RaspberryPi</em> and
+    <em>NUC</em> 
+<li><a href="http://instrumentation.obs.carnegiescience.edu/Software/ZWO/zwoserver.html">Zwo-Server</a>
+<p> </a>
+
+<p> </a>
+<hr> <!-- ===================================================== -->
+<p> </a>
+
+<a name="news"></a>
+<h2>News</h2>
+
+<img src="undercon_ani.gif">
+
+<dl><b>v0.423</b> (2024-05-10) </dt> 
+<dt><li>Introduced the new image mode "-m5" (2520x2520) for use as the
+    MagE slitviewer. </dt>
+<dd><b>Please note</b> that the parameter of the 
+       <a href="#switch_m">"-m"</a> switch has changed: </dd>
+<dd>-m2: 1000x1000 </dd>
+<dd>-m3: 1512x1512 </dd>
+<dd>-m4: 2000x2000 </dd>
+<dd>-m5: 2520x2520 </dd>
+<dd><b>This also</b> affects the <em>mode</em> keyword for the .ini files. 
+    In particular: </dd>
+<dd>pfs.ini: "mode 1" --&gt; "mode 2" (1000x1000 geometry) </dd>
+<dd>mike.ini: "mode 5" --&gt; "mode 3" (1512x1512 geometry) </dd>
+<dt>Download <a href="./Setup/zwogcam-0423.tar.gz">zwogcam-0423.tar.gz</a> </dt>
+</dl>
+
+<dl><b>v0.422</b> (2024-04-08) </dt> 
+<dt><li>Change the cursor from an arrow to a crosshair when on
+    the image. </dt>
+<dt>Download <a href="./Setup/zwogcam-0422.tar.gz">zwogcam-0422.tar.gz</a> </dt>
+</dl>
+
+<dl><b>v0.421</b> (2024-03-12) </dt> 
+<dt><li>Fixed a bug that would drive the guide star out of
+     the box in 'gm5'. </dt>
+<dt>Download <a href="./Setup/zwogcam-0421.tar.gz">zwogcam-0421.tar.gz</a> </dt>
+</dl>
+
+<dl><b>v0.420</b> (2024-03-12) </dt> 
+<dt><li>Lower the minimum 'apa' update time to 2 seconds. </dt>
+<dt>Download <a href="./Setup/zwogcam-0420.tar.gz">zwogcam-0420.tar.gz</a> </dt>
+</dl>
+
+<dl><b>v0.419</b> (2024-03-11) </dt> 
+<dt><li>Fixed a bug in the 'position angle' calculation in 'gm5'. </dt>
+<dt><li>Display the host name (zwoserver) in the title bar of the GUI.  </dt>
+<dt><li>I tested some failure modes of the ZWO system: </dt>
+<table border>
+<tr><td>Device </td>
+    <td>Event </td>
+    <td>GUI error </td>
+    <td>fix requires </td>
+    </tr>
+<tr><td>rPi </td>
+    <td>unplug ethernet cable </td>
+    <td>no response from 'host' </td>
+    <td>restart GUI </td>
+    </tr>
+<tr><td>rPi </td>
+    <td>unplug USB cable </td>
+    <td>no data </td>
+    <td>restart GUI </td>
+    </tr>
+<tr><td>ZWO </td>
+    <td>unplug power </td>
+    <td>no data </td>
+    <td>reboot rPi / restart GUI </td>
+    </tr>
+</table>
+</dl>
+
+<dl><b>v0.418</b> (2024-03-08) </dt> 
+<dt><li>Introduced guider mode 'gm5'.  </dt>
+<dd>Place <i>cursor4</i> on the object on the slit and <i>cursor5</i>
+    (box) on a star in the field of view. Pressing F3 (or F5) will start
+    guiding on the field star. The GUI will read the paralactic angle from
+    the TCSIS and rotate the position of the guide box (and magnifier) 
+    around the object on the slit accordingly. </dd>
+<dd><b>Note</b>: Cursor4 and Cursor5 cannot be moved while 'gm5' is active. </dd>
+<dt><li>Introduced the (temporary) command "parity {-1,1} ". It defaults
+   to +1 and allows to reverse the angular tracking motion of the 
+   guide box in 'gm5'. </dt>
+<dd><b>Note</b>: This is <b>not</b> the same as the "parity" parameter
+    in the .ini file and will be removed from the GUI once 'gm5' is 
+    tested and verified. </dd>
+<dt><li>Verify that the TCSIS did receive the telescope corrections 
+    from the guider. </dt>
+<dd>If there is a communication issue, the GUI prints an error message,
+    then closes the TCP/IP connection and tries to re-open it. </dd>
+<dt><li>Added the "sn" (guider sensitivity) parameter to the .ini file.  </dt>
+</dl>
+
+<dl><b>v0.415</b> (2024-02-20) </dt> 
+<dt><li>Introduced the 
+     <a href="#inifile">"-f" switch</a>
+     that loads a configuration file. Example: 
+    <a href="./pfs.ini">pfs.ini</a>,
+    <a href="./mike.ini">mike.ini</a>.
+</dt>
+<dd>I plan to remove the "PFS" mode (-mp switch) in the next version to 
+    avoid hardcoded configuration parameters for each instrument. </dd>
+<dt><li>Updated the graph labels according to the guider mode ('gm').  </dt>
+<dt><li>Determine a <i>scale-factor</i> from the <i>left/right</i>
+    flux ratio to scale the <i>left+right</i> flux estimate in 'gm4'.  </dt>
+<dt><li>Print the "mx" value in red if it is above 15000.  </dt>
+</dl>
+
+<dl><b>v0.410</b> (2024-01-30) </dt> 
+<dt><li>Updated some defaults (PFS mode: -mp):
+    px 53, bx 41, pct 60, bkg 24, span 5000, gain lo  </dt>
+</dl>
+
+<dl><b>v0.409</b> (2024-01-30) </dt> 
+<dt><li>Experimental guide mode "gm4". </dt>
+<dd>Derive 'dx' from the slope of the calculated ratio 'rx'. </dd>
+</dl>
+
+<dl><b>v0.408</b> (2024-01-29) </dt> 
+<dt><li>Experimental guide mode "gm4". </dt>
+<dd>Derive 'dx' from a 1-dim gauss fit: </dd>
+<dd>Please note that this requires an appropritate slit width estimate 
+    ('sw' command, default: 6 [pixels]).
+<dd>The GUI is sending corrections every frame if the error exceeds
+    0.05" (before multiplying by 'sens' and 'fudge'). </dd>
+<dt><li>New command 'sw' that defines the assumed slit width for the 
+    'gm4' mode.  </dt>
+<dt><li>Fixed a bug in the "bx" box update. </dt>
+</dl>
+
+<dl><b>v0.407</b> (2024-01-25) </dt> 
+<dt><li>Experimental guide mode "gm4". </dt>
+<dd>'dy' is derived from a 1-dim gauss fit, while 'dx' is calculated
+    as in "gm3".  </dd>
+</dl>
+
+<dl><b>v0.403</b> (2024-01-12) </dt> 
+<dt><li>Removed the option to run multiple guiders in one GUI. <dt>
+<dt><li>Overhauled the layout to reduce the GUI footprint on the screen.  </dt>
+<dt><li>Removed the "-s" (sendHost) switch. Always uses the TCSIS host.  </dt>
+<dt><li>Removed the "-mz" (ZWO) option, since it is the default.  </dt>
+<dt><li>New options with only 500x500 image on the GUI: </dt>
+<dd>"-m1": 1000x1000, 
+    "-m5": 1512x1512,  
+    "-m2": 2000x2000 </dd>
+<dt><li>New vertical layout ("-v" switch). </dt>
+</dl>
+
+<dl><b>v0.355</b> (2023-12-21) </dt> 
+<dt><li>Use the (dimenionless) ratios 'dx' and 'dy' as a criterion whether
+    to send a correction to the telescope and guider probes.  </dt>
+<dd>Require [abs(dx) .gt. 0.1] AND [abs(dy) .gt. 0.05]  </dd>
+<dt><li>Plot 'dx' and 'dy' on the 'tc' and 'fw' plots (temporary feature). <dt>
+<dt><li>The '-mp' (PFS) mode automatically applies the switch '-o -10,85'  </dt>
+</dl>
+
+<dl><b>v0.354</b> (2023-12-20) </dt> 
+<dt><li>Added a second (optional) parameter for the "gm" command. That parameter
+    may be 't' or 'p' and is only relevant in 'gm3' mode. </dt>
+<dt><li>In 'gm3' mode, limit sending corrections and graph updates to once every 
+    5 seconds or every 'av+1' frames, whatever is longer. </dt>
+</dl>
+
+<dl><b>v0.353</b> (2023-12-19) </dt> 
+<dt><li>Use the <i>parity</i> parameter when calculating telescope 
+    offsets (flip X: dx=-dx). </dt>
+</dl>
+
+<dl><b>v0.352</b> (2023-12-18) </dt> 
+<dt><li>Fixed a bug in the <i>east</i> calculation for the (Az,El) "L". </dt>
+<dt><li>Added the <i>partity</i> parameter for the compass "L". It
+    may be set using the '-i' switch, but is imlicitly set to '-1'
+    in the '-mp' (PFS) mode.  </dt>
+<dd>The '-mp' (PFS) mode automatically sets these switches: </dd>
+<dd>-a -128  -e -1  -r 0  -i -1  </dd>
+</dl>
+
+<dl><b>v0.350</b> (2023-12-17) </dt> 
+<dt><li>Added a new switch '-o' to adjust the center of the window on 
+    the array:  </dt>
+<dd>-o dx,dy: adds <i>dx,dy</i> pixels to the center coordinates. </dd>
+<dd>In a future version I plan to add the proper offset (TBD) when using 
+    the PFS slitview mode (-mp). </dd>
+<dt><li>Added an experimental guider mode (gm3) for use with a slitviewer.  </dt>
+<dd>It creates 4 sums: pixels above, below, left or right of the cross hair.
+    Then it sends a corrections to the TCS of 0.1" multiplied by the 'sn' 
+    (sensitivity) parameter (defaults to 0.5); ie. a 0.05" correction. </dd>
+</dl>
+
+<dl><b>v0.347</b> (2023-12-08) </dt> 
+<dt><li>The EDS-801 message is sent every 'av' frames or 1 second,
+    but never faster than 'tf'.  </dt>
+<dt><li>Send EDS-82i messages (format: 82%d; %.1f %.1f ).  </dt>
+<dd>All cursors are sent at startup; thereafter only when a cursor position changes. </dd>
+<dd>Please note the spaces before and after the cursor coordinates. </dd>
+</dl>
+
+<dl><b>v0.345</b> (2023-11-21) </dt> 
+<dt><li>PFS mode: the switch '-mp' uses a smaller FOV (1200x1200).  </dt>
+<dd>This required a change to the mask filename convention to include
+    the geometry: </dd>
+<dd>Rename the existing mask(s), eg. "zwoSERIALNUMBER.mask" to 
+    "zwoSERIALNUMBER_1800.mask". </dd>
+<dd>Then you will need to create a new 
+    <a href="#hotmask">bad pixel mask</a>
+    when in <i>PFS</i> mode that will be named "zwoSERIALNUMBER_1200.mask". </dd>
+</dl>
+
+<dl><b>v0.344</b> (2023-10-31) </dt> 
+<dt><li>Send guider corrections (and EDS 801 messages) only every 'av' frame.  </dt>
+<dt><li>Keep open EDS connection during guiding (do not close the
+     socket after each message).  </dt>
+</dl>
+
+<dl><b>v0.343</b> (2023-09-13) </dt> 
+<dt><li>Layout change: Move the "av" box next to "tf".  </dt>
+<dt><li>Re-use the exposure time countdown box to display the <i>send</i>
+        countdown.  </dt>
+<dt><li>Re-use the frameCounter box to display the last frame 
+        number sent.  </dt>
+</dl>
+
+<dl><b>v0.342</b> (2023-09-06) </dt> 
+<dt><li>Append '\n' [LF] to the EDS messages (was '\r' [CR]).   </dt>
+<dt><li>Report the error message "connection to TCS failed" when 
+    "F9/F10" fails to connect to the TCS. </dt>
+</dl>
+
+<dl><b>v0.341</b> (2023-09-01) </dt> 
+<dt><li>Reduced the wait for an EDS response from 2 seconds to 50 milli-seconds. </dt>
+<dt><li>Updated the format of the 801 EDS message (moved the guider-flag to
+        touch the FWHM).
+<dt><li>Close connection (hangup) between messages. [v0341b] </dt>
+<dt><li>Append '\r' [CR] to the messages. [v0341c]
+<dt><li>Bug-fix. [v0341d]
+</dl>
+
+<dl><b>v0.340</b> (2023-09-01) </dt> 
+<dt><li>Wait for a response from the EDS. </dt>
+</dl>
+
+<dl><b>v0.339</b> (2023-08-31) </dt> 
+<dt><li>Terminate the string sent to the EDS with a '\0' byte (was '\r'). </dt>
+</dl>
+
+<dl><b>v0.338</b> (2023-08-31) </dt> 
+<dt><li>Do not wait for a response from the EDS. </dt>
+</dl>
+
+<dl><b>v0.337</b> (2023-08-25) </dt> 
+<dt><li>Made the FWHM sanity check less restrictive. 
+    It interfered with measuring the very small pinholes. </dt>
+</dl>
+
+<dl><b>v0.336</b> (2023-08-18) </dt> 
+<dt><li>Added the '801' EDS message to the TCSIS. </dt>
+<dt><li>Most keyboard commands should work over the TCP/IP interface. </dt>
+</dl>
+
+<dl><b>v0.332</b> (2023-08-01) </dt> 
+<dt><li>Renamed various instances of 'zwoguider' to 'zwogcam' </dt>
+<dt><li>Added a basic <a href="#tcpip">TCP/IP interface</a>.  </dt>
+<dd>Currently there are only three commands, "version", "fone" and "fthr". </dd>
+</dl>
+
+<dl><b>v0.331</b> (2023-07-28) </dt> 
+<dt><li>Swapped F9/F10 functionality.    </dt>
+<dt><li>Set 'send=0' when using 'F3' for the first time in 'fm2' mode.  </dt>
+<dt><li>Renamed the binary to 'gcamzwo'.  </dt>
+</dl>
+
+<dl><b>v0.330</b> (2023-07-20) </dt> 
+<dt><li>Implemented the <a href="#fm">fm</a> command (F1,F3 overlay). </dt>
+<dt><li>F9: send 'gpsha#' to the TCSIS, where '#' is the value of '-g gnum'. </dt>
+<dt><li>F10: send 'gpfld#' to the TCSIS, where '#' is the value of '-g gnum'. </dt>
+</dl>
+
+<dl><b>v0.328</b> (2023-07-18) </dt> 
+<dt><li>Added the following FITS keywords (requested from the TCSIS) </dt>
+<pre>
+RA      = ' 12:49:52.0'                                                         
+DEC     = '-29:05:00.0'                                                         
+EQUINOX =           2023.54000                                                  
+ST      = '12:50:33'                                                            
+HA      = '00:00:42'                                                            
+ZD      =               0.1529                                                  
+AIRMASS =                1.000                                                  
+TELFOCUS=                  0.0                                                  
+ROTANGLE=                  0.0                                                  
+ROTATORE=                -90.2                                                  
+GUIDERX1=               13.000                                                  
+GUIDERY1=               14.000                                                  
+GUIDERX2=               15.000                                                  
+GUIDERY2=               16.000                                                  
+TELGUIDE= '10'                                                                  
+</pre>
+</dl>
+
+<dl><b>v0.326</b> (2023-06-27) </dt> 
+<dt><li>Improved the fitting routine for faint objects. </dt>
+<dt><li>Fixed the "gm" command (guider mode). </dt>
+<dd>The 'gm' parameter is the guider number by default. </dd>
+<dd>It is used in the "gpaer#" command in "mm2" mode. <dd>
+</dl>
+
+<dl><b>v0.323</b> (2023-04-28) </dt> 
+<dt><li>Implemented hot pixel masking (<a href="#hotmask">mask {on,off,#}</a>). </dt>
+<dt><li>Added "sm" (display smoothing) and "gain" value boxes below the "span" box.  </dt>
+<dt><li>Changed the color of the cursors from black to light grey and the 
+     thickness from 2 pixels to 1.  </dt>
+<dt><li>Automatially set the gain to "high" (300 50) at startup of the GUI.  </dt>
+</dl>
+
+<dl><b>v0.317</b> (2023-01-20) </dt> 
+<dt><li>Fixed time related FITS records when sending frames. </dt>
+<dt><li>Added keywords to FITS header  </dt>
+<dd>CAMERA = {1,2,3}  // $(-g #)   </dd>
+<dd>FRAME = 123  // sequential send frame number  </dd>
+<dd>ROTATORN = {1..5}  // rotator port number  </dd>
+</dl>
+
+<dl><b>v0.316</b> (2023-01-19) </dt> 
+<dt><li>Added keywords to FITS header  </dt>
+<dd>MASK = 1  // fixed  </dd>
+<dd>CA = "-a" + 180  // (0..360)  </dd>
+<dd>SH = 'sh #'  // value from command  </dd>
+<dd>  </dd>
+<dt><li>Send FITS files to SH-host (was 'gcam' format).  </dt>
+</dl>
+
+<dl><b>v0.315</b> (2023-01-17) </dt> 
+<dt><li>Allow 'elsign' to be zero (elsign = {+1,-1,0}).  </dt>
+<dt><li>Set the TCS port to 5810+rotatorPort (-p switch)  </dt>
+<dd>If the rotatorPort is '0' (default) the TCS port will be 5801. </dd>
+<dt><li>Changed some defaults:  </dt>
+<dd>-r: 'rosign' = -1 </dd>
+<dd>-e: 'elsign' =  0 </dd>
+<dt><li>Take care of some more compiler warnings.  </dt>
+</dl>
+
+<dl><b>v0.314</b> (2023-01-10) </dt> 
+<dt><li>Fixed some compiler warnings on Povilas' Ubuntu machine. </dt>
+<dd>Warnings (eg. -Wunused-result, sprintf_check). </dd>
+<dd>System call <i>open(,O_CREAT,)</i> requires the permissions as the 3rd parameter. </dd>
+</dl>
+
+<dl><b>v0.313</b> (2022-09-09) </dt> 
+<dt><li>Added cooler power percentage next to the temperature on the GUI. </dt>
+<dt><li>Default to 'TEC=off' at startup (no temperature control).  </dt>
+<dt><li>Default to 'mm1' at startup (mouseMode=1: move box).  </dt>
+<dt><li>Display the "GuiderCamera" number {1,2,3} ('-g' switch) on the GUI. 
+     This parameter is used for: <dt>
+<dd>Defines the IP-port number at the sendHost (5699+g) </dd>
+<dd>Defines the prefix for the FITS files, eg. gdr1_NNNN.fits ('write' command).</dd>
+<dd>Sets the default guider mode ('gm'). </dd>
+<dt><li>Implement the 'gm' command ('guider mode' {1=PR,2=SH,3=SV}).  </dt>
+<dd>In 'mm-2' (mm2) mouse mode this is the probe parameter of the 'gpaer' command. </dd>
+<dd>Eg. 'gm3' moves both probes (slitviewer mode). </dd>
+<dt><li>Added the '-s' switch to preset the SH-image <em>SendHost</em>.  </dt>
+<dt><li>Use a separate 'sendFrame' number when sending images to 
+     the <em>SendHost</em>. </dt>
+<dt><li>Added the '-p' switch to define the 'rotator port'.  <dt>
+<dd>This will define which guider-stage to send "F9/F10" commands to (TBD). </dd>
+<dd>This number has currently no other significance. </dd>
+</dl>
+
+<dl><b>v0.312</b> (2022-08-24) </dt> 
+<dt><li>Write the serial number of the ASI-294 camera to the FITS header, eg. </dt>
+<pre>INSTRUME='ZWO_ASI294MM_PRO         / 1f3a0e0301010900  </pre>
+<dt><b>Note</b>: This version requires 
+   <a href="http://instrumentation.obs.carnegiescience.edu/Software/ZWO/zwoserver.html#news">zwoserver</a> 
+   v0031 or newer. </dt>
+</dl>
+
+<dl><b>v0.311</b> (2022-08-09) </dt> 
+<dt><li>Allow multiple instances (removed the lock-file). </dt>
+<dt><li>Added command line switches to modify the 'PA' calculation (camera angle). 
+</dt>
+<dd>-a: constant angle [default=-120] </dd>
+<dd>-e: elevation sign { +1 , -1 } [default=-1] </dd>
+<dd>-r: rotator sign { +1 , -1 , 0 } [default=0] </dd>
+<dd>PA = angle + elsign*ELEVATION + rosign*ROTATORE </dd>
+</dl>
+
+<dl><b>v0.310</b> (2022-07-11) </dt> 
+<dt><li>Added the "aeg" command to the guider loop.  </dt>
+<dt><li>Horizontal/vertical layout selectable via the '-v' switch. </dt>
+<dt><li>Removed the "legacy" pixel option. </dt>
+</dl>
+
+<dl><b>v0.309</b> (2021-10-21) </dt> 
+<dt><li>Optics tests at SBS before shipping the Magellan guider prototype. </dt>
+</dl>
+
+<dl><b>v0.300</b> (2021-03-12) </dt> 
+<dt><li>Forked from the <em>andorguider</em> code. </dt>
+</dl>
+
+<!--
+<a href="./notes.html">Release Notes</a>
+-->
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<a name="screen"></a>
+<h2>Screen Shots and Software Documenation</h2>
+
+<li><a href="#startup">Startup</a>
+<li><a href="#gui">GUI Elements</a>
+<li><a href="#commands">Keyboard Commands</a>
+<li><a href="#tcpip">TCP/IP Interface</a>
+
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<a name="startup"></a>
+<h3>Starting the GUI</h3>
+
+<dl>
+<!--
+<dt>Login to the "Nuc": </dt>
+<dd>ssh -X andor@nuc03 </dd>
+-->
+<dt>Startup the ZwoGcam GUI: </dt>
+<dd>./gcamzwo -t2 -h raspberrypi</dd>
+<p>
+<a name="switch_m"></a>
+<dt>"-m" mode: <img src="new.gif"> </dt>
+<dd>-m2: 1000x1000, 2x2 binned (500x500 GUI image) </dd>
+<dd>-m3: 1512x1512, 2x2 binned (504x504 GUI image) </dd>
+<dd>-m4: 2000x2000, 2x2 binned (500x500 GUI image) </dd>
+<dd>-m5: 2520x2520, 2x2 binned (504x504 GUI image) </dd>
+<dd>-mh: high resolution: 2048x2048, 1x1 binned (512x512 GUI image) </dd>
+<dd>-mf: full field: 2400x2400, 2x2 binned (600x600 GUI image) </dd>
+<dd>default: 1800x1800, 2x2 binned (600x600 GUI image) </dd>
+<dd>
+<p>
+<a name="inifile"></a>
+<dt>"-f" file  </dt>
+<dd>load configuration from ASCII file containing one 'keyword value' pair
+    per line; e.g.  
+    <a href="./pfs.ini">pfs.ini</a>: </dd>
+<dd><i>host lab-pi-01</i>: RaspberryPi host name ("-h") </dd>
+<dd><i>port 1</i>: rotator port ("-p") </dd>
+<dd><i>mode 2</i>: image geometry mode: 1000x1000 ("-m") <img src="./new.gif">  </dd>
+<dd><i>gnum 3</i>: guider number ("-g")  </dd>
+<dd><i>gmode 4</i>: guider mode ('gm')  </dd>
+<dd><i>gmpar t</i>: guider mode parameter ('gm')  </dd>
+<dd><i>angle -128</i>: "-a"    </dd>
+<dd><i>elsign -1</i>: "-e"  </dd>
+<dd><i>rosign 0</i>: "-r"  </dd>
+<dd><i>parity -1</i>: "-i"  </dd>
+<dd><i>offx -10</i>: "-o"  </dd>
+<dd><i>offy 85</i>: "-o"  </dd>
+<dd><i>px 53</i>: pixel scale [milli-arcsec] ('px')   </dd>
+<dd><i>lmag</i>: lupe magnification ('lmag')  </dd>
+<dd><i>pct 60</i>: percent scaling ('pct)  </dd>
+<dd><i>bkg 24</i>: background scaling ('bkg')  </dd>
+<dd><i>span 5000</i>: imacs scaling ('span')   </dd>
+<dd><i>bx 41</i>: guide box size ('bx')  </dd>
+<dd><i>gain lo</i>: amplifier gain ('gain')  </dd>
+<dd><i>sw 6</i>: slit width, used for fit in 'gm4' ('sw')  </dd>
+<dd><i>sn 0.7</i>: guider control loop sensitivity ('sn')  </dd>
+</dl>
+<p>
+<dt>"-h" host: <dt>
+<dd>hostname (IP number) of the <i>zwoserver</i> computer (RaspberryPi) </dd>
+<p>
+<dt>"-t" telescope: </dt>
+<dd>-t2: Clay (host=mag2tcs, port=5801 or 5810+rotatorPort) </dd>
+<dd>-t1: Baade (host=mag1tcs, port=5801) </dd>
+<dd>-t0: no telescope [default] </dd>
+<p> </p>
+<dt>"-g" # {1,2,3}: </dt>
+<dd>guider (camera) number </dd>
+<p> </p>
+<dt>"-o" dx,dy : 
+<dd>Window offset on the CMOS array.
+<p> </p>
+<dt>"-p" # </dt>
+<dd>rotator port. If set it will be used to calculate the TCS port
+    (5810+rotatorPort).   </dd>
+<p> </p>
+<p> </p>
+<dt>"-a" angle {-360..+360} :  [default=-120]</dt>
+<dd>constant angle in the camera angle formula 'PA = angle +elsign*ELEVATION +rosign*ROTATORE' </dd>
+<p> </p>
+<dt>"-e" elsign { -1 , +1 , 0 }: [default=-1]</dt>
+<dd>elevation sign in the camera angle formula 'PA = angle +elsign*ELEVATION +rosign*ROTATORE' </dd>
+<p> </p>
+<dt>"-r" rosign { -1 , +1 , 0 }: [default=0] </dt>
+<dd>rotator   sign in the camera angle formula 'PA = angle +elsign*ELEVATION +rosign*ROTATORE' </dd>
+<p> </p>
+<dt>"-i" parity { -1 , +1 }: [default=+1] 
+<dd>Parity for the compass "L" display. </dd>
+<p> </p>
+<dt>"-v": vertical layout </dt>
+</dl>
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<a name="gui"></a>
+<h3>GUI Elements</h3>
+
+<img src="./gcamzwo.png"> 
+
+<dl>
+<dt><b></b>  </dt>
+<dt><b>tf</b>: exposure time, current time, frame number  </dt>
+<dt><b>av</b>: number of frames averaged   </dt>
+<dt><b>send</b>: seconds until next send; 
+     number of the last frame sent  </dt>
+<dt><b></b>  </dt>
+<dt><b>FpS</b>: frames per second (acquisition, display, guiding) </dt>
+<dd>The maximum display frame rate may be throttled for better
+    keyboard response time via the 'dt' command (default=5 Hz)
+<dt><b></b>  </dt>
+<dt><b>Temp</b>: CCD temperature [deg.Celsius] and cooler power [percent].  </dt>
+<dt><b></b>  </dt>
+</dl>
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<a name="commands"></a>
+<h3>Keyboard Commands</h3>
+
+<dl>
+<dt><b>F1</b> </dt>
+<dd>stop guiding/calculating </dd>
+<dt><b>F2</b> </dt>
+<dd>start calculating the guide corrections </dd>
+<dt><b>F3</b> </dt>
+<dd>start guiding (send corrections to TCS)  </dd>
+<dt><b>F4</b> </dt>
+<dd>move the guide-box to the centeroid and then start calculating  </dd>
+<dt><b>F5</b> </dt>
+<dd>move the guide-box to the centeroid and the start guiding  </dd>
+<dt><b>F9</b> </dt>
+<dd>send 'gpfld#' to the TCSIS, where '#' is the value of '-g gnum'. </dd>
+<dt><b>F10</b> </dt>
+<dd>send 'gpsha#' to the TCSIS, where '#' is the value of '-g gnum'. </dd>
+<p>
+<dt><b>tf #</b> </dt>
+<dd>set the exposure time to '#' seconds {0.01..30}   </dd>
+<dt><b>av #</b> 
+<dd>Average '#' frames (for display and guiding, 0=off) </dd>
+<dt><b>dt #</b> 
+<dd>Throttle the display update frame rate to '#' Hz (default=5)</dd>
+<p> </p>
+<dt><b>apa [#]</b> </dt>
+<dd>toggle auto-get position angle ('pa') from the TCSIS  </dd>
+<dd>'#' is the optional update period in seconds (default=30) </dd>
+<dt><b>pa</b> </dt>
+<dd>set the position angle manually  </dd>
+<dt><b>mm #</b> </dt>
+<dd>set mouse mode {1,2,-2,3}  </dd>
+<dd>left click: move 1/10 of the distance (requires "Control" key)</dd>
+<dd>left click while holding down the right mouse button: move the full distance 
+    (requires "Control" key)</dd>
+<dd>1: move guider box to the mouse position </dd>
+<dd>2: move guider probe to the mouse position (not available for SV)</dd>
+<dd>-2: move the SH- and PR-probes and the telescope to the mouse position</dd>
+<dd>3: move the telescope to the mouse position </dd>
+<p> </p>
+<dt><b>gm</b> # </dt>
+<dd>guider mode (paramter in 'gpaer' command when using mm-2 or mm2).  </dd>
+<p> </p>
+<dt><b>sh</b> # </dt> 
+<dd>Shack-Hartman (mask) mode ('flag' in the header when sending data on port 5700).  </dd>
+<p> </p>
+
+<dt><b>xys <i> c x y</i> </b> </dt>
+<dd>set cursor 'c' to coordinate 'x,y'   </dd>
+<dt><b>xyr <i>c x y</i></b> </dt>
+<dd>move cursor 'c' by 'x,y' pixels  </dd>
+<dt><b></b> </dt>
+<dd>  </dd>
+<p>
+<dt><b>send [#]</b> </dt>
+<dd>send the guider images to the 'SendHost' (Menu: GuiderX--SendHost)
+    via TCP/IP every '#' seconds; '0' means 'off'. </dd>
+<dd>Without parameter the GUI will send one file. </dd>
+<dt><b>write [#]</b> </dt>
+<dd>writes the next '#' images to disk as FITS files (default=1)  </dd>
+<p> </p>
+<dt><b>tec</b> {#,off} </dt>
+<dd>#: Turn on the temperature control at setpoint # [Celsius].   </dd>
+<dd>off: Turn off the temperature control.   </dd>
+<p> </p>
+<dt><b>gain</b> {#,# #,lo,med,hi}  </dt>
+<dd>#: set the gain {0..570} and leave the offset as is. </dd>
+<dd># #: set the gain {0..570} and offset {0..80}. </dd>
+<dd>lo: sets the gain/offset to '0 10'. </dd>
+<dd>med: sets the gain/offset to '150 21'. </dd>
+<dd>hi: sets the gain/offset to '300 50'. </dd>
+<p> </p>
+<dt><b>sm</b> #  </dt>
+<dd>Smooth the displayed image using the box-car (4,2,1, weights) algorithm,
+    running '#' iterations ('0' turns off the smoothing).  
+    Please note, this does <b>not</b> affect the guiding. </dd>
+<p> </p>
+<dt><b>sw</b> # </dt>
+<dd>Set the slit width for the "gm4" fit (default=6 [pixels]).
+   <img src="./new.gif"> </dd>
+<p> </p>
+<a name="fm"></a>
+<dt><b>fm</b> # </dt>
+<dd>Function mode: determines the action for the F1 and F3 keys </dd>
+<dt>fm1: </dt>
+<dd>F1: stop guiding </dd>
+<dd>F3: start guiding </dd>
+<dt>fm2: </dt>
+<dd>F1: save 'tf(F3)', 'av', 'send' parameters; then restore 'tf(F1)', av=0, send=0  </dd>
+<dd>F3: save 'tf(F1)'; then restore 'tf(F3)', 'av' and 'send' paramters  </dd>
+
+<p> </p>
+<a name="hotmask"></a>
+<dt><b>mask {on, off, #}</b> </dt>
+<dd>"on": turn on hot pixel masking </dd>
+<dd>"off": turn off hot pixel masking </dd>
+<dd>"#": create a mask using cutoff of #-sigma above the average </dd>
+<dt>Please use the following procedure for creating a new mask: </dt>
+<ul>
+<li>ensure that the camera is well covered (dark) and the cooler is OFF
+<li>"mask off"
+<li>"tf 5"
+<li>"av 5"
+<li>wait at least 1 minute
+<li>"mask 4"
+<li>set "av 0" and "tf" to the desired value
+<li>"mask on"
+</ul>
+<dt>The mask will be stored in the home directory as a file named 
+    "zwoSERIALNUMBER_gggg.mask" 
+    and automatically loaded at startup of the <em>zwogcam</em>
+    ('gggg' is the geometry).
+</dt>
+<p> </p>
+
+<dt><b>curcol {dark,light}</b> </dt>
+<dd>dark: black cursor color </dd>
+<dd>light: light grey cursor color [default] </dd>
+<dt><b>magpix</b> </dt>
+<dd>Toggle printing the value at the magnifier center pixel </dd>
+<dt><b>lmag</b> {1,2,4} </dt>
+<dd>Set the magnification for the magnifier (lupe) window. </dd>
+<p> </p>
+
+<dt><b>exit</b>  </dt>
+<dd>Close the GUI immediately (without a confirmation dialog box). </dd>
+<p>
+<!--
+<dt><b>reset</b>  </dt>
+<dd>  </dd>
+<dt><b>reboot</b>  </dt>
+<dd>  </dd>
+<p>
+-->
+<dt><b></b> </dt>
+<dd>  </dd>
+</dl>
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<a name="tcpip"></a>
+<h3>TCP/IP Interface</h3>
+
+The GUI is listening on port 52200+gnum.
+<br>
+Each command must be terminated
+by a [LF] (ASCII=10, 0x0a, '\n') character.
+The response string will also be terminated by a [LF].
+All communications are initiated by the client (your program).
+<br>
+An easy way to test the interface is the 'nc' (netcat) utility. It can be
+run like a terminal emulator (^D terminates the connection) or be used in scripts:
+<p>
+xterm&gt; nc localhost 52201
+<br>version<return>
+<br>0.332
+<br>^D
+<br>xterm&gt;
+
+<p>
+<b>Note</b>: Most commands should work with the TCP/IP interface. 
+
+<dl>
+<dt><b>fone</b> </dt>
+<dd>equivalent of "F1" on the keyboard. </dd>
+<dd>returns "OK". </dd>
+<dt><b>fthr</b> </dt>
+<dd>equivalent of "F3" on the keyboard. </dd>
+<dd>returns "OK". </dd>
+<dt><b>version</b> </dt>
+<dd>returns "0.322" </dd>
+</dl>
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<address>2021-11-09, 
+<a href="http://users.obs.carnegiescience.edu/birk/ChristophBirk.html">
+Christoph C. Birk</a>, Carnegie Observatories </address>
+
+<hr> <!-- ===================================================== -->
+
+</HTML>
+
