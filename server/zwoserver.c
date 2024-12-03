@@ -178,7 +178,7 @@ int main(int argc,char **argv)
   lnk_logfile(logfile,buffer);
   sprintf(buffer,"%s-v%s: UT= %s LT= %s",P_TITLE,P_VERSION,
           get_ut_timestr(buf,0),get_local_timestr(buf2,0));
-  message(NULL,buffer,MSG_FLUSH);
+  message(NULL,buffer,MSS_FLUSH);
 
   sprintf(rcfile,"%s/.zwoserver%drc",getenv("HOME"),1+zwo_id);
   printf("%s\n",rcfile);
@@ -201,10 +201,10 @@ int main(int argc,char **argv)
       (int)getpid(),
       (float)(tmsbuf.tms_stime)/(float)sysconf(_SC_CLK_TCK) +
       (float)(tmsbuf.tms_utime)/(float)sysconf(_SC_CLK_TCK));
-    message(NULL,buffer,MSG_FLUSH); 
+    message(NULL,buffer,MSS_FLUSH); 
   }
 #endif
-  message(NULL,NULL,MSG_CLOSE);        /* v0017 */
+  message(NULL,NULL,MSS_CLOSE);        /* v0017 */
  
   return 0;
 }
@@ -224,20 +224,20 @@ void message(const void* param,const char* text,int flags)
   fprintf(stderr,"%s: %s\n",tstr,text);
 #endif
 
-  if (flags & MSG_FILE) {              /* write to file */
+  if (flags & MSS_FILE) {              /* write to file */
     if (!fp) fp = fopen(logfile,"a");
     if (fp) { char lev[128];
       assert(text);
-      if      (flags & MSG_RED)    strcpy(lev,"ERROR");
-      else if (flags & MSG_YELLOW) strcpy(lev,"WARNING");
+      if      (flags & MSS_RED)    strcpy(lev,"ERROR");
+      else if (flags & MSS_YELLOW) strcpy(lev,"WARNING");
       else                         strcpy(lev,"-");
       fprintf(fp,"%s - %s: %s\n",tstr,lev,text);
-      if (flags & MSG_FLUSH) fflush(fp);
+      if (flags & MSS_FLUSH) fflush(fp);
     } else {
       fprintf(stderr,"%s:%s: opening %s failed\n",__FILE__,PREFUN,logfile);
     }
   }
-  if (flags & MSG_CLOSE) { if (fp) fclose(fp); fp=NULL; }
+  if (flags & MSS_CLOSE) { if (fp) fclose(fp); fp=NULL; }
 }
 
 /* ---------------------------------------------------------------- */
@@ -350,7 +350,7 @@ static int handle_asi(const char* command,char* answer,int buflen)
 #endif
   } else
   if (!strcmp(cmd,"ASIGetSerialNumber")) { ASI_SN sn; int i;
-    ASIGetSerialNumber(asi_id,&sn);    /* NEW v0030 */
+    ASIGetSerialNumber(asi_id,&sn);    /* v0030 */
     *answer = '\0';
     for (i=0; i<8; i++) { 
       sprintf(par4,"%02x",sn.id[i]); strcat(answer,par4);
@@ -478,7 +478,7 @@ static int handle_command(const char* command,char* answer,size_t buflen)
 #if (DEBUG > 1)
   sprintf(cmd,"%s: %s",PREFUN,command);
   fprintf(stderr,"%s\n",cmd);
-  message(NULL,cmd,MSG_FILE);
+  message(NULL,cmd,MSS_FILE);
 #endif
 
   strcpy(answer,"-Einvalid command\n");
@@ -499,7 +499,7 @@ static int handle_command(const char* command,char* answer,size_t buflen)
   if (!strcasecmp(cmd,"offtime")) {
     if (n > 1) offtime = cor_time(0) - atol(par1);
     sprintf(buf,"offtime= %d",offtime);
-    message(NULL,buf,MSG_FILE);
+    message(NULL,buf,MSS_FILE);
     sprintf(answer,"%d",offtime);
   } else
   if (!strcasecmp(cmd,"open")) { // ASI_SN sn; ASI_ID id;
@@ -735,7 +735,7 @@ static int handle_command(const char* command,char* answer,size_t buflen)
           sprintf(buf,"ASISetControlValue %d %d",ASI_TARGET_TEMP,t);
           handle_asi(buf,answer,buflen); // bug-fix v0026
         } else {
-          asi_cooler_power = 0;          /* NEW b0032 */
+          asi_cooler_power = 0;          /* NEW v0032 */
         }
       }
     } else { int v; float t,p;
@@ -777,19 +777,19 @@ static int handle_command(const char* command,char* answer,size_t buflen)
     }
   } else
   if (!strcasecmp(cmd,"quit")) {       /* terminate server */
-    message(NULL,cmd,MSG_FLUSH);
+    message(NULL,cmd,MSS_FLUSH);
     exit(0);
   } else 
   if (!strcasecmp(cmd,"reboot")) {     /* reboot TODO ? */
-    message(NULL,cmd,MSG_FLUSH);
+    message(NULL,cmd,MSS_FLUSH);
     r = 2;                             /* terminate and reboot */
   } else
   if (!strcasecmp(cmd,"restart")) {    /* restart myself */
-    message(NULL,cmd,MSG_FLUSH);
+    message(NULL,cmd,MSS_FLUSH);
     r = 3;                             /* terminate and restart */
   } else
   if (!strcasecmp(cmd,"shutdown") || !strcasecmp(cmd,"poweroff")) {
-    message(NULL,cmd,MSG_FLUSH);
+    message(NULL,cmd,MSS_FLUSH);
     r = 4;
   } else {
     strcpy(answer,"-Eunknown command");
@@ -806,7 +806,7 @@ static int handle_command(const char* command,char* answer,size_t buflen)
   }
 #if (DEBUG > 1)
   sprintf(cmd,"%s: send '%s'",PREFUN,answer);
-  message(NULL,cmd,MSG_FILE);
+  message(NULL,cmd,MSS_FILE);
 #endif
   strcat(answer,"\n");
 
@@ -853,7 +853,7 @@ static void* run_connection(void* param)
     if (rval > 0) {
 #if (DEBUG > 1)
       sprintf(buf,"%s(): received '%s'",PREFUN,cmd);
-      message(NULL,buf,MSG_FILE);
+      message(NULL,buf,MSS_FILE);
 #endif
       r =  handle_command(cmd,buf,sizeof(buf));
       send(c->msgsock,buf,strlen(buf),MSG_NOSIGNAL);
@@ -884,7 +884,7 @@ static void* run_connection(void* param)
       }
     } else {
       sprintf(buf,"%s(%s): hangup",PREFUN,c->host);
-      message(NULL,buf,MSG_FLUSH);
+      message(NULL,buf,MSS_FLUSH);
       if (zwo_state != ZWO_CLOSED) ASICloseCamera(asi_id);
       zwo_state = ZWO_CLOSED;
     }
@@ -912,7 +912,7 @@ static void* run_tcpip(void* param)
   int sock = TCPIP_CreateServerSocket(port,&err);
   if (err) {
     sprintf(buf,"%s(%d): err=%d",PREFUN,port,err);
-    message(NULL,buf,MSG_FLUSH);
+    message(NULL,buf,MSS_FLUSH);
     return (void*)(long)err;
   }
 
@@ -928,7 +928,7 @@ static void* run_tcpip(void* param)
             (u_char)sadr.sa_data[2],(u_char)sadr.sa_data[3],
             (u_char)sadr.sa_data[4],(u_char)sadr.sa_data[5]);
     sprintf(buf,"connection accepted from %s",host);
-    message(NULL,buf,MSG_FLUSH);
+    message(NULL,buf,MSS_FLUSH);
 #ifdef SO_NOSIGPIPE                    /* 2017-07-05 */
     (void)setsockopt(msgsock,SOL_SOCKET,SO_NOSIGPIPE,&on,sizeof(on));
 #endif
@@ -946,7 +946,7 @@ static void* run_tcpip(void* param)
   (void)close(sock);
 
   sprintf(buf,"%s(%d) done\n",PREFUN,port);
-  message(NULL,buf,MSG_FLUSH);
+  message(NULL,buf,MSS_FLUSH);
 
   return (void*)0;
 }
