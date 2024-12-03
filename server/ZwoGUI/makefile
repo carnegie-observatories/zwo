@@ -46,16 +46,22 @@ HEADER	= zwo.h utils.h ptlib.h tcpip.h
 
 Oserver = zwoserver.o tcpip.o utils.o random.o ptlib.o fits.o
 
+Ogui = zwogui.o zwotcp.o qltool.o tcpip.o utils.o fits.o ptlib.o random.o
+
 # targets ---------------------------------------------------------
 
-all: 	zwoserver
+all: 	zwoserver zwogui
 
 clean: 
-	rm -f zwoserver *.o
+	rm -f zwoserver zwogui *.o
 
 zwoserver: $(Oserver)
 	$(CC) -o zwoserver $(Oserver) $(LIBS) $(LIBA)
 	@echo zwoserver done
+
+zwogui: $(Ogui)
+	$(CC) -o zwogui $(Ogui) $(LIBS) $(LIBX)
+	@echo zwogui done
 
 recompile: 
 	@make clean
@@ -63,11 +69,20 @@ recompile:
 
 # dependencies ----------------------------------------------------
 
+asiusb.o:	asiusb.c asiusb.h zwo.h ptlib.h utils.h random.h ASICamera2.h
+		# $(CC) $(CFLAGS) $(OPT) -c asiusb.c
+
 efw.o:		efw.c efw.h # zwo.h ptlib.h utils.h
 		$(CC) $(CFLAGS) $(OPT) -c efw.c
 
+zwotcp.o:	zwotcp.c zwotcp.h zwo.h tcpip.h ptlib.h utils.h
+		$(CC) $(CFLAGS) $(OPT) -c zwotcp.c
+
 zwoserver.o:	zwoserver.c $(HEADER) random.h EFW_filter.h ASICamera2.h fits.h
 		$(CC) $(CFLAGS) $(OPT) -c zwoserver.c
+
+zwogui.o:	zwogui.c zwogui.h $(HEADER) zwotcp.h random.h
+		$(CC) $(CFLAGS) $(OPT) -c zwogui.c
 
 fits.o:		fits.c fits.h utils.h
 		$(CC) $(CFLAGS) $(OPT) -c fits.c

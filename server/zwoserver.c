@@ -134,8 +134,9 @@ int main(int argc,char **argv)
   fprintf(stderr,"%s-%s\n",P_TITLE,P_VERSION);
 #endif
 
-  char* version = ASIGetSDKVersion(); printf("SDKversion=%s\n",version); //xxx
-  printf("ASI_ERROR_END=%d\n",ASI_ERROR_END);
+  char* version = ASIGetSDKVersion(); 
+  printf("SDKversion=%s\n",version); //xxx
+  // printf("ASI_ERROR_END=%d\n",ASI_ERROR_END);
 
   /* here comes the code ------------------------------------------ */ 
 
@@ -322,7 +323,6 @@ static int handle_asi(const char* command,char* answer,int buflen)
     ASIGetCameraProperty(&info,asi_id);
     sprintf(answer,"%ld %ld %d %d %d %s",info.MaxWidth,info.MaxHeight,
       info.IsCoolerCam,info.IsColorCam,info.BitDepth,info.Name);  /* v0022 */
-    printf("%s\n",answer); //xxx
     zwo_width = info.MaxWidth;
     zwo_height = info.MaxHeight;
     zwo_cooler = info.IsCoolerCam;
@@ -436,10 +436,10 @@ static int handle_asi(const char* command,char* answer,int buflen)
     asi_size = atoi(par1);
     asi_data = (u_char*)realloc(asi_data,asi_size);
     int wait_ms = atoi(par2);
-     double t1 = walltime(0);
+    double t1 = walltime(0);
     int ret = ASIGetVideoData(asi_id,asi_data,asi_size,wait_ms);
-     double t2 = walltime(0);
-     printf("%.1f MB/s (%.3f)\n",((float)asi_size/1.0e6)/(t2-t1),t2-t1); //xxx
+    double t2 = walltime(0);
+    printf("%.1f MB/s (%.3f)\n",((float)asi_size/1.0e6)/(t2-t1),t2-t1); //xxx
     if (ret != ASI_SUCCESS) { asi_size = 0; err = -1; } // todo
     sprintf(answer,"%d",ret);
   } else
@@ -615,10 +615,10 @@ static int handle_command(const char* command,char* answer,size_t buflen)
       }
     }
     if (!err) { int size = zwo_w * zwo_h * zwo_bits/8;
-    printf("w=%d, h=%d, bits=%d\n",zwo_w,zwo_h,zwo_bits); //xxx
+      // printf("w=%d, h=%d, bits=%d\n",zwo_w,zwo_h,zwo_bits);
       if (zwo_state == ZWO_VIDEO) { 
         int wait = 350+(int)(1000.0*asi_expTime); 
-    printf("wait=%d, size=%u\n",wait,size); //xxx
+        printf("wait=%d, size=%u\n",wait,size); //xxx
         sprintf(buf,"ASIGetVideoData %d %d",size,wait);
       } else {
         sprintf(buf,"ASIGetDataAfterExp %d",size);
@@ -646,7 +646,8 @@ static int handle_command(const char* command,char* answer,size_t buflen)
         asi_size = zwo_w * zwo_h * zwo_bits/8;
         asi_data = (u_char*)realloc(asi_data,asi_size);
         memcpy(asi_data,data,asi_size); // don't shift here v0028 
-    sprintf(answer,"%u %.1f %.0f",video_last,asi_temperature,asi_cooler_power);
+        sprintf(answer,"%u %.1f %.0f",video_last,
+                asi_temperature,asi_cooler_power);
       } else {
         strcpy(answer,"-Enodata");
       }
@@ -717,10 +718,14 @@ static int handle_command(const char* command,char* answer,size_t buflen)
       if (!strcmp(par1,"off")) v = 0;
       sprintf(buf,"ASISetControlValue %d %d",ASI_COOLER_ON,v);
       err = handle_asi(buf,answer,buflen);
-      if (!err && v) { 
-        int t = (int)floor(0.5+atof(par1));
-        sprintf(buf,"ASISetControlValue %d %d",ASI_TARGET_TEMP,t);
-        handle_asi(buf,answer,buflen); // bug-fix v0026
+      if (!err) {
+        if (v) { 
+          int t = (int)floor(0.5+atof(par1));
+          sprintf(buf,"ASISetControlValue %d %d",ASI_TARGET_TEMP,t);
+          handle_asi(buf,answer,buflen); // bug-fix v0026
+        } else {
+          asi_cooler_power = 0;          /* NEW b0032 */
+        }
       }
     } else { int v; float t,p;
       sprintf(buf,"ASIGetControlValue %d",ASI_TEMPERATURE);
@@ -950,20 +955,21 @@ static void* run_video(void* param)
   while (zwo_state == ZWO_VIDEO) {
     if (cor_time(0) < next) {   // v0026
       msleep(5);
-    } else {
+    } else {                    // update temp/cooler
       handle_command("tempcon",buf,sizeof(buf));
-      next = cor_time(0)+30; // TODO
+      next = cor_time(0)+30; // TODO every 30 seconds
     }
     wait = 350+(int)(1000.0*asi_expTime); 
-    // printf("wait=%d, size=%u, seq=%u\n",wait,size,video_seq); //xxx
+    // printf("wait=%d, size=%u, seq=%u\n",wait,size,video_seq);
     data = (video_seq % 2) ? video_data1 : video_data2;
-    // printf("writing to buffer %d\n",(data==video_data1) ? 1 : 2); //xxx
+    // printf("writing to buffer %d\n",(data==video_data1) ? 1 : 2);
     ret = ASIGetVideoData(asi_id,data,size,wait);
     if (ret == ASI_SUCCESS) {
       video_seq++;
     }
   }
   printf("%s done\n",PREFUN); //xxx
+
   return (void*)0;
 }
 
