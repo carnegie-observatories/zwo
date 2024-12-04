@@ -180,18 +180,10 @@ int telio_init(int telescope,int port)
     strcpy(telio_host,"localhost"); 
     break;
   case TELIO_MAG1:
-#ifdef SIM_ONLY
-    strcpy(telio_host,"localhost"); 
-#else
     strcpy(telio_host,"mag1tcs.lco.cl");
-#endif
     break;
   case TELIO_MAG2:
-#ifdef SIM_ONLY
-    strcpy(telio_host,"localhost"); 
-#else
     strcpy(telio_host,"mag2tcs.lco.cl");
-#endif
     break;
   default:
     telio_online = 0; 

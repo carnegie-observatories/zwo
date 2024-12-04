@@ -19,16 +19,9 @@ BINDIR	= ../bin
 
 # LINUX 64-bit -- Debug / TESTING
 CC	= gcc -m64
-CFLAGS	= -DLINUX -Wall -I../../CXT
-#CFLAGS	= -DLINUX -DENG_MODE -Wall -I../../CXT
+CFLAGS	= -DLINUX -Wall -I../../CXT # -DENG_MODE
 LIBS	= -lm -lpthread # -latcore
 LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
-
-# LINUX 64-bit -- SIMULATOR
-#CC	= gcc -m64
-#CFLAGS	= -DLINUX -DSIM_ONLY -Wall -I../../CXT
-#LIBS	= -lm -lpthread 
-#LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
 
 # MacOS 64-bit -- engineering mode
 #CC	= /usr/bin/gcc -arch x86_64

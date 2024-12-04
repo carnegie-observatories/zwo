@@ -1204,9 +1204,6 @@ static void scale_minmax(QlTool* qlt)
   for (i=0; i<npix; i++, data++) {
     if (*data == 0) continue;
     if (*data > qlt->satlev) continue;
-#ifdef SIM_ONLY
-    if (*data == 30000) continue;      /* MIN_BLOOM/2 */
-#endif
     if ((int)*data > dmax) dmax = (int)*data;    /* new maximum */
     if ((int)*data < dmin) dmin = (int)*data;    /* new minimum */
   }

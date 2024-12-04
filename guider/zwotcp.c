@@ -533,6 +533,10 @@ static void* run_cycle(void* param)
           sprintf(buf,"sending req. to '%s' failed",self->host);
           break;
         case E_tcpip_timeout:
+          /* tested failure modes and GUI responses v0419 */
+          /* rPi: unplug ethernet: "no response from rPi" */
+          /* rPi: unplug USB: "no data" */
+          /* ZWO: unplug power: "no data" */
           sprintf(buf,"no response from '%s'",self->host);
           break;
         case E_RUNNING:  

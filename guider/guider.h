@@ -31,6 +31,7 @@ typedef struct guider_tag {
   char          lastCommand[256];
   char          command_msg[128];      /* v0333 */
   int           slitW;                 /* v0408 */
+  double        north;                 /* NEW v0419 */
   /* GUI */
   Window      win;
   QlTool      *qltool;

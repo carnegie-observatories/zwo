@@ -1183,67 +1183,6 @@ void lnk_logfile(char* path,const char* file)
 
 /* ---------------------------------------------------------------- */
 
-#if 0 // unused
-void mail_file(const char* file,const char* sub,const char* addr,int zip_uue)
-{
-#ifdef SIM_ONLY
-  fprintf(stderr,"%s: ignore %s(%s,%d)\n",__FILE__,PREFUN,file,zip_uue);
-  if (sub) fprintf(stderr,"\tsubject='%s'\n",sub);
-#else
-  char mailfile[512],subject[128],buffer[1024];
- 
-  if (sub) strcpy(subject,sub);        /* take provided subject */
-  else (void)extract_filename(subject,file);  /* use filename */
-
-  if (zip_uue) { char uudfile[256],tmpfile[256],*h; static int unique=0;
-    sprintf(tmpfile,"/tmp/imacs%d%d",getpid(),++unique);
-    sprintf(buffer,"cp %s %s",file,tmpfile);  /* create temp.file */
-#if (DEBUG > 1)
-    fprintf(stderr,"%s(): %s\n",PREFUN,buffer);
-#endif
-    (void)system(buffer);
-    sprintf(buffer,"gzip -f %s",tmpfile);     /* compress */
-#if (DEBUG > 1)
-    fprintf(stderr,"%s(): %s\n",PREFUN,buffer);
-#endif
-    (void)system(buffer);
-    sprintf(uudfile,"%s.gz",subject);         /* uuencode */
-    sprintf(mailfile,"%s.uue",tmpfile);
-    sprintf(buffer,"uuencode %s.gz %s > %s",tmpfile,uudfile,mailfile);
-#if (DEBUG > 1)
-    fprintf(stderr,"%s(): %s\n",PREFUN,buffer);
-#endif
-    (void)system(buffer);
-    sprintf(buffer,"rm -f %s.gz",tmpfile);    /* remove temp.file */
-#if (DEBUG > 1)
-    fprintf(stderr,"%s(): %s\n",PREFUN,buffer);
-#endif
-    (void)system(buffer);
-    h = strchr(subject,'.');
-    if (h) { *h = '\0'; strcat(subject,".uue"); }
-  } else {                             /* plain text e-mail */
-    strcpy(mailfile,file);
-  }
-
-  sprintf(buffer,"mail -s '%s' %s < %s",subject,addr,mailfile);
-#if (DEBUG > 1)
-  fprintf(stderr,"%s(): %s\n",PREFUN,buffer);
-#endif
-  (void)system(buffer);
-
-  if (zip_uue) {                       /* remove temp.file */
-    sprintf(buffer,"rm -f %s",mailfile);
-#if (DEBUG > 1)
-    fprintf(stderr,"%s(): %s\n",PREFUN,buffer);
-#endif
-    (void)system(buffer);
-  }
-#endif /* SIM_ONLY */
-}
-#endif
-
-/* ---------------------------------------------------------------- */
-
 double my_round(double x,int d)
 {
   int  i;

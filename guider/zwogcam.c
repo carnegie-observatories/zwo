@@ -54,7 +54,7 @@
  * v0.400  2024-01-05  single camera only, layout optimizations
  * v0.408  2024-01-29  guide mode 'gm4'
  * v0.415  2024-02-20  configuration files
- * v0.416  2024-02-27  gm5
+ * v0.418  2024-03-07  guide mode 'gm5'
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
@@ -64,7 +64,7 @@
  * ---------------------------------------------------------------- */
 
 #ifndef DEBUG
-#define DEBUG           1          /* debug level */
+#define DEBUG           1              /* debug level */
 #endif
 
 #define TIME_TEST       1
@@ -299,7 +299,7 @@ int main(int argc,char **argv)
   sGuider.pct = sGuider.bkg = sGuider.span = 0;
   strcpy(sGuider.host,"localhost");
   sGuider.rPort = 0;
-  sGuider.sens = 0.5f;                 /* v0417 */
+  sGuider.sens = 0.5f;
 #ifdef ENG_MODE
   strcpy(sGuider.gain,"");
 #else
@@ -382,10 +382,10 @@ int main(int argc,char **argv)
       case 'p':                        /* rotator port v0313 */
         sGuider.rPort = atoi(optarg);   
         break;
-      case 't':                        /* TCS */
+      case 't':                        /* TCSIS */
         tmode = atoi(optarg);
         break;
-      case 'v':
+      case 'v':                        /* vertical layout */
         vertical = 1;
         break;
       case '?':
@@ -417,7 +417,7 @@ int main(int argc,char **argv)
   case 2:                              /* Clay v0315*/
     err = telio_init(TELIO_MAG2,(sGuider.rPort) ? 5810+sGuider.rPort : 5801);
     break;
-  default:                             /* Simulator */
+  default:                             /* TCSIS Simulator */
     err = telio_init(TELIO_NONE,5801); 
     break;
   }
@@ -868,7 +868,7 @@ static void draw_compass(Guider* g,int x,int y,int r,double north,double east,
 static void redraw_compass(Guider* g)
 {
   int    x,y,r=XXh;
-  double north,east;
+  double east;
 #if (DEBUG > 1)
   fprintf(stderr,"%s(%p): pa=%.1f, para=%.1f\n",PREFUN,g,g->pa,para);
 #endif
@@ -880,13 +880,13 @@ static void redraw_compass(Guider* g)
 
   x = g->gdbox.x+g->gdbox.w/2;
   y = g->dybox.y - PXh/4;
-  north = g->parity*(-fabs(g->pa) + para);     /* N/E */
-  if (g->parity > 0) east  = north + ((g->pa > 0) ? 90.0 : -90.0);
-  else               east  = north + ((g->pa < 0) ? 90.0 : -90.0);
-  draw_compass(g,x,y,r,north,east,app->green); 
+  g->north = g->parity*(-fabs(g->pa) + para);     /* N/E */
+  if (g->parity > 0) east  = g->north + ((g->pa > 0) ? 90.0 : -90.0);
+  else               east  = g->north + ((g->pa < 0) ? 90.0 : -90.0);
+  draw_compass(g,x,y,r,g->north,east,app->green); 
 
   x = g->gmbox.x+g->gmbox.w/2;
-  north = -fabs(g->pa) * g->parity;           /* az,el */
+  double north = -fabs(g->pa) * g->parity;        /* az,el */
   if (g->parity > 0) east  = north + ((g->pa < 0) ? 90.0 : -90.0);
   else               east  = north + ((g->pa > 0) ? 90.0 : -90.0);
   // bug-fix      east  = north + ((g->pa < 0) ? 90.0 : -90.0); // v0352
@@ -955,7 +955,7 @@ static void redraw_text(void)
 static void update_ut(void)
 {
   char buf[128];
-  static time_t ut_now=0,et_next=0,pa_next=0;
+  static time_t ut_now=0,et_next=0,pa_last=0;
 #if (DEBUG > 2)
   fprintf(stderr,"%s()\n",PREFUN);
 #endif
@@ -965,22 +965,6 @@ static void update_ut(void)
 
   sprintf(utbox.text,"UT %s",get_ut_timestr(buf,ut_now));
   CBX_UpdateEditWindow(&utbox); 
-
-#ifdef SIM_ONLY
-  { Guider *g=guiders[0];              /* Simulator */
-    if ((ut_now % 2) == 0) { char title[128];
-      if ((ut_now % 4) == 0) {         /* blink title */
-        sprintf(title,"%s (v%s)",g->status.instrument,P_VERSION);
-      } else {
-        sprintf(title,"%s - Simulator",g->status.instrument);
-#if (__SIZEOF_POINTER__ == 8)          /* __x86_64__ , __LP64__ */
-        strcat(title,"/64");
-#endif
-      }
-      CBX_SetMainWindowName(&mwin,title);
-    }
-  }
-#endif
 
   if (ut_now >= et_next) { char buf[32]; /* update runtime */
     double runtime = (double)(ut_now - startup_time);
@@ -996,12 +980,12 @@ static void update_ut(void)
     CBX_UpdateEditWindow(&rtbox); 
   }
 
-  if (ut_now >= pa_next) { int i; Guider *g;
+  if (ut_now >= pa_last+pa_interval) { int i; Guider *g;
     for (i=0; i<n_guiders; i++) { 
       g = guiders[i];
       if (g->pamode) {
         thread_detach(run_tele,NULL);
-        pa_next = ut_now + pa_interval;
+        pa_last = ut_now;
         break;
       }
     }
@@ -1308,7 +1292,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
 
   if (!strcasecmp(cmd,"apa")) {        /* toggle camera position angle */
     if (*par1) {
-      g->pamode = 1; pa_interval = imax(5,atoi(par1));
+      g->pamode = 1; pa_interval = imax(5,imin(120,atoi(par1)));
     } else {
       g->pamode = (g->pamode) ? 0 : 1;
     }
@@ -1430,7 +1414,13 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     set_mm(g,atoi(par1));
   } else
   if (!strncasecmp(cmd,"parity",3)) {  /* todo remove NEW v0417 */
-    if (*par1) g->parit2 = (atof(par1) < 0) ? -1.0 : +1.0;
+    if (*par1) {
+      if (g->qltool->guiding) {
+        message(g,"cannot change 'parity' while guiding",MSS_WARN);
+      } else {
+        g->parit2 = (atof(par1) < 0) ? -1.0 : +1.0;
+      }
+    }
     sprintf(msgstr,"%+.0f",g->parit2);
   } else
   if (!strcasecmp(cmd,"pa")) {         /* position angle */
@@ -1683,7 +1673,11 @@ static void* run_setup(void* param)
   g->init_flag = -1;                   /* init running */
   message(g,PREFUN,MSS_INFO);
 
-  sprintf(buf,"%s (%d) - %s",g->server->modelName,g->gnum,P_VERSION); // v0311
+#if 1 // todo ?Povilas
+  sprintf(buf,"%s (%d) - v%s",g->host             ,g->gnum,P_VERSION); // v0419
+#else
+  sprintf(buf,"%s (%d) - v%s",g->server->modelName,g->gnum,P_VERSION); // v0311
+#endif
   CBX_SetMainWindowName(&mwin,buf);
 
   long err = zwo_setup(g->server,baseD,baseB,g->offx,g->offy);
@@ -1977,7 +1971,11 @@ static void* run_cycle(void* param)
       } else {                         /* no new frame */
         dt = (int)floor(tNow-tFrame);  /* time since last frame */
         if (dt > nodata) {
-          message(g,"no data",MSS_WARN); // todo print reason -- experiment
+          /* tested failure modes and GUI responses v0419 */
+          /* rPi: unplug ethernet: "no response from rPi" */
+          /* rPi: unplug USB: "no data" */
+          /* ZWO: unplug power: "no data" */
+          message(g,"no data",MSS_WARN);
           nodata *= 1.5;               /* slow down warnings */
         }
       }
