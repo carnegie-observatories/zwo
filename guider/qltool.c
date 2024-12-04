@@ -140,7 +140,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->guiding = 0;
   qlt->gmode = 0;
-  qlt->vrad = 15;                      /* TODO 20 ?Povilas */
+  qlt->vrad = 20;                      /* NEW v0416 */
   qlt->smoothing = 0;
 
   qlt->enoise = 1.5;
@@ -159,10 +159,20 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->cursor_mode = QLT_BOX;          /* "lupe" */
   qlt->cursor_step = 1.0f;
+#if 1 // TESTING xxx
+  for (i=0; i<QLT_NCURSORS; i++) {  
+    switch (i) {
+      case QLT_BOX-1: qlt->curx[i] = qlt->cury[i] = dim/2; break;
+      case QLT_BOX:   qlt->curx[i] = qlt->cury[i] = dim/4; break;
+      default:        qlt->curx[i] = qlt->cury[i] = 0;     break;
+    }
+  } 
+#else
   for (i=0; i<QLT_NCURSORS; i++) {  
      qlt->curx[i] = (i==QLT_BOX) ? dim/2 : 0;
      qlt->cury[i] = (i==QLT_BOX) ? dim/2 : 0; 
   } 
+#endif
   qlt->cursor_dark = 0;
 
   /* allocate colors ---------------------------------------------- */
@@ -489,7 +499,7 @@ void qltool_cursor_set(QlTool* qlt,int c,int x,int y,double r)
 
 /* ---------------------------------------------------------------- */
 
-int qltool_handle_key(QlTool* qlt,XKeyEvent* event)
+int qltool_handle_key(QlTool* qlt,XKeyEvent* event,int block)
 {
   int   dx=0,dy=0;
   int   cmode = qlt->cursor_mode;
@@ -526,6 +536,8 @@ int qltool_handle_key(QlTool* qlt,XKeyEvent* event)
 #endif
     return 0;                          /* not handled */
   }
+  if (block) return 1;
+  
   if (qlt->flip_x) dx = -dx;
   if (qlt->flip_y) dy = -dy;
 
@@ -900,6 +912,22 @@ static void fill_pixels(QlTool* qlt,int ncols,int lt)
 
 /* ---------------------------------------------------------------- */
 
+static void draw_arc(u_int *p,u_int c,int iw,int ih, //xxxyyy
+                     int xc,int yc,int r)
+{
+  int x,y;
+  double a;
+  for (a=0; a<M_PI; a+=0.01) {
+    x = xc+(int)my_round(cos(a)*r,0);
+    if ((x < 0) || (x >= iw)) continue;
+    y = yc+(int)my_round(sin(a)*r,0);
+    if ((y < 0) || (y >= ih)) continue;
+    p[x+y*iw] = c; 
+  }
+}
+
+/* --- */
+
 static void draw_rect(u_int *p,u_int c,int iw,int ih,
                       int x1,int x2,int y1,int y2)
 {
@@ -923,6 +951,8 @@ static void draw_rect(u_int *p,u_int c,int iw,int ih,
     for (y=imax(0,y1); y<=y3; y++) p[x2+y*iw] = c;
   }
 }
+
+/* --- */
 
 static void draw_cross(u_int *p,u_int c,int iw,int ih,
                        int xc,int yc,int w,int h)
@@ -1010,11 +1040,14 @@ static void do_lupe24(QlTool* qlt)
     int x2 = xc + qlt->vrad*lmag;
     int y1 = yc - qlt->vrad*lmag;
     int y2 = yc + qlt->vrad*lmag;
-    if (qlt->gmode >= GM_SV3) {        /* guide-cross */
+    switch (qlt->gmode) {              /* NEW v0416 */
+    case GM_SV3: case GM_SV4:          /* guide-cross */
       draw_cross(lupe,lgrey,qlt->lWIDE,qlt->lHIGH,xc,yc,
                  2*qlt->vrad*lmag,2*qlt->vrad*lmag);
-    } else {                           /* guide-box */
+      break;
+    default:                           /* guide-box */
       draw_rect(lupe,white,qlt->lWIDE,qlt->lHIGH,x1,x2,y1,y2);
+      break;
     }
   }
 }
@@ -1217,6 +1250,13 @@ static void create_image(QlTool* qlt,int min,int dyn,void* p0)
       draw_cross((u_int*)p0,color,qlt->iWIDE,qlt->iHIGH,xc,yc,20,20);
     }
   }
+#if 1 //xxxyyy
+  if (qlt->guiding && (qlt->gmode == GM_SV5)) {
+    xc = (int)my_round(qlt->curx[3]/qlt->MulX,0);
+    yc = (int)my_round(qlt->cury[3]/qlt->MulY,0);
+    draw_arc(p0,yellow,qlt->iWIDE,qlt->iHIGH,xc,yc,100);
+  }
+#endif
 
   if (qlt->flip_x) do_flip_x(qlt,p0);
   if (qlt->flip_y) do_flip_y(qlt,p0);  
@@ -1514,7 +1554,7 @@ double calc_quad(int vrad,int sw,double sig,double dx,double *sf) /* v0409 */
       else               xc += f;
     }
   }
-  if (sf) *sf = (xm+xp+xc)/(xm+xp);    /* scale factor NEW v0413 */
+  if (sf) *sf = (xm+xp+xc)/(xm+xp);    /* scale factor v0413 */
 
   return (xp-xm)/(xp+xm);
 }

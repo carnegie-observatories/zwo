@@ -35,15 +35,22 @@
 
 /* ---------------------------------------------------------------- */
 
+extern void redraw_gwin(Guider*);
+
 static void run_guider1(void*);
 static void run_guider3(void*);
 static void run_guider4(void*);
+
+static void tcs_error(Guider *g,int err);
+static int  tcs_recon(Guider *g);
+
+static int  tcsOpen=0;
 
 /* ---------------------------------------------------------------- */
 
 void* run_guider(void* param)
 {
-  int    err,edsOpen=0,tcsOpen=0;
+  int    err,edsOpen=0;
   char   buf[128];
   Guider *g = (Guider*)param;
 
@@ -59,31 +66,33 @@ void* run_guider(void* param)
   if (err) {
     sprintf(buf,"connection to TCSIS failed (err=%d)",err);
     message(g,buf,MSS_ERROR);
-  } else tcsOpen = 1;
+  } 
+  tcsOpen = (err) ? 0 : 1;
 
-  if (g->gmode == GM_PR) {
-    err = eds_open(2);                 /* v0336 */
-    if (err) {
-      sprintf(buf,"connection to EDS failed (err=%d)",err);
-      message(g,buf,MSS_ERROR);
-    } else edsOpen = 1;
-  }
-
-  switch (g->gmode) {
-  case GM_PR:
-    run_guider1(g);
-    break;
-  case GM_SV3:
-    run_guider3(g);
-    break;
-  case GM_SV4:
-    run_guider4(g);
-    break;
-  default: 
-    message(g,"invalid guider mode",MSS_WARN);
-    g->gid = 0;
-    break;
-  }
+  if (!err) {                          /* NEW v0417 */
+    if (g->gmode == GM_PR) {           /* gm1 TODO others? */
+      if (err) {
+        sprintf(buf,"connection to EDS failed (err=%d)",err);
+        message(g,buf,MSS_ERROR);
+      } else edsOpen = 1;
+    }
+    switch (g->gmode) {
+    case GM_PR:
+    case GM_SV5:                       /* NEW v0416 */
+      run_guider1(g);
+      break;
+    case GM_SV3:
+      run_guider3(g);
+      break;
+    case GM_SV4:
+      run_guider4(g);
+      break;
+    default: 
+      message(g,"invalid guider mode",MSS_WARN);
+      g->gid = 0;
+      break;
+    }
+  } /* endif(err) */
   g->qltool->guiding = g->update_flag = 0;
 
   if (edsOpen) eds_close();
@@ -104,6 +113,8 @@ static void run_guider1(void* param)
   double cx,cy,gx,gy,fwhm=0,back,flux,peak;
   double fit[6];
   double next_eds=0;
+  double r0=1,a0=0,p0=0;               /* gm5 stuff NEW v0416 */
+  int    gm5_locked=0;
   int    ix,iy,ppix=0,vrad=0,npix=0,doit=1;
   u_int  seqNumber=0,counter=0;
   Pixel  *pbuf=NULL;
@@ -140,14 +151,44 @@ static void run_guider1(void* param)
         npix =(1+2*vrad) * (1+2*vrad);
         pbuf = (Pixel*)realloc(pbuf,npix*sizeof(Pixel));
       }
-      double ggx = my_round(qltool->curx[QLT_BOX],1);
-      double ggy = my_round(qltool->cury[QLT_BOX],1);
-      if ((gx != ggx) || (gy != ggy)) {    /* used to drag in F5 mode */
-        gx = ggx; gy = ggy;
-        printf("telescope dragging (%f,%f) !!!!\n",gx,gy);
-        ix = (int)my_round(gx,0); iy = (int)my_round(gy,0);
-      }
       assert(npix); assert(pbuf);
+      if (g->gmode == GM_SV5) {        /* gm5 mode NEW v0416 */
+        if (qltool->guiding < 0) gm5_locked = 0;
+        printf("gm5=%d, guiding=%d\n",gm5_locked,qltool->guiding); //xxx
+        if (!gm5_locked) {             /* store distance and angle */
+          if (qltool->guiding > 0) {   /* 2nd iteration (stable) */
+            double x = qltool->curx[QLT_BOX]-qltool->curx[QLT_BOX-1];
+            double y = qltool->cury[QLT_BOX]-qltool->cury[QLT_BOX-1];
+            p0 = g->pa; 
+            r0 = sqrt(x*x+y*y);
+            a0 = atan2(y,x); while (a0 < 0) { a0 += 2.0*M_PI; } a0 *= 180.0/M_PI;
+            // todo draw arc 
+            a0 = a0 + g->parit2*g->parity*p0;
+            printf("r=%f, a=%f, p=%f\n",r0,a0,p0); //xxx
+            gm5_locked = 1;
+          }
+        } else {                       /* we have a lock in gm5 */
+          if (g->pa != p0) {           /* 'pa' changed */
+            p0 = g->pa;
+            printf("r=%f, a=%f, p=%f\n",r0,a0,p0); //xxx
+            double x = qltool->curx[QLT_BOX-1];
+            double y = qltool->cury[QLT_BOX-1];
+            double a = (a0-(g->parit2*g->parity*p0))*(M_PI/180.0);
+            qltool->curx[QLT_BOX] = gx = x + r0*cos(a);
+            qltool->cury[QLT_BOX] = gy = y + r0*sin(a);
+            qltool_redraw(g->qltool,False);
+            redraw_gwin(g);
+          }
+        }
+      } else {                         /* has box been moved ? */
+        double ggx = my_round(qltool->curx[QLT_BOX],1);
+        double ggy = my_round(qltool->cury[QLT_BOX],1);
+        if ((gx != ggx) || (gy != ggy)) {
+          gx = ggx; gy = ggy;
+          if (g->gmode != GM_SV5) printf("telescope dragging (%f,%f) !!!\n",gx,gy);
+          ix = (int)my_round(gx,0); iy = (int)my_round(gy,0);
+        }
+      } /* endif(SV5) */
       if (fwhm > 0) { int x,y,v,xx,yy,i=0; /* we have a valid estimate */
         for (xx=-vrad,ppix=0; xx<=vrad; xx++) {  /* loop over box */
           x = ix + xx;
@@ -233,8 +274,12 @@ static void run_guider1(void* param)
           next_eds = walltime(0) + 1.0; /* v0347 */
           eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
         }
-        if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-          telio_aeg(g->azg,g->elg);
+        if ((qltool->guiding == 3) || (qltool->guiding == 5)) { int err=0;
+          if (!tcsOpen) err = tcs_recon(g);
+          if (!err) {
+            err = telio_aeg(g->azg,g->elg); /* v0417 */
+            if (err) tcs_error(g,err);
+          }
         } 
       } else {
         g->azg = g->elg = 0;
@@ -292,13 +337,16 @@ static void run_guider3(void* param)          /* v0350 */
         if ((fabs(rx) > 0.1) || (fabs(ry) > 0.05)) { /* v0355 */
           g->azg = g->sens * azerr;
           g->elg = g->sens * elerr;
-          if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-            assert(g->gmode == 3);
-            if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg);  /* v0354 */
-            telio_aeg(g->azg,g->elg);
-          }
-        }
-      }
+          if ((qltool->guiding == 3) || (qltool->guiding == 5)) { int err=0;
+            if (!tcsOpen) err = tcs_recon(g);
+            if (!err) { 
+              if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg);  /* v0354 */
+              err = telio_aeg(g->azg,g->elg);
+              if (err) tcs_error(g,err);
+            }
+          } /* endif(guiding) */
+        } /* endif(fabs(rx,ry) */
+      } /* endif(counter) */
       g->update_flag = True;           /* update GUI */
       pthread_mutex_unlock(&g->mutex);
     } // endif(frame)
@@ -377,7 +425,7 @@ static void run_guider4(void* param)          /* v0404 */
       drx = calc_quad(vrad,g->slitW,fit[3],1.0,NULL); /* quadrant ratio */
       dx = rx/drx;
       (void)calc_quad(vrad,g->slitW,fit[3],dx,&scale); /* scale factor */
-      flux *= scale;                   /* NEW v0413 */
+      flux *= scale;                   /* v0413 */
 #if (DEBUG > 1)
       printf("rx=%f, drx=%f, dx=%f, sf=%f\n",rx,drx,dx,scale);
 #endif
@@ -389,6 +437,7 @@ static void run_guider4(void* param)          /* v0404 */
       if (g->q_flag < 2) {             /* ok fit */
         g->dx = dx;                    /* [pixels] from ratio v0408 */
         g->dy = cy-gy;                 /* [pixels] from fit */
+        //xxx todo timer
         g->flux = flux;
         g->ppix = ppix;
         g->back = back;
@@ -413,10 +462,14 @@ static void run_guider4(void* param)          /* v0404 */
           double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
           g->azg = fdge * g->sens * azerr;
           g->elg = fdge * g->sens * elerr;
-          if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-            if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg); 
-            telio_aeg(g->azg,g->elg);
-          }
+          if ((qltool->guiding == 3) || (qltool->guiding == 5)) { int err=0;
+            if (!tcsOpen) err = tcs_recon(g);
+            if (!err) {  
+              if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg); 
+              err = telio_aeg(g->azg,g->elg);
+              if (err) tcs_error(g,err);
+            }
+          } /* endif(guiding) */
         } /* > 0.05 */
       } /* q_flag */
       g->update_flag = True;           /* update GUI */
@@ -425,6 +478,46 @@ static void run_guider4(void* param)          /* v0404 */
   } // endwhile(loop-doing && guiding)
 }
 
+/* ---------------------------------------------------------------- */
+
+static void tcs_error(Guider *g,int err)  /* NEW v0417 */
+{
+#if (DEBUG > 0)
+  fprintf(stderr,"%s(%p,%d)\n",__func__,g,err);
+#endif
+
+  if (err) { char buf[128]; 
+    sprintf(buf,"sending correction to TCSIS failed, err=%d",err);
+    fprintf(stderr,"%s\n",buf);
+    message(g,buf,MSS_ERROR);
+    telio_close(); tcsOpen=0;
+    msleep(350); 
+  }
+}
+
+/* --- */
+
+static int tcs_recon(Guider *g)        /* NEW v0417 */
+{
+  char buf[128];
+#if (DEBUG > 0)
+  fprintf(stderr,"%s(%p)\n",__func__,g);
+#endif
+
+  int err = telio_open(2);
+  if (err) {
+    sprintf(buf,"re-connecting failed, err=%d",err);
+  } else {
+    sprintf(buf,"re-connecting successful");
+    tcsOpen = 1;
+  }
+  fprintf(stderr,"%s\n",buf);
+  message(g,buf,(err) ? MSS_ERROR : MSS_INFO);
+  if (err) msleep(3000);
+  return err;
+}
+
+/* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */

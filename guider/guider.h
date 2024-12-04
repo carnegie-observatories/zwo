@@ -59,7 +59,7 @@ typedef struct guider_tag {
   int         shmode,q_flag;
   u_int       sendNumber;
   float       px;                      /* eff. pixscale (incl. binning) */
-  double      angle,elsign,rosign,parity;
+  double      angle,elsign,rosign,parity,parit2; //xxx
   double      pa,azerp,elerp,sens,azg,elg;
   pthread_mutex_t mutex;
   volatile int update_flag;

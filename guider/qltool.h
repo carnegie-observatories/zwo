@@ -10,7 +10,7 @@
 #define QLT_NCURSORS    5
 #define QLT_BOX         (QLT_NCURSORS-1)
 
-enum guider_modes { GM_PR=1,GM_SH,GM_SV3,GM_SV4 };
+enum guider_modes { GM_PR=1,GM_SH,GM_SV3,GM_SV4,GM_SV5 };
 
 /* ---------------------------------------------------------------- */
 
@@ -53,11 +53,13 @@ typedef struct qltool_tag {
   double       fwhm,flux,enoise,egain;
   volatile int guiding;
   int          gmode;
-  // cursors
+  /* cursors */
   EditWindow     cubox[QLT_NCURSORS];
   volatile float curx[QLT_NCURSORS],cury[QLT_NCURSORS];
   int            cursor_mode,cursor_dark;  /* v0321 */
   float          cursor_step;
+  /* arc in gm5 */
+  double    arc_radius,arc_angle;
 } QlTool;
 
 QlTool* qltool_create   (MainWindow*,Window,const char*,int,int,int,
@@ -69,7 +71,7 @@ void    qltool_cursor_set(QlTool*,int,int,int,double);
 void    qltool_cursor_off(QlTool*,int,int,int,double,double*,double*);
 
 int     qltool_event     (QlTool*,XEvent*);
-int     qltool_handle_key(QlTool*,XKeyEvent*);
+int     qltool_handle_key(QlTool*,XKeyEvent*,int);
 
 void    qltool_centroid(QlTool*,double*,double*);
 

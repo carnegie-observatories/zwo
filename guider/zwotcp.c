@@ -33,6 +33,7 @@
 
 int    sim_star=1,sim_slit=4;          /* v0406 slitWidth=7 */
 int    sim_cx,sim_cy;                  /* v0408 */
+int    sim_cx2,sim_cy2;                /* NEW v0416 */
 double sim_peak=250.0;
 double sim_sig2=0.70*18.9*18.9/2.35482;
 
@@ -198,6 +199,7 @@ int zwo_setup(ZwoStruct* self,int dim,int bin,int offx,int offy)
   if (!err) err = zwo_request(self,cmd,buf,5);
   if (!err) self->aoiW = self->aoiH = dim;
   sim_cx = sim_cy = dim/2;
+  sim_cx2 = sim_cy2 = dim/4;
   sprintf(cmd,"exptime 0.5");
   if (!err) err = zwo_request(self,cmd,buf,5);
   if (!err) self->expTime = atof(buf); 
@@ -444,24 +446,34 @@ static void* run_cycle(void* param)
               if ((x==sim_cx+1) && (y==sim_cy))   udata[p] = 0x1f00; 
               if ((x==sim_cx)   && (y==sim_cy+1)) udata[p] = 0x1f00;
 #endif
-#if 0 // TESTING -- gauss
+              /* flux = 2*PI*peak*sig*sig */
+              /* flux = 1.133*peak*fw*fw */
+#if 1 // TESTING -- gauss with slit xxx
               static const int ww=30;
               if ((x>=sim_cx-ww) && (x<=sim_cx+ww)) { 
                 if (abs(x-self->aoiW/2) < sim_slit) continue; /* blank out slit */
                 if ((y>=sim_cy-ww) && (y<=sim_cy+ww)) { 
                   double r2 = ((x-sim_cx)*(x-sim_cx)+(y-sim_cy)*(y-sim_cy));
-                  /* flux = 2*PI*peak*sig*sig */
-                  /* flux = 1.133*peak*fw*fw */
                   int f = PRandom(sim_peak*exp(-r2/sim_sig2));
 #if (DEBUG > 1)
                   debug_sum += f;
 #endif
-                  if (f > 0x3b00) f = 0x3b00; // 15104 NEW v0411
+                  if (f > 0x3b00) f = 0x3b00;  /* 15104 v0411 */
                   udata[p] += (f << 2);
                 }
               }
 #endif
-              
+#if 1 // TESTING -- gauss without slit xxx
+              static const int w2=30;
+              if ((x>=sim_cx2-w2) && (x<=sim_cx2+w2)) { 
+                if ((y>=sim_cy2-w2) && (y<=sim_cy2+w2)) { 
+                  double r2 = ((x-sim_cx2)*(x-sim_cx2)+(y-sim_cy2)*(y-sim_cy2));
+                  int f = PRandom(sim_peak*exp(-r2/sim_sig2));
+                  if (f > 0x3b00) f = 0x3b00;  /* 15104 */
+                  udata[p] += (f << 2);
+                }
+              }
+#endif
             } /* endfor(x) */
           } /* endfor(y) */
           // double dt = (walltime(0)-c1)*1000.0;   /* [ms] */

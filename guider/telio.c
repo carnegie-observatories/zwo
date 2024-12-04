@@ -355,7 +355,6 @@ int telio_aeg(float az,float el)
 #if (DEBUG > 0) && !defined(ENG_MODE)
   fprintf(stderr,"%s(%.2f,%.2f)\n",PREFUN,az,el);
 #endif
-  assert(telio_count > 0);             /* connection already open */
  
   sprintf(cmd,"aeg %.2f %.2f",az,el);
   int err = tcs_command(cmd);

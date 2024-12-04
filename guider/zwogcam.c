@@ -54,6 +54,7 @@
  * v0.400  2024-01-05  single camera only, layout optimizations
  * v0.408  2024-01-29  guide mode 'gm4'
  * v0.415  2024-02-20  configuration files
+ * v0.416  2024-02-27  gm5
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
@@ -111,7 +112,7 @@
 #define DBE_PREFIX      "prefix"    
 #define DEF_PREFIX      "gdr"
 
-#define GM_MAX          4              /* v0404 */
+#define GM_MAX          GM_SV5         /* v0404 */
 
 #define DEF_HELP "http://instrumentation.obs.carnegiescience.edu/Software/ZWO"
 #if defined(MACOSX)
@@ -215,7 +216,7 @@ static int   vertical=0;
 /* function prototype(s) ------------------------------------------ */
 
 static void    redraw_text       (void);
-static void    redraw_gwin       (Guider*);
+       void    redraw_gwin       (Guider*);  // todo extern guider.h
 static void    redraw_compass    (Guider*);
 
 static void    update_ut         (void);
@@ -271,6 +272,22 @@ int main(int argc,char **argv)
 
   /* here comes the code ------------------------------------------ */ 
 
+#if 0 //xxx
+  { double x,y,r=1.0,p1,p2;
+    for (p1=0.0; p1<=2.0*M_PI; p1+=0.5) {
+      x = r*cos(p1);
+      y = r*sin(p1);
+      p2 = atan2(y,x); while (p2 < 0) p2 += 2.0*M_PI;
+      printf("p1=%f p2=%f\n",p1,p2);
+    }
+    p2 = atan2( 0, 1); while (p2 < 0) p2 += 2.0*M_PI; printf("%f\n",p2);
+    p2 = atan2( 1, 0); while (p2 < 0) p2 += 2.0*M_PI; printf("%f\n",p2);
+    p2 = atan2( 0,-1); while (p2 < 0) p2 += 2.0*M_PI; printf("%f\n",p2);
+    p2 = atan2(-1, 0); while (p2 < 0) p2 += 2.0*M_PI; printf("%f\n",p2);
+  }
+  exit(0);
+#endif
+
   startup_time = cor_time(0);
 
   strcpy(xserver,genv2("DISPLAY",""));
@@ -285,11 +302,13 @@ int main(int argc,char **argv)
   pthread_mutex_init(&mesgMutex,NULL);
 
   sGuider.gnum = 1;                    /* PR */
+  sGuider.gmode = 5;    // xxx0
   sGuider.gmpar = 't';                 /* default 'p' ?Shec */
   sGuider.angle = -120.0;
   sGuider.elsign = -1.0;
   sGuider.rosign =  0.0;
   sGuider.parity =  1.0;
+  sGuider.parit2 =  1.0;              /* xxx NEW v0417 */
   sGuider.offx = sGuider.offy = 0;
   sGuider.slitW = 6;
   sGuider.px = 0.051;                  /* 2*0.02535 - measured 20230113 */
@@ -297,6 +316,7 @@ int main(int argc,char **argv)
   sGuider.pct = sGuider.bkg = sGuider.span = 0;
   strcpy(sGuider.host,"localhost");
   sGuider.rPort = 0;
+  sGuider.sens = 0.5f;                 /* NEW v0417 */
 #ifdef ENG_MODE
   strcpy(sGuider.gain,"");
 #else
@@ -318,7 +338,7 @@ int main(int argc,char **argv)
         f = atof(optarg);
         sGuider.rosign = (f > 0) ? 1.0 : ((f < 0) ? -1.0 : 0.0);
         break;
-      case 'f':                        /* .ini file NEW v0415 */
+      case 'f':                        /* .ini file v0415 */
         (void)read_inifile(&sGuider,&m,optarg);
         switch (m) {
           case '1': baseD=1000; baseB=2; baseI=500; pHIGH=82; break;
@@ -388,6 +408,7 @@ int main(int argc,char **argv)
       }
     } /* endwhile(getopt) */
   }
+  if (!sGuider.gmode) sGuider.gmode = sGuider.gnum;
 
   if (vertical) pHIGH = imin(88,pHIGH);
   wINFO = lSIZE+4+PXw/3+39*PXw;
@@ -460,7 +481,6 @@ int main(int argc,char **argv)
     g->init_flag = g->send_flag = g->write_flag = 0;
     pthread_mutex_init(&g->mutex,NULL);
     g->fps = g->flux = g->ppix = g->back = g->fwhm = g->dx = g->dy = 0;
-    g->sens = 0.5;
     g->pa = 0.0;
     g->shmode = (g->gmode == GM_SH) ? 1 : 0;
     g->pamode = 1;                     /* v0066 */
@@ -656,7 +676,7 @@ int main(int argc,char **argv)
                               g->smbox.x,g->msbox[0].y,g->smbox.w, 
                               g->status.dimx);
     g->qltool->gmode = g->gmode;
-    if (g->lmag > 0) g->qltool->lmag = g->lmag;  /* overwrite NEW v0415 */
+    if (g->lmag > 0) g->qltool->lmag = g->lmag;  /* overwrite v0415 */
     if (g->pct  > 0) { sprintf(buf,"%d",g->pct); qltool_scale(g->qltool,"pct",buf,""); }
     if (g->bkg  > 0) { sprintf(buf,"%d",g->bkg); qltool_scale(g->qltool,"bkg",buf,""); }
     if (g->span > 0) { sprintf(buf,"%d",g->span); qltool_scale(g->qltool,"spa",buf,""); }
@@ -681,7 +701,7 @@ int main(int argc,char **argv)
     // CBX_SendExpose_Ext(mwin.disp,g->win);
     set_fm  (g,1);
     set_mm  (g,1);                     /* mouse mode v0313 */
-    set_sens(g,0.5);                   /* guider sensitivity */
+    set_sens(g,g->sens);               /* guider sensitivity */
     set_pa  (g,360.0,0);
     set_gm  (g,g->gmode,0);
     assert(g->server);
@@ -761,12 +781,21 @@ int main(int argc,char **argv)
     case KeyPress:                     /* keyboard events */
       for (i=0; i<n_guiders; i++) {
         Guider *g = guiders[i];
-        if (event.xkey.window == g->win) { 
-          if (qltool_handle_key(g->qltool,(XKeyEvent*)&event)) {
-            int c = g->qltool->cursor_mode;
-            float x = g->qltool->curx[c];
-            float y = g->qltool->cury[c];
-            eds_send82i(g->gnum,1+c,x,y); /* v0346 */
+        if (event.xkey.window == g->win) { int b=0;
+          if ((g->gmode == GM_SV5) && (g->qltool->guiding)) {
+            /* do not allow to move cursor4 and 5 (box) */
+            if (g->qltool->cursor_mode == QLT_BOX  ) b=1;
+            if (g->qltool->cursor_mode == QLT_BOX-1) b=1;
+          }
+          if (qltool_handle_key(g->qltool,(XKeyEvent*)&event,b)) {
+            if (b) {                   /* no cursor4/5 NEW v0417 */
+              printf("cursor motion blocked while guiding\n");
+            } else {
+              int c = g->qltool->cursor_mode;
+              float x = g->qltool->curx[c];
+              float y = g->qltool->cury[c];
+              eds_send82i(g->gnum,1+c,x,y); /* v0346 */
+            }
             break;
           }
           if (handle_key(g,&event)) break;
@@ -881,7 +910,7 @@ static void redraw_compass(Guider* g)
 
 /* ---------------------------------------------------------------- */
 
-static void redraw_gwin(Guider *g)
+       void redraw_gwin(Guider *g)
 {
   int     j,x,y;
   char    buf[128];
@@ -1413,11 +1442,15 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   if (!strcasecmp(cmd,"mm")) {         /* mouse mode */
     set_mm(g,atoi(par1));
   } else
+  if (!strncasecmp(cmd,"parity",3)) {  /* xxx NEW v0417 */
+    if (*par1) g->parit2 = (atof(par1) < 0) ? -1.0 : +1.0;
+    sprintf(msgstr,"%+.0f",g->parit2);
+  } else
   if (!strcasecmp(cmd,"pa")) {         /* position angle */
     set_pa(g,atof(par1),0);
   } else
   if (!strcasecmp(cmd,"px")) {         /* pixel scale */
-    if (n > 1) g->px = fmax(0.001,atof(par1)/1000.0); /* NEW v0415 */
+    if (n > 1) g->px = fmax(0.001,atof(par1)/1000.0); /* v0415 */
     int px = (int)my_round(1000.0*g->px,0);
     sprintf(g->pxbox.text,(px >= 1000) ? "px %d" : "px  %03d",px);
     CBX_UpdateEditWindow(&g->pxbox);
@@ -1468,14 +1501,14 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     }
     redraw_gwin(g);
   } else 
-  if (!strcasecmp(cmd,"xys")) {        /* set cursor */
+  if (!strcasecmp(cmd,"xys")) {        /* set cursor TODO gm5 */
     if (n > 3) {
       int j = imax(0,imin(QLT_NCURSORS-1,atoi(par1)-1));
       g->qltool->curx[j] = (float)atof(par2);
       g->qltool->cury[j] = (float)atof(par3);
       g->qltool->cursor_mode = j;      /* make active */
     } else 
-    if (n > 2) { 
+    if (n > 2) {
       g->qltool->curx[g->qltool->cursor_mode] = (float)atof(par1);
       g->qltool->cury[g->qltool->cursor_mode] = (float)atof(par2);
     } else err = E_MISSPAR;
@@ -1487,7 +1520,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       eds_send82i(g->gnum,1+g->qltool->cursor_mode,x,y); /* v0347 */
     }
   } else
-  if (!strcasecmp(cmd,"xyr")) {        /* move cursor 1-5 */
+  if (!strcasecmp(cmd,"xyr")) {        /* move cursor 1-5 TODO gm5 */
     if (n > 3) {
       int j = imax(0,imin(QLT_NCURSORS-1,atoi(par1)-1));
       g->qltool->curx[j] += (float)atof(par2);
@@ -1974,12 +2007,12 @@ static void* run_cycle(void* param)
         pthread_mutex_unlock(&g->mutex);
         update_fps(&g->fgbox,fps);
         if (fwhm > 0) {                /* we have a valid measurement */
-          if (g->gmode != GM_SV3) {    /* {1,4} */
+          if (g->gmode != GM_SV3) {    /* {1,4,5} */
             if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); // v0402
             else            sprintf(g->tcbox.text,"tc %5.0f",flux);
             CBX_UpdateEditWindow(&g->tcbox);
             sprintf(g->mxbox.text,"mx %5.0f",ppix);
-            g->mxbox.fg = (ppix > 15000) ? app->red : app->black; /* NEW v0411 */
+            g->mxbox.fg = (ppix > 15000) ? app->red : app->black; /* v0411 */
             CBX_UpdateEditWindow(&g->mxbox);
             sprintf(g->bkbox.text,"bk %5.0f",back); 
             CBX_UpdateEditWindow(&g->bkbox);
@@ -2358,13 +2391,19 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
 {
   g->gmode = imax(1,imin(GM_MAX,m));
   if (c) g->gmpar = (c == 'p') ? 'p' : 't';
-  if (g->gmode >= 3) sprintf(g->gmbox.text,"gm %1d%c",g->gmode,g->gmpar);
-  else               sprintf(g->gmbox.text,"gm %2d",g->gmode);
+  switch (g->gmode) {                  /* NEW v0416 */
+  case GM_SV3: case GM_SV4:            /* has 'gmpar' */
+    sprintf(g->gmbox.text,"gm %1d%c",g->gmode,g->gmpar);
+    break;
+  default:                             /* no 'gmpar' */
+    sprintf(g->gmbox.text,"gm %2d",g->gmode);
+    break;
+  }
   CBX_UpdateEditWindow(&g->gmbox);
   g->qltool->gmode = g->gmode;
 
-  switch (g->gmode) {                  /* NEW v0414 */
-  case GM_PR:
+  switch (g->gmode) {                  /* v0414 */
+  case GM_PR: case GM_SV5:             /* SV5 NEW v0416 */
     strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
@@ -2550,7 +2589,7 @@ static void my_shutdown(Bool force)
 
 /* ---------------------------------------------------------------- */
 
-static int read_inifile(Guider *g,int* m,const char* name) /* NEW v0415 */
+static int read_inifile(Guider *g,int* m,const char* name) /* v0415 */
 {
   int n=0;
   char file[512],buffer[1024],key[128],val[128];
@@ -2567,6 +2606,7 @@ static int read_inifile(Guider *g,int* m,const char* name) /* NEW v0415 */
       n++;
       // printf("%s: %s\n",key,val); 
       if      (!strcmp(key,"host")) strcpy(g->host,val);
+      else if (!strcmp(key,"port")) g->rPort = atoi(val); 
       else if (!strcmp(key,"gain")) strcpy(g->gain,val);
       else if (!strcmp(key,"mode")) *m = (int)val[0];
       else if (!strcmp(key,"gnum")) g->gnum = atoi(val);
@@ -2585,7 +2625,7 @@ static int read_inifile(Guider *g,int* m,const char* name) /* NEW v0415 */
       else if (!strcmp(key,"span")) g->span = atoi(val);
       else if (!strcmp(key,"bx")) g->bx = atoi(val);
       else if (!strcmp(key,"sw")) g->slitW = atoi(val); 
-      else if (!strcmp(key,"port")) g->rPort = atoi(val); 
+      else if (!strcmp(key,"sn")) g->sens = fmin(4.0,fmax(0.1,atof(val))); // NEW
       else n--;
 
     }
