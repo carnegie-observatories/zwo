@@ -25,7 +25,7 @@ typedef struct guider_tag {
   int           gnum,gmode;            /* v0313 */
   char          gmpar;                 /* v0354 */
   int           fmode;                 /* v0329 */
-  char          name[32];
+  char          name[32];  // todo unused ?
   FITSpars      status;
   volatile Bool loop_running,house_running;
   volatile Bool stop_flag;

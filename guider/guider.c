@@ -300,7 +300,7 @@ void run_guider3(void* param)          /* v0350 */
       t1 = t2;
       g->dx = dx;                      /* use as criterion if we */
       g->dy = dy;                      /* should send a correction */
-#if 1 // xxx temporary plot NEW 
+#if 1 // xxx temporary plot
       graph_add1(g->g_tc,dx,1); 
       graph_add1(g->g_fw,dy,1);
 #endif
@@ -312,7 +312,7 @@ void run_guider3(void* param)          /* v0350 */
         graph_add1(g->g_az,azerr,0);
         graph_add1(g->g_el,elerr,0);
         counter = 0; last = walltime(0);
-        if ((fabs(g->dx) > 0.1) || (fabs(g->dy) > 0.05)) { /* NEW v0355 */
+        if ((fabs(g->dx) > 0.1) || (fabs(g->dy) > 0.05)) { /* v0355 */
           g->azg = g->sens * azerr;
           g->elg = g->sens * elerr;
           qltool->guiding = abs(qltool->guiding);  

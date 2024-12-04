@@ -19,7 +19,7 @@
 /* DEFINEs -------------------------------------------------------- */
 
 #ifndef DEBUG
-#define DEBUG           0              /* debug level */
+#define DEBUG           1              /* debug level */
 #endif
 
 #define TIME_TEST       0
@@ -112,15 +112,19 @@ static void    update_cursor(QlTool*,int);
 /* --- M A I N ---------------------------------------------------- */
 
 QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
-                      int x0,int y0,int dimx,int dimy,int baseI)
+                      int x1,int y1,int w1,    /* main image geometry */
+                      int y2,int w2,           /* lupe position,size */
+                      int x3,int y3,           /* cursor block */
+                      int x4,int y4,int w4,    /* scaling block */
+                      int dim)                 /* data size */
 {
-  int     i,x,y,w;
+  int     i,y,w;
   char    buf[128];
   Display *disp;
   QlTool  *qlt;
-#if (DEBUG > 0) //xxx1
-  fprintf(stderr,"%s(%p,%s,%d,%d,%d,%d,%d)\n",PREFUN,
-          mw,fontname,x0,y0,dimx,dimy,baseI);
+#if (DEBUG > 1)
+  fprintf(stderr,"%s(%p,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d)\n",PREFUN,
+          mw,fontname,x1,y1,w1,y2,w2,x3,y3,x4,y4,w4,dim);
 #endif
 
   qlt = (QlTool*)malloc(sizeof(QlTool)); if (!qlt) return(NULL);
@@ -148,21 +152,21 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   qlt->egain = 0.5;
 
   qlt->data_min = qlt->data_max = 0; qlt->data_dyn = 1;
-  qlt->sdata = (u_short*)calloc(sizeof(u_short),dimx*dimy);
+  qlt->sdata = (u_short*)calloc(sizeof(u_short),dim*dim);
   pthread_mutex_init(&qlt->lock,NULL);
 
-  qlt->dimx = qlt->maxx = dimx;        /* image geometry */
-  qlt->dimy = qlt->maxy = dimy;
+  qlt->dimx = qlt->maxx = dim;         /* image geometry */
+  qlt->dimy = qlt->maxy = dim;
 
-  qlt->iWIDE = qlt->iHIGH = baseI;
+  qlt->iWIDE = qlt->iHIGH = w1;
 
-  qltool_reset(qlt,dimx,dimy,0);
+  qltool_reset(qlt,dim,dim,0);
 
   qlt->cursor_mode = QLT_BOX;          /* "lupe" */
   qlt->cursor_step = 1.0f;
   for (i=0; i<QLT_NCURSORS; i++) {  
-     qlt->curx[i] = (i==QLT_BOX) ? dimx/2 : 0;
-     qlt->cury[i] = (i==QLT_BOX) ? dimy/2 : 0; 
+     qlt->curx[i] = (i==QLT_BOX) ? dim/2 : 0;
+     qlt->cury[i] = (i==QLT_BOX) ? dim/2 : 0; 
   } 
   qlt->cursor_dark = 0;
 
@@ -185,8 +189,8 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->picture0 = (void*)malloc(bdepth*(qlt->iWIDE*qlt->iHIGH));
 
-  qlt->lWIDE = 8*16;                   /* NEW v0401 */
-  qlt->lHIGH = 8*16;
+  qlt->lWIDE = w2;                   /* 128 NEW v0401 v402 */
+  qlt->lHIGH = w2;
   qlt->lupe0 = (void*)malloc(bdepth*qlt->lWIDE*qlt->lHIGH);
 
   CBX_Lock(0);
@@ -232,23 +236,21 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   /* create control/magnifier-window elements --------------------- */
 
   CBX_Lock(0);
-  qlt->lwin = XCreateSimpleWindow(qlt->disp,qlt->parent,2 ,y0,
+  qlt->lwin = XCreateSimpleWindow(qlt->disp,qlt->parent,2 ,y2,
                                      qlt->lWIDE,qlt->lHIGH,
                                      1,app->black,app->lgrey);
   XMapRaised(qlt->disp,qlt->lwin);
   CBX_Unlock();
   CBX_SelectInput_Ext(qlt->disp,qlt->lwin,ExposureMask);
 
-  y = y0;
   w = (29*PXw)/2;
-  x = x0 - w - PXw/3;
   for (i=0; i<QLT_NCURSORS; i++) {
-    y += XXh+PXh/3;                    /* below "cursorStep" */
-    CBX_CreateAutoOutput_Ext(mw,&qlt->cubox[i],parent,x,y,w,XXh," 0 0 0");
+    CBX_CreateAutoOutput_Ext(mw,&qlt->cubox[i],parent,x3,y3,w,XXh," 0 0 0");
+    y3 += XXh+PXh/3;                    /* below "cursorStep" */
   }
 
-  qlt->ix = x0+2;
-  qlt->iy = 2;
+  qlt->ix = x1;
+  qlt->iy = y1;
 
   CBX_Lock(0);
   qlt->iwin = XCreateSimpleWindow(qlt->disp,qlt->parent,
@@ -259,20 +261,18 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   CBX_Unlock();
   CBX_SelectInput_Ext(qlt->disp,qlt->iwin,ExposureMask | ButtonPressMask);
 
-  w = 10*PXw;
-  x = qlt->ix - w - PXw/2;
-  y = 310+pHIGH+4;         //xxxyyy todo global offset ?
+  y = y4;
   sprintf(buf,"pct  %5d",qlt->pct);
-  CBX_CreateAutoOutput_Ext(mw,&qlt->pctbox,parent,x,y,w,XXh,buf);
+  CBX_CreateAutoOutput_Ext(mw,&qlt->pctbox,parent,x4,y,w4,XXh,buf);
   y += XXh+PXh/3;
   sprintf(buf,"bkg  %5d",qlt->bkg);
-  CBX_CreateAutoOutput_Ext(mw,&qlt->bkgbox,parent,x,y,w,XXh,buf);
+  CBX_CreateAutoOutput_Ext(mw,&qlt->bkgbox,parent,x4,y,w4,XXh,buf);
   y += XXh+PXh/3;
   sprintf(buf,"val  %5d",qlt->val);
-  CBX_CreateAutoOutput_Ext(mw,&qlt->valbox,parent,x,y,w,XXh,buf);
+  CBX_CreateAutoOutput_Ext(mw,&qlt->valbox,parent,x4,y,w4,XXh,buf);
   y += XXh+PXh/3;
   sprintf(buf,"span %5d",qlt->span);
-  CBX_CreateAutoOutput_Ext(mw,&qlt->spnbox,parent,x,y,w,XXh,buf);
+  CBX_CreateAutoOutput_Ext(mw,&qlt->spnbox,parent,x4,y,w4,XXh,buf);
 
   for (i=0; i<QLT_NCURSORS; i++) update_cursor(qlt,i);
 

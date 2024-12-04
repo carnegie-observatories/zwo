@@ -14,6 +14,9 @@
 
 #define PREFUN         __func__
 
+#undef  HAS_FRAME
+#undef  HOR_LABEL
+
 /* X-DEFINEs ------------------------------------------------------ */
 
 extern int PXh;
@@ -71,8 +74,11 @@ GraphWindow* graph_create(MainWindow* mw,Window parent,const char* fn,
   g->w = w;
   g->h = h;
   CBX_Lock(0);
+#ifdef HAS_FRAME // 1 pixel frame
   g->win = XCreateSimpleWindow(g->disp,parent,x,y,w,h,1,app->black,app->lgrey);
-  //xxxyyy g->win = XCreateSimpleWindow(g->disp,parent,x,y,w,h,0,app->black,app->grey);
+#else // 0 pixel frame NEW v0402
+  g->win = XCreateSimpleWindow(g->disp,parent,x,y,w,h,0,app->black,app->grey);
+#endif
   XMapRaised(g->disp,g->win);
   CBX_Unlock();
   CBX_SelectInput_Ext(g->disp,g->win,ExposureMask);
@@ -132,11 +138,16 @@ void graph_redraw(GraphWindow* g)
 
   pthread_mutex_lock(&g->lock);
 
-  y0 = 2+PXh/2;               y1 = g->h-PXh/2;  h = (double)(y1-y0);
-#if 0 // horizontal
-  x0 = 3+PXw*strlen(g->name); x1 = g->w-PXw/2;  w = (double)(x1-x0);
+#ifdef HAS_FRAME
+  y0 = 2+PXh/3;               y1 = g->h-PXh/3;  h = (double)(y1-y0);
+#ifdef HOR_LABEL // horizontal label
+  x0 = 3+PXw*strlen(g->name); x1 = g->w-PXw/3;  w = (double)(x1-x0);
 #else
-  x0 = 3+PXw;                 x1 = g->w-PXw/2;  w = (double)(x1-x0); // todo less margin?
+  x0 = 3+PXw;                 x1 = g->w-PXw/3;  w = (double)(x1-x0);
+#endif
+#else
+  y0 = 2;                     y1 = g->h-2    ;  h = (double)(y1-y0);
+  x0 = 3+PXw;                 x1 = g->w-2    ;  w = (double)(x1-x0);
 #endif
 
   (void)CBX_Lock(0);
@@ -149,7 +160,7 @@ void graph_redraw(GraphWindow* g)
   XDrawLine(disp,win,gc,x1,y1,x0,y1);
   XDrawLine(disp,win,gc,x0,y1,x0,y0);
 
-#if 0  // horizontal
+#ifdef HOR_LABEL  // horizontal label
   XDrawString(disp,win,gc,1,(y0+y1)/2+PXh/3,g->name,strlen(g->name));
 #else  // vertical NEW v0401
   y = (y0+y1)/2 - (PXh*strlen(g->name))/2 + 2*PXh/3;
@@ -170,7 +181,7 @@ void graph_redraw(GraphWindow* g)
     y = 3*(y0+y1)/4;
     XDrawLine(disp,win,gc,x0,y,x1,y);
   }
-  if (g->eighth) {                     /* NEW v0355 */
+  if (g->eighth) {                     /* v0355 */
     XSetLineAttributes(disp,gc,1,LineOnOffDash,CapRound,JoinRound);
     y = 3*(y0+y1)/8;
     XDrawLine(disp,win,gc,x0,y,x1,y);

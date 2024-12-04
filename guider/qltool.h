@@ -59,7 +59,8 @@ typedef struct qltool_tag {
   float          cursor_step;
 } QlTool;
 
-QlTool* qltool_create   (MainWindow*,Window,const char*,int,int,int,int,int);
+QlTool* qltool_create   (MainWindow*,Window,const char*,int,int,int,
+                         int,int,int,int,int,int,int,int);
 void    qltool_reset    (QlTool*,int,int,int);
 void    qltool_update   (QlTool*,u_short*);
 void    qltool_redraw   (QlTool*,Bool);

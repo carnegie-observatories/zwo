@@ -24,7 +24,7 @@
 
 /* ---------------------------------------------------------------- */
 
-#define DEBUG           1
+#define DEBUG           0
 #define TIME_TEST       0
 
 #ifndef PREFUN
@@ -440,18 +440,19 @@ static void* run_cycle(void* param)
 #endif
 #if 1 // TESTING -- gauss xxx
               int cx=self->aoiW/2,cy=self->aoiH/2; /* v0348 */
+              double pk=500.0*self->expTime;
               if ((x>=cx-20) && (x<=cx+20)) { 
-                // if (fabs(x-cx) > 3) { /* blank out slit */
+                 if (fabs(x-cx) > 3) { /* blank out slit */
                 if ((y>=cy-20) && (y<=cy+20)) { 
                   double r2 = ((x-cx)*(x-cx)+(y-cy)*(y-cy));
                   /* flux = 2*PI*peak*sig*sig */
                   /* flux = 1.133*peak*fw*fw */
-                  int f = PRandom(100.0*exp(-r2/(0.85*14*14/2.35482)));
+                  int f = PRandom(pk*exp(-r2/(0.85*14*14/2.35482)));
 #if (DEBUG > 1)
                   debug_sum += f;
 #endif
                   udata[p] += (f << 2);
-                // }
+                 }
                 }
               }
 #endif
