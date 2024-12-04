@@ -1506,17 +1506,35 @@ double get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
 
 double calc_quad(int vrad,int sw,double sig,int dx) /* NEW v0409 */
 {
-  int xx,yy;
-  double xp=0,xm=0,sig2=2.0*sig*sig; 
+  int xx,yy,y2;
+  double xp=0,xm=0,sig2=2.0*sig*sig,f; 
 
   for (yy=-vrad; yy<=vrad; yy++) { 
+    y2 = yy*yy;
     for (xx=-vrad; xx<=-sw; xx++) {
-      xm += exp(-((xx-dx)*(xx-dx))/sig2);
+      xm += exp(-((xx-dx)*(xx-dx)+y2)/sig2);
     }
     for (xx=sw; xx<=vrad; xx++) { 
-      xp += exp(-((xx-dx)*(xx-dx))/sig2); 
+      xp += exp(-((xx-dx)*(xx-dx)+y2)/sig2); 
     }
   }
+  double xb=0,xn=0,xc=0;  //xxxyyy todo
+  //dx = 0; //xxx we need dx=1
+  for (yy=-vrad; yy<=vrad; yy++) { 
+    y2 = yy*yy;
+    for (xx=-vrad; xx<=vrad; xx++) {
+      f = exp(-((xx-dx)*(xx-dx)+y2)/sig2);
+      if      (xx <= -sw) xn += f;
+      else if (xx >=  sw) xb += f;
+      else                xc += f;
+    }
+  }
+  assert(fabs(xb-xp) < 1.0e-6); 
+  assert(fabs(xm-xn) < 1.0e-6); 
+  double s1 = (xn+xb+xc)/(xn+xb);  //xxx dependence on 'dx' 
+  double s2 = (2.0*M_PI*1.0*sig*sig)/(xm+xp);
+  printf("scale= %f %f\n",s1,s2); //xxx
+
   return (xp-xm)/(xp+xm);
 }
 

@@ -18,8 +18,14 @@ BINDIR	= ../bin
 #LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
 
 # LINUX 64-bit -- Debug
+#CC	= gcc -m64
+#CFLAGS	= -DLINUX -Wall -I../../CXT
+#LIBS	= -lm -lpthread # -latcore
+#LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
+
+# LINUX 64-bit -- TESTING
 CC	= gcc -m64
-CFLAGS	= -DLINUX -Wall -I../../CXT
+CFLAGS	= -DLINUX -DENG_MODE -Wall -I../../CXT
 LIBS	= -lm -lpthread # -latcore
 LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
 

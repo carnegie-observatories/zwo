@@ -333,8 +333,8 @@ int main(int argc,char **argv)
           sGuider.parity = -1.0;       /* v0351 */
           sGuider.offx=-10; sGuider.offy=85; /* v0355 */
           sGuider.gnum = 3;   
-          sGuider.gmode = 4;  sGuider.gmpar = 't';  /* todo ?Shec */
-          pscale = 0.0265;             /* Shec NEW v0410 todo for all instruments? */
+          sGuider.gmode = 4;  sGuider.gmpar = 't'; 
+          pscale = 0.0265;             /* ?Shec NEW v0410 todo all instruments? */
         } else 
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
@@ -483,7 +483,7 @@ int main(int argc,char **argv)
     st->ca = modulo(g->angle+180.0,0,360);  /* v0316 */
     st->camera = g->gnum;                /* v0317 */
     st->rotn = rotatorPort;              /* v0317 */
-    st->psize = 4.63f;                   /* v0327 */
+    st->psize = 4.63f;                   /* [um] v0327 */
     strcpy(st->st_str,""); strcpy(st->ha_str,""); strcpy(st->tg_str,""); 
   }
 
@@ -577,23 +577,11 @@ int main(int argc,char **argv)
     w = (wINFO-x-1*PXw)/2;
     h = pHIGH;
     d = w/2;
-    if (g->gmode >= GMODE_SV) {
-      g->g_tc = graph_create(&mwin,g->win,fontname,"dx",x,y,w,h,1,d);
-      g->g_tc->eighth = 1;
-      graph_scale(g->g_tc,-0.4,0.4,0);  
-    } else {
-      g->g_tc = graph_create(&mwin,g->win,fontname,"tc",x,y,w,h,1,d);
-      graph_scale(g->g_tc,0,10000,0);
-    }
+    g->g_tc = graph_create(&mwin,g->win,fontname,"tc",x,y,w,h,1,d);
+    graph_scale(g->g_tc,0,10000,0);
     x = wINFO -w - PXw/3;
-    if (g->gmode >= GMODE_SV) {
-      g->g_fw = graph_create(&mwin,g->win,fontname,"dy",x,y,w,h,1,d);
-      g->g_fw->eighth = 1;
-      graph_scale(g->g_fw,-0.2,0.2,0); 
-    } else {
-      g->g_fw = graph_create(&mwin,g->win,fontname,"fw",x,y,w,h,1,d);
-      graph_scale(g->g_fw,0.0,2.0,0);
-    }
+    g->g_fw = graph_create(&mwin,g->win,fontname,"fw",x,y,w,h,1,d);
+    graph_scale(g->g_fw,0.0,2.0,0);
     y += h + 3;
     x = 1;
     g->g_az = graph_create(&mwin,g->win,fontname,"AZ",x,y,w,h,1,d);
@@ -657,12 +645,14 @@ int main(int argc,char **argv)
                               g->smbox.x,g->msbox[0].y,g->smbox.w, 
                               g->status.dimx);
     g->qltool->gmode = g->gmode;
-    if (g->gmode >= GMODE_SV) { // todo gnum==3 ? 
+#ifndef ENG_MODE
+    if (g->gmode >= GMODE_SV) {
       g->qltool->lmag = 2;  /* v0354,v0409 */
-      qltool_scale(g->qltool,"pct","60","");   /* NEW v0410 todo just PFS ? */
+      qltool_scale(g->qltool,"pct","60","");   /* NEW v0410 todo just PFS ?Shec */
       qltool_scale(g->qltool,"bkg","24","");
       qltool_scale(g->qltool,"spa","5000","");
     }
+#endif
     sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad); // todo bx=31 for PR?Povilas
   } /* endfor(n_guiders) */
   done = False;

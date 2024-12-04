@@ -187,7 +187,7 @@ int fit_profile4(Pixel* x,int n,double* a,int itmax)
 
   for (i=0; i<ndeg; i++) dcold[i] = 0.0;
   chi = chiold = get_chi1(x,n,a);
-#if (DEBUG > 0) //xxx1
+#if (DEBUG > 1)
   show_a(a,ndeg); printf(" chi=%.1e\n",chi); 
 #endif
 
@@ -227,7 +227,7 @@ int fit_profile4(Pixel* x,int n,double* a,int itmax)
     chiold = chi;
     if (conv == ndeg) break;
   }
-#if (DEBUG > 0) //xxx1
+#if (DEBUG > 1)
   show_a(a,ndeg); printf(" old=%.1e it=%d conv=%d (%d)\n",chi,it,conv,itmax);
 #endif
 #if (TIME_TEST > 0)

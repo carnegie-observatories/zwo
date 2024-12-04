@@ -41,6 +41,9 @@ static void run_guider4(void*);
 
 /* ---------------------------------------------------------------- */
 
+
+/* ---------------------------------------------------------------- */
+
 void* run_guider(void* param)
 {
   int    err,edsOpen=0,tcsOpen=0;
@@ -58,18 +61,27 @@ void* run_guider(void* param)
   switch (g->gmode) {                  /* plot title/scaling v0404 */
   case GMODE_PR: default:
     g->g_tc->eighth = g->g_fw->eighth = 0;
-    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_tc,0,10000,0); 
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0); 
+    g->g_az->quarter = g->g_el->quarter = 0;
+    strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0); 
+    strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0); 
     break;
-  case GMODE_SV:    // todo temporary ? remove ? which plots ?Shec
+  case GMODE_SV:  // todo ratio
     g->g_tc->eighth = g->g_fw->eighth = 1;
-    strcpy(g->g_tc->name,"dx"); graph_scale(g->g_tc,-0.4,0.4,0); 
-    strcpy(g->g_fw->name,"dy"); graph_scale(g->g_fw,-0.2,0.2,0); 
+    strcpy(g->g_tc->name,"rx"); graph_scale(g->g_tc,-0.5,0.5,0); 
+    strcpy(g->g_fw->name,"ry"); graph_scale(g->g_fw,-0.5,0.5,0); 
+    g->g_az->quarter = g->g_el->quarter = 0;
+    strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0); 
+    strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0); 
     break;
-  case GMODE_SV4:   // todo temporary ? remove ?
-    g->g_tc->eighth = g->g_fw->eighth = 1;
-    strcpy(g->g_tc->name,"dx"); graph_scale(g->g_tc,-4.0,4.0,0); 
-    strcpy(g->g_fw->name,"dy"); graph_scale(g->g_fw,-4.0,4.0,0); 
+  case GMODE_SV4: // todo  [arcsec] before rotation and derivative
+    g->g_tc->eighth = g->g_fw->eighth = 0;
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0); 
+    g->g_az->quarter = g->g_el->quarter = 1; // todo ?Shec
+    strcpy(g->g_az->name,"X");  graph_scale(g->g_az,-1.0,1.0,0); 
+    strcpy(g->g_el->name,"Y");  graph_scale(g->g_el,-1.0,1.0,0); 
     break;
   }
 
@@ -374,7 +386,8 @@ static void run_guider4(void* param)          /* v0404 */
         n++;
       } 
       assert(n <= npix);
-      back = get_quads(frame->data,frame->w,frame->h,ix,iy,vrad,&rx,&ry); 
+      //xxxyyy need measured L R
+      back = get_quads(frame->data,frame->w,frame->h,ix,iy,vrad,&rx,&ry);
 #if (DEBUG > 1)
       printf("\nb=%.0f rx=%.3f p=%.0f,%.0f,%.0f\n",back,rx,pk1,pk2,pk3);
 #endif
@@ -387,9 +400,9 @@ static void run_guider4(void* param)          /* v0404 */
       g->q_flag = fit_profile4(pbuf,n,fit,3000);
       back = fit[0]/(2*vrad+1);
       cy   = fit[1];
-      flux = sqrt(2.0*M_PI)*fit[2]*fit[3];
+      flux = sqrt(2.0*M_PI)*fit[2]*fit[3]; // todo
       fwhm = SQRLN22*fit[3]*g->px;   /* FWHM [arcsec] */
-      if ((flux < n) || (fwhm < 0.1)) g->q_flag = 2; 
+      if ((flux < n) || (fwhm < 0.1)) g->q_flag = 2; /* safety net */
 #if (DEBUG > 1)
       printf("back=%.0f, dy=%.1f, peak=%.1f, fwhm=%.3f, flux=%.0f\n",
              back,cy,fit[2],fwhm,flux);
@@ -407,14 +420,15 @@ static void run_guider4(void* param)          /* v0404 */
       if (g->q_flag < 2) {             /* ok fit */
         g->dx = dx;                      /* [pixels] from ratio NEW v0408 */
         g->dy = cy-gy;                   /* [pixels] from fit */
-        g->flux = flux;
+        g->flux = flux; // todo scale xxx
         g->ppix = ppix;
         g->back = back;
         g->fwhm = fwhm;
-#if 1 // xxx temporary plot todo ? show flux & fwhm ?Shec
-        graph_add1(g->g_tc,g->dx,1); 
-        graph_add1(g->g_fw,g->dy,1);
-#endif
+        if (qltool->guiding < 0) graph_scale(g->g_tc,0,1.333*flux,0);
+        graph_add1(g->g_tc,flux,0); 
+        graph_add1(g->g_fw,fwhm,0);
+        graph_add1(g->g_az,g->dx*g->px,0); /* [arcsec] */
+        graph_add1(g->g_el,g->dy*g->px,0);
         ddy = (qltool->guiding < 0) ? 0.0 : g->dy-ody; /* derivative */
         ody = g->dy;                     /* old 'dy' [pixels] */
         dy = g->dy + (server->rolling+1.0)*ddy; /* [pixels] */
@@ -426,8 +440,6 @@ static void run_guider4(void* param)          /* v0404 */
           // printf("dx=%.2f dy=%.2f\n",dx,dy); 
           rotate(dx*g->px,dy*g->px,g->pa,g->parity,&azerr,&elerr);
           // printf("az=%.2f el=%.2f\n",azerr,elerr); 
-          graph_add1(g->g_az,azerr,0);
-          graph_add1(g->g_el,elerr,0);
  //xxxyyy todo  eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
           double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
           g->azg = fdge * g->sens * azerr;
