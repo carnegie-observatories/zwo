@@ -427,7 +427,7 @@ int main(int argc,char **argv)
     g->server = zwo_create(g->host,SERVER_PORT);
     g->gid = 0;                        /* guiding thread ID */
     g->qltool = NULL;
-    g->loop_running = g->house_running = False; 
+    g->loop_running = g->house_running = g->tcpip_running = False;
     g->stop_flag = False;
     g->init_flag = g->send_flag = g->write_flag = 0;
     pthread_mutex_init(&g->mutex,NULL);
@@ -1277,7 +1277,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad); // bug-fix v0408
     CBX_UpdateEditWindow(&g->bxbox);
   } else
-  if (!strcasecmp(cmd,"close")) {      /* TESTING -- recover using "reset" */
+  if (!strcasecmp(cmd,"close")) {      /* to recover use "reset" */
     if (g->loop_running) do_stop(g,5000);
     zwo_close(g->server);
     g->init_flag = 0;
@@ -1517,6 +1517,32 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     if (*par1) g->slitW = imax(1,atoi(par1));
 #endif
     else       sprintf(msgstr,"%d",g->slitW);
+  } else
+  if (!strncasecmp(cmd,"offgo",5)) {   /* Shec special command NEW v0424 */
+#if 1  // todo 
+    message(g,"not yet implemented",MSS_INFO);
+#else
+    printf("n=%d\n",n);  //xxxyyy
+    if (n < 3) { 
+      err = E_MISSPAR;
+    } else {
+      float dx = atof(par1);
+      float dy = atof(par2);
+      handle_command(g,"fone",1);  /* todo show command ? */
+      // todo coordinated offset
+      // todo turn off/on SH guiding? -- needs to go through TCSIS
+      // todo telio_open / send commands directly ?
+      // err = telio_open(2);
+      // telio_move(dx,dy);
+      // telio_guider_probe(-dx,-dy,0,1); // todo PR ? "gprdr2 %.2f %.2f"
+      // telio_mstat() todo wait for probe/telescope todo timeout ?
+      // telio_close
+      handle_command(g,"mm 1",1);
+      handle_command(g,"gm 5",1);
+      message(g,"select offset guide star ... ",MSS_INFO);
+      message(g,"... then press <F5>",MSS_INFO);
+    }
+#endif
   } else 
   if (!strncasecmp(cmd,"start",4)) {   /* start exposure loop */
     int r = do_start(g,0);
@@ -1733,7 +1759,9 @@ static void* run_init(void* param)
     }
   }
   if (!err) {
-    thread_detach(run_tcpip,(void*)g); /* v0332 */
+    if (!g->tcpip_running) {           /* NEW v0424 */
+      thread_detach(run_tcpip,(void*)g);
+    }
   }
   g->init_flag = (err) ? 0 : 1;
 
@@ -2696,6 +2724,7 @@ static void* run_tcpip(void* param)
   sprintf(buf,"TCPIP-Server listening (%s,%d)",g->name,port);
   message(g,buf,MSS_FLUSH);
 
+  g->tcpip_running = True;
   while (!done) {
     msgsock = TCPIP_ServerAccept(sock,&ip);
     sprintf(buf,"connection accepted from %u.%u.%u.%u",
@@ -2718,6 +2747,7 @@ static void* run_tcpip(void* param)
     } while (rval > 0);                /* loop while there's something */
     (void)close(msgsock);
   } /* while(!done) */
+  g->tcpip_running = False;
 
   (void)close(sock);
 #if (DEBUG > 0)

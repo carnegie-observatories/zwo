@@ -22,6 +22,7 @@ typedef struct guider_tag {
   char          name[32];
   FITSpars      status;
   volatile Bool loop_running,house_running;
+  volatile Bool tcpip_running;
   volatile Bool stop_flag;
   volatile int  write_flag,send_flag,init_flag;
   pthread_t     gid;
@@ -65,9 +66,9 @@ typedef struct guider_tag {
   char        send_host[128];
   int         send_port;
   /* setup parameters (.ini file) */
-  int         rPort;
+  int         rPort;                   /* rotator port */
   int         lmag,bx;
-  int         pct,bkg,span;       /* default scaling */
+  int         pct,bkg,span;            /* default scaling */
   char        host[128],gain[32];
 } Guider;
 
