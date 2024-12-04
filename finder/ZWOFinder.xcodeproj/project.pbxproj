@@ -1,0 +1,463 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		413612C4219B69440076A55F /* ImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = 413612C2219B69440076A55F /* ImageView.m */; };
+		41361305219CC74A0076A55F /* Logger.m in Sources */ = {isa = PBXBuildFile; fileRef = 41361300219CC74A0076A55F /* Logger.m */; };
+		41361306219CC74A0076A55F /* Notice.m in Sources */ = {isa = PBXBuildFile; fileRef = 41361302219CC74A0076A55F /* Notice.m */; };
+		41361307219CC74A0076A55F /* Yutils.m in Sources */ = {isa = PBXBuildFile; fileRef = 41361304219CC74A0076A55F /* Yutils.m */; };
+		415B948121C2F39300A8FDF5 /* AlertCautionIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 415B947E21C2F39300A8FDF5 /* AlertCautionIcon.icns */; };
+		415B948221C2F39300A8FDF5 /* AlertNoteIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 415B947F21C2F39300A8FDF5 /* AlertNoteIcon.icns */; };
+		415B948321C2F39300A8FDF5 /* AlertStopIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 415B948021C2F39300A8FDF5 /* AlertStopIcon.icns */; };
+		415D2D3521ED339C00AE549E /* ZWO.m in Sources */ = {isa = PBXBuildFile; fileRef = 415D2D3421ED339C00AE549E /* ZWO.m */; };
+		41663DF221B72ADD00AAFAF9 /* libASICamera2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 41663DF121B72ADD00AAFAF9 /* libASICamera2.dylib */; };
+		41663DF321B72AF000AAFAF9 /* libASICamera2.dylib in Copy Files */ = {isa = PBXBuildFile; fileRef = 41663DF121B72ADD00AAFAF9 /* libASICamera2.dylib */; };
+		41663DFA21B87D1C00AAFAF9 /* ASI.m in Sources */ = {isa = PBXBuildFile; fileRef = 41663DF921B87D1C00AAFAF9 /* ASI.m */; };
+		4193051321C83D0000F0C0E6 /* EFW.m in Sources */ = {isa = PBXBuildFile; fileRef = 4193051221C83D0000F0C0E6 /* EFW.m */; };
+		4193051721C98B7A00F0C0E6 /* libEFWFilter.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 4193051621C98B7A00F0C0E6 /* libEFWFilter.dylib */; };
+		419BE7A8216803E600968317 /* libusb-1.0.0.dylib in Copy Files */ = {isa = PBXBuildFile; fileRef = 419BE7A7216803E600968317 /* libusb-1.0.0.dylib */; };
+		41C2E0FC2321B6280062CFAD /* FITS.m in Sources */ = {isa = PBXBuildFile; fileRef = 41C2E0FA2321B6280062CFAD /* FITS.m */; };
+		41CE21C921E95F3A00286921 /* Tcpip.m in Sources */ = {isa = PBXBuildFile; fileRef = 41CE21C721E95F3A00286921 /* Tcpip.m */; };
+		41F540582282377600FCD6A6 /* filters.xml in Resources */ = {isa = PBXBuildFile; fileRef = 41F540572282377600FCD6A6 /* filters.xml */; };
+		41F566E124D395AE000ADBBD /* libEFWFilter.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4193051621C98B7A00F0C0E6 /* libEFWFilter.dylib */; };
+		41FC86E2213F1DC2000495C7 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41FC86E1213F1DC2000495C7 /* Cocoa.framework */; };
+		41FC86EE213F1DC2000495C7 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 41FC86ED213F1DC2000495C7 /* main.m */; };
+		41FC86F5213F1DC2000495C7 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 41FC86F4213F1DC2000495C7 /* AppDelegate.m */; };
+		41FC86F8213F1DC2000495C7 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 41FC86F6213F1DC2000495C7 /* MainMenu.xib */; };
+		41FC86FA213F1DC2000495C7 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 41FC86F9213F1DC2000495C7 /* Images.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		419BE79E2167F8E200968317 /* Copy Files */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				41663DF321B72AF000AAFAF9 /* libASICamera2.dylib in Copy Files */,
+				419BE7A8216803E600968317 /* libusb-1.0.0.dylib in Copy Files */,
+			);
+			name = "Copy Files";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		41F566E024D3959E000ADBBD /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				41F566E124D395AE000ADBBD /* libEFWFilter.dylib in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		413612C2219B69440076A55F /* ImageView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ImageView.m; sourceTree = "<group>"; };
+		413612C3219B69440076A55F /* ImageView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ImageView.h; sourceTree = "<group>"; };
+		413612FF219CC74A0076A55F /* Logger.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Logger.h; path = Common/Logger.h; sourceTree = SOURCE_ROOT; };
+		41361300219CC74A0076A55F /* Logger.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = Logger.m; path = Common/Logger.m; sourceTree = SOURCE_ROOT; };
+		41361301219CC74A0076A55F /* Notice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Notice.h; path = Common/Notice.h; sourceTree = SOURCE_ROOT; };
+		41361302219CC74A0076A55F /* Notice.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = Notice.m; path = Common/Notice.m; sourceTree = SOURCE_ROOT; };
+		41361303219CC74A0076A55F /* Yutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Yutils.h; path = Common/Yutils.h; sourceTree = SOURCE_ROOT; };
+		41361304219CC74A0076A55F /* Yutils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = Yutils.m; path = Common/Yutils.m; sourceTree = SOURCE_ROOT; };
+		415B947E21C2F39300A8FDF5 /* AlertCautionIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = AlertCautionIcon.icns; path = Resources/AlertCautionIcon.icns; sourceTree = SOURCE_ROOT; };
+		415B947F21C2F39300A8FDF5 /* AlertNoteIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = AlertNoteIcon.icns; path = Resources/AlertNoteIcon.icns; sourceTree = SOURCE_ROOT; };
+		415B948021C2F39300A8FDF5 /* AlertStopIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = AlertStopIcon.icns; path = Resources/AlertStopIcon.icns; sourceTree = SOURCE_ROOT; };
+		415D2D3321ED339C00AE549E /* ZWO.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZWO.h; sourceTree = "<group>"; };
+		415D2D3421ED339C00AE549E /* ZWO.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ZWO.m; sourceTree = "<group>"; };
+		41663DF121B72ADD00AAFAF9 /* libASICamera2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libASICamera2.dylib; sourceTree = SOURCE_ROOT; };
+		41663DF421B7383C00AAFAF9 /* ASICamera2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ASICamera2.h; sourceTree = "<group>"; };
+		41663DF821B87D1C00AAFAF9 /* ASI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ASI.h; sourceTree = "<group>"; };
+		41663DF921B87D1C00AAFAF9 /* ASI.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ASI.m; sourceTree = "<group>"; };
+		4193050B21C8325200F0C0E6 /* EFW_filter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = EFW_filter.h; sourceTree = "<group>"; };
+		4193051121C83D0000F0C0E6 /* EFW.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = EFW.h; sourceTree = "<group>"; };
+		4193051221C83D0000F0C0E6 /* EFW.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = EFW.m; sourceTree = "<group>"; };
+		4193051621C98B7A00F0C0E6 /* libEFWFilter.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libEFWFilter.dylib; sourceTree = "<group>"; };
+		419BE7A7216803E600968317 /* libusb-1.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libusb-1.0.0.dylib"; sourceTree = "<group>"; };
+		41C2E0FA2321B6280062CFAD /* FITS.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FITS.m; path = Common/FITS.m; sourceTree = SOURCE_ROOT; };
+		41C2E0FB2321B6280062CFAD /* FITS.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FITS.h; path = Common/FITS.h; sourceTree = SOURCE_ROOT; };
+		41CE21C721E95F3A00286921 /* Tcpip.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = Tcpip.m; path = Common/Tcpip.m; sourceTree = SOURCE_ROOT; };
+		41CE21C821E95F3A00286921 /* Tcpip.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Tcpip.h; path = Common/Tcpip.h; sourceTree = SOURCE_ROOT; };
+		41CE21CA21E960DC00286921 /* main.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = main.h; sourceTree = "<group>"; };
+		41F540572282377600FCD6A6 /* filters.xml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; name = filters.xml; path = Resources/filters.xml; sourceTree = SOURCE_ROOT; };
+		41FC86DE213F1DC2000495C7 /* ZWOFinder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZWOFinder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		41FC86E1213F1DC2000495C7 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		41FC86E4213F1DC2000495C7 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		41FC86E5213F1DC2000495C7 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		41FC86E6213F1DC2000495C7 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		41FC86E9213F1DC2000495C7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		41FC86ED213F1DC2000495C7 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		41FC86F3213F1DC2000495C7 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		41FC86F4213F1DC2000495C7 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		41FC86F7213F1DC2000495C7 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		41FC86F9213F1DC2000495C7 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		41FC86DB213F1DC2000495C7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4193051721C98B7A00F0C0E6 /* libEFWFilter.dylib in Frameworks */,
+				41663DF221B72ADD00AAFAF9 /* libASICamera2.dylib in Frameworks */,
+				41FC86E2213F1DC2000495C7 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		413612FE219CB8F70076A55F /* Common */ = {
+			isa = PBXGroup;
+			children = (
+				41C2E0FB2321B6280062CFAD /* FITS.h */,
+				41C2E0FA2321B6280062CFAD /* FITS.m */,
+				41CE21C821E95F3A00286921 /* Tcpip.h */,
+				41CE21C721E95F3A00286921 /* Tcpip.m */,
+				413612FF219CC74A0076A55F /* Logger.h */,
+				41361300219CC74A0076A55F /* Logger.m */,
+				41361301219CC74A0076A55F /* Notice.h */,
+				41361302219CC74A0076A55F /* Notice.m */,
+				41361303219CC74A0076A55F /* Yutils.h */,
+				41361304219CC74A0076A55F /* Yutils.m */,
+			);
+			name = Common;
+			sourceTree = "<group>";
+		};
+		41FC86D5213F1DC2000495C7 = {
+			isa = PBXGroup;
+			children = (
+				41663DF421B7383C00AAFAF9 /* ASICamera2.h */,
+				41FC86E7213F1DC2000495C7 /* ZWOFinder */,
+				41FC86E0213F1DC2000495C7 /* Frameworks */,
+				41FC86DF213F1DC2000495C7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		41FC86DF213F1DC2000495C7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				41FC86DE213F1DC2000495C7 /* ZWOFinder.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		41FC86E0213F1DC2000495C7 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				41663DF121B72ADD00AAFAF9 /* libASICamera2.dylib */,
+				419BE7A7216803E600968317 /* libusb-1.0.0.dylib */,
+				4193051621C98B7A00F0C0E6 /* libEFWFilter.dylib */,
+				41FC86E1213F1DC2000495C7 /* Cocoa.framework */,
+				41FC86E3213F1DC2000495C7 /* Other Frameworks */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		41FC86E3213F1DC2000495C7 /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				41FC86E4213F1DC2000495C7 /* AppKit.framework */,
+				41FC86E5213F1DC2000495C7 /* CoreData.framework */,
+				41FC86E6213F1DC2000495C7 /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		41FC86E7213F1DC2000495C7 /* ZWOFinder */ = {
+			isa = PBXGroup;
+			children = (
+				41663DF821B87D1C00AAFAF9 /* ASI.h */,
+				41663DF921B87D1C00AAFAF9 /* ASI.m */,
+				4193050B21C8325200F0C0E6 /* EFW_filter.h */,
+				4193051121C83D0000F0C0E6 /* EFW.h */,
+				4193051221C83D0000F0C0E6 /* EFW.m */,
+				413612FE219CB8F70076A55F /* Common */,
+				41FC86F3213F1DC2000495C7 /* AppDelegate.h */,
+				41FC86F4213F1DC2000495C7 /* AppDelegate.m */,
+				415D2D3321ED339C00AE549E /* ZWO.h */,
+				415D2D3421ED339C00AE549E /* ZWO.m */,
+				41FC86F9213F1DC2000495C7 /* Images.xcassets */,
+				413612C3219B69440076A55F /* ImageView.h */,
+				413612C2219B69440076A55F /* ImageView.m */,
+				41FC86ED213F1DC2000495C7 /* main.m */,
+				41CE21CA21E960DC00286921 /* main.h */,
+				41FC86F6213F1DC2000495C7 /* MainMenu.xib */,
+				41FC86E8213F1DC2000495C7 /* Supporting Files */,
+			);
+			path = ZWOFinder;
+			sourceTree = "<group>";
+		};
+		41FC86E8213F1DC2000495C7 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				41F540572282377600FCD6A6 /* filters.xml */,
+				415B947E21C2F39300A8FDF5 /* AlertCautionIcon.icns */,
+				415B947F21C2F39300A8FDF5 /* AlertNoteIcon.icns */,
+				415B948021C2F39300A8FDF5 /* AlertStopIcon.icns */,
+				41FC86E9213F1DC2000495C7 /* Info.plist */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		41FC86DD213F1DC2000495C7 /* ZWOFinder */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 41FC870F213F1DC2000495C7 /* Build configuration list for PBXNativeTarget "ZWOFinder" */;
+			buildPhases = (
+				41FC86DA213F1DC2000495C7 /* Sources */,
+				41FC86DB213F1DC2000495C7 /* Frameworks */,
+				41FC86DC213F1DC2000495C7 /* Resources */,
+				419BE79E2167F8E200968317 /* Copy Files */,
+				41F566E024D3959E000ADBBD /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ZWOFinder;
+			productName = QHYtest;
+			productReference = 41FC86DE213F1DC2000495C7 /* ZWOFinder.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		41FC86D6213F1DC2000495C7 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0510;
+				ORGANIZATIONNAME = "Christoph Birk";
+			};
+			buildConfigurationList = 41FC86D9213F1DC2000495C7 /* Build configuration list for PBXProject "ZWOFinder" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 41FC86D5213F1DC2000495C7;
+			productRefGroup = 41FC86DF213F1DC2000495C7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				41FC86DD213F1DC2000495C7 /* ZWOFinder */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		41FC86DC213F1DC2000495C7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				415B948121C2F39300A8FDF5 /* AlertCautionIcon.icns in Resources */,
+				415B948321C2F39300A8FDF5 /* AlertStopIcon.icns in Resources */,
+				415B948221C2F39300A8FDF5 /* AlertNoteIcon.icns in Resources */,
+				41FC86FA213F1DC2000495C7 /* Images.xcassets in Resources */,
+				41FC86F8213F1DC2000495C7 /* MainMenu.xib in Resources */,
+				41F540582282377600FCD6A6 /* filters.xml in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		41FC86DA213F1DC2000495C7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				415D2D3521ED339C00AE549E /* ZWO.m in Sources */,
+				41CE21C921E95F3A00286921 /* Tcpip.m in Sources */,
+				41FC86F5213F1DC2000495C7 /* AppDelegate.m in Sources */,
+				41361307219CC74A0076A55F /* Yutils.m in Sources */,
+				41C2E0FC2321B6280062CFAD /* FITS.m in Sources */,
+				413612C4219B69440076A55F /* ImageView.m in Sources */,
+				4193051321C83D0000F0C0E6 /* EFW.m in Sources */,
+				41361306219CC74A0076A55F /* Notice.m in Sources */,
+				41FC86EE213F1DC2000495C7 /* main.m in Sources */,
+				41663DFA21B87D1C00AAFAF9 /* ASI.m in Sources */,
+				41361305219CC74A0076A55F /* Logger.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		41FC86F6213F1DC2000495C7 /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				41FC86F7213F1DC2000495C7 /* Base */,
+			);
+			name = MainMenu.xib;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		41FC870D213F1DC2000495C7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = "";
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		41FC870E213F1DC2000495C7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = NDEBUG;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		41FC8710213F1DC2000495C7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = NO;
+				GCC_PREFIX_HEADER = "";
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+				);
+				INFOPLIST_FILE = ZWOFinder/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				"PRELINK_LIBS[arch=*]" = "";
+				PRODUCT_BUNDLE_IDENTIFIER = edu.carnegiescience.obs.ZWOFinder;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		41FC8711213F1DC2000495C7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_OBJC_ARC = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = NO;
+				GCC_PREFIX_HEADER = "";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+				);
+				INFOPLIST_FILE = ZWOFinder/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				PRODUCT_BUNDLE_IDENTIFIER = edu.carnegiescience.obs.ZWOFinder;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		41FC86D9213F1DC2000495C7 /* Build configuration list for PBXProject "ZWOFinder" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				41FC870D213F1DC2000495C7 /* Debug */,
+				41FC870E213F1DC2000495C7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		41FC870F213F1DC2000495C7 /* Build configuration list for PBXNativeTarget "ZWOFinder" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				41FC8710213F1DC2000495C7 /* Debug */,
+				41FC8711213F1DC2000495C7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 41FC86D6213F1DC2000495C7 /* Project object */;
+}
