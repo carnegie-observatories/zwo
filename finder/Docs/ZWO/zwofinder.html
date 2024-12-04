@@ -1,0 +1,178 @@
+<HTML>
+<TITLE>ZWO Software</TITLE>
+
+<center>
+<H1>ZWO-Finder Software Documentation</H1>
+<p>Version 1-beta
+<p>Christoph C. Birk (birk AT carnegiescience DOT edu)
+<p><a href="./zwofinder.png"><img src="./zwofinder.png" width=224 height=137></a>
+</center>
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+Location of this document:
+http://instrumentation.obs.carnegiescience.edu/Software/ZWO/zwofinder.html
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<li><a href="#news">News</a>
+<li><a href="#screen">Screen Shots</a> and Software Documentation
+<p>
+<li><a href="./zwoserver.html">Zwo-Server</a>
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<a name="news"></a>
+<h2>News</h2>
+
+<img src="./undercon_ani.gif">
+<a name="v100"></a>
+
+<dl>
+<dt><b>v0038</b> (2020-08-22)  </dt>
+<dt><li>Fixed BZERO=32768 for the 16-bit camera. </dt>
+<dd>Download <a href="./ZWOFinder-0038.app.zip">ZWOFinder.app.zip</a>
+    (deployment target macOS 10.12) </dd>
+</dl>
+
+<dl>
+<dt><b>v0037</b> (2020-08-21)  </dt>
+<dt><li>Supports the ASI-6200MM camera (requires zwoserver-0023). </dt>
+</dl>
+
+<dl>
+<dt><b>v0030</b> (2019-07-23)  </dt>
+<dt><li>Swap "R" and "B" channels of the RGB-data provided by the ZWO driver. </dt>
+</dl>
+
+<dl>
+<dt><b>v0029</b> (2019-07-19)  </dt>
+<dt><li>ColorZWO: Write JPEG files to the same location as the FITS
+        files (mono-chrome).   </dt>
+<dt><li>ColorZWO: Add <i>WhiteBalance</i> settings to the <a href="#prefs">Preferences</a>
+        window.  </dt>
+<dt><li>Store the temperature control setpoint in Preferences.  </dt>
+</dl>
+
+<dl>
+<dt><b>v0027</b> (2019-07-17)  </dt>
+<dt><li>Required for <em>zwoserver</em>-v0015.  </dt>
+</dl>
+
+<dl>
+<dt><b>v0026</b> (2019-07-16)  </dt>
+<dt><li>Support color CCD cameras (eg. ASI290MC).  </dt>
+</dl>
+
+<dl>
+<dt><b>v0025</b> (2019-05-09)  </dt>
+<dt><li>Fixed the alignment of some controls when resizing the window.  </dt>
+<dt><li>Restore image window settings after startup from the preferences.  </dt>
+</dl>
+
+<dl>
+<dt><b>v0024</b> (2019-05-08)  </dt>
+<dt><li>Moved the <i>gain</i> and <i>offset</i> controls to the
+    <a href="#prefs">Preferences</a> window. </dt>
+<dd>They are also saved in the preferences file and re-stored 
+    at startup of the GUI. </dd>
+<dt><li>Added edit-controls for "OBJECT" and "COMMENT" FITS records. </dt>
+<dt><li>Moved the filter popup-button to the main GUI.  </dt>
+<dt><li>Added a <i>FileNumber</i> edit control to the 
+    <a href="#prefs">Preferences</a> window. </dt>
+</dl>
+
+<dl>
+<dt><b>v0023</b> (2019-05-07)  </dt>
+<dt><li>Added the 'FILTER' keyword to the FITS header. </dt>
+<dt><li>The filter names are set by the file </dt>
+<dd><i>~/Library/Application Support/ZWOFinder/filters.xml</i> </dd>
+<dd>That file can be found by selecting "File--Show_AppSupport" 
+    in the main menu. </dd>
+</dl>
+
+<dl><b>v0022</b> (2019-03-19)
+<dt><li>Handle camera without cooler. </dt>
+<dt><li>Select video quality (8/12 bit) on preferences window.</dt>
+</dl>
+
+<dl><b>v0021</b> (2019-02-27) 
+<dt><li>Automatically restore the window geometry at startup. </dt>
+</dl>
+
+<dl><b>v0020</b> (2019-02-26) 
+<dt><li>Send test-version to Povilas. </dt>
+</dl>
+
+
+<!--
+<a href="./notes.html">Release Notes</a>
+-->
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<a name="screen"></a>
+<h2>Screen Shots and Software Documentation</h2>
+
+<a href="#config">Configuration</a> -
+<a href="#gui">GUI</a> -
+<a href="#menu">Menu</a> -
+<a href="#prefs">Preferences</a>
+
+<p>
+<a name="config"></a>
+<h3>Configuration</h3>
+
+<img src="config.png">
+<pre>TODO</pre>
+
+<p>
+<a name="gui"></a>
+<h3>GUI</h3>
+
+<img src="zwofinder.png">
+<pre>TODO</pre>
+
+
+<p>
+<a name="menu"></a>
+<h3>Menu</h3>
+
+<pre>TODO</pre>
+
+<p>
+<a name="prefs"></a>
+<h3>Preferences</h3>
+
+<img src="preferences.png">
+<pre>TODO</pre>
+
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<address>
+<a href="http://users.obs.carnegiescience.edu/birk/ChristophBirk.html">
+Christoph C. Birk</a>,
+2018-11-16, Carnegie Observatories
+</address>
+
+<p>
+<hr> <!-- =============================================================== -->
+
+</html>
+
+

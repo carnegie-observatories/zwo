@@ -1,0 +1,254 @@
+<HTML>
+<TITLE>ZWO-Server</TITLE>
+
+<center>
+<H1>ZWO-Server Software Documentation</H1>
+<p>Version 1-beta
+<p>Christoph C. Birk (birk AT carnegiescience DOT edu)
+<!--
+<p><a href="./todo.png"><img src="./todo.png" width=224 height=137></a>
+-->
+</center>
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+Location of this document:
+http://instrumentation.obs.carnegiescience.edu/Software/ZWO/zwoserver.html
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<li><a href="#news">News</a>
+<li><a href="#protocol">ZwoServer protocol</a>
+<li><a href="#setup">Software Documentation</a>
+<li><a href="./zwofinder.html">Zwo-Finder</a>
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<a name="news"></a>
+<h2>News</h2>
+
+<img src="./undercon_ani.gif">
+<a name="v000"></a>
+
+<dl>
+<dt><b>v0023</b> (2020-08-21)  </dt>
+<dt><li>Added 'bitDepth' to support the new ASI-6200 camera. While all cameras
+        send 16 bit data, the other cameras only use 12 bits. </dt>
+<!--
+<dd>This is the minimum version required to work with CASCA-0019. </dd>
+-->
+<dd>Download <a href="./zwo0023.tar.gz">zwo0023.tar.gz</a> </dd>
+<dt>Please note that the ASI-6200 requires a newer version of the 
+    libASICamera2.so library (at least 1.15.0617) from
+    <a href="https://astronomy-imaging-camera.com/software-drivers">ZWO</a>
+    (--&gt; ForDevelopers).
+    </dt>
+</dl>
+
+<dl>
+<dt><b>v0020</b> (2019-08-08)  </dt>
+<dt><li>Added "gain" and "offset" commands </dt>
+<dd>This is the minimum version required for operation with the CASCA scheduler (v0016). </dt>
+</dl>
+<dl>
+<dt><b>v0015</b> (2019-07-17)  </dt>
+<dt><li>Report <i>cooler</i> and <i>color</i> when requesting
+    <em>ASIGetCameraProperty</em> or sending the "open" command.  </dt>
+<dd>Requires <em>ZwoFinder</em>-v0027. </dd>
+</dl>
+
+
+<a name="protocol"></a>
+<h3>ZwoServer Command Protocol </h3>
+<dl>
+<dt>Connect to the <em>zwoserver</em> via "nc" (or netcat or similar) </dt>
+<dd>nc rpi 52311 </dd>
+</dl>
+
+Protocol:
+<li>All commands have to be terminated by a [LF] character (ASCII: 0x0a)
+<li>All responses will be terminated by a [LF] (except binary image data).
+
+<dl>
+<dt>Command: version  </dt>
+<dd>Returns the version string, a cookie and the startup-time of the server. </dd>
+<p>
+<dt>Command: open  </dt>
+<dd>Opens the USB connection to the camera - does nothing if already connected. </dd>
+<dd>Returns the chip geometry, cooler and color availability, examples: </dd>
+<dd>"1936 1096 0 1" : no cooler, color (ASI290MC) </dd>
+<dd>"4656 3520 1 0" : has cooler, monochrome (ASI1600MM) </dd>
+<p>
+<dt>Command: setup [ x y w h b p ]  </dt>
+<dd>Returns the current setup or changes the readout geometry 
+    (example "0 0 4656 3520 1 8") </dd>
+<dd><li>[x y w h] : window geometry </dd>
+<dd><li>[b] : binning {1,2,4} </dd>
+<dd><li>[p] : bits-per-pixel {8,16,24} </dd>
+<dd>The values for 'x y w h b p' are stored to disk.
+<dt>Command: setup default  </dt>
+<dd>The values stored via the last 'setup x y w h b p' are loaded.  </dd>
+<dt>Command: setup image [ b ] </dt>
+<dd>same as "setup 0 0 4656 3520 1 16"  -- the optional 'b' parameter overwrites the binning </dd>
+<dt>Command: setup video [ b ]  </dt>
+<dd>same as "setup 0 0 4656 3520 1 8"  -- the optional 'b' parameter overwrites the binning </dd>
+<p>
+<dt>Command: exptime [ # ]  </dt>
+<dd>Sets the exposure time in seconds {0.0001 .. 30.0}  </dd>
+<dt>Command: gain [#] </dt>
+<dd>Set the CCD gain (0..600) <dd>
+<dt>Command: offset [#] </dt>
+<dd>Set the CCD offset (0..100) <dd>
+<p>
+<dt>Command: expose  </dt>
+<dd>Starts an exposure. A return value of "0" signifies sucess.
+    Any error will start with "-E". </dd>
+<p>
+<dt>Command: status  </dt>
+<dd>Returns the current server status:  </dd>
+<dd><li>"closed" : the connection the the USB camera is closed.  </dd>
+<dd><li>"idle" : conneced to the USB camera; 
+    no exposure or video stream is active. </dd>
+<dd><li>"exposing #" : exposure is running (for # seconds).  </dd>
+<dd><li>"streaming" : streaming video from the camera.  </dd>
+<p>
+<dt>Command: data [ # ]  </dt>
+<dd>Readout the image data (exposure or video) and send it as binary data. </dd>
+<dd>The optional parameter limits the number of binary data bytes beeing
+    sent ('0' allows to omit sending binary data for testing).  </dd>
+<dd>Returns the number of bytes in the image, followed by the binary data.  </dd>
+<p>
+<dt>Command: start  </dt>
+<dd>Start video streaming from the camera.  </dd>
+<dd>The images may be transmitted via the "data" command.  </dd>
+<p>
+<dt>Command: stop  </dt>
+<dd>Stop video streaming.  </dd>
+<p>
+<dt>Command: write [ # ]  </dt>
+<dd>Writes the current image (exposure or video) to disk as 
+    $HOME/zwo0000.fits </dd>
+<dd>the '0000' number is incremented after each 'write' command. </dd>
+<dd>'#' sets the file number. </dd>
+<p>
+<dt>Command: close  </dt>
+<dd>Closes the connection to the USB camera.  </dd>
+<dd><b>Note</b>: "close" is implicit when the network connection is terminated.  </dd>
+<p>
+<dt>Command: tempcon [ # ] </dt>
+<dd>Set the temperature control setpoint; 
+    "off" turns off the temperature control.  </dd>
+<dd>Without parameter it returns the temperature and cooler percentage. </dd>
+<dd>Example: "0.0 25" </dd>
+<p>
+<dt>Command: filters </dt>
+<dd>Returns the number of positions on the filter wheel.  </dd>
+<dd>If no filter wheel is connected the return is "0".  </dd>
+<dd><b>Note</b>: Must be called before the wheel can be moved. </dd>
+<p>
+<dt>Command: filter [ # ]  </dt>
+<dd>Move the filter wheel to position '#' (the index is '0' based).  </dd>
+<dd>Return: "0" (move accepted)
+<dd>Without parameter it returns the current filter 
+    wheel position or "-1" for "moving".  </dd>
+<p>
+<dt>  </dt>
+<dd>  </dd>
+<dd>  </dd>
+</dl>
+
+<!--
+<a href="./notes.html">Release Notes</a>
+-->
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<a name="setup"></a>
+<h2>Software Documentation</h2>
+
+<a href="#rpisetup">Driver</a> -
+<a href="#servermake">Server</a> -
+<a href="#zwofinder">ZwoFinder</a> 
+<p>
+
+<a name="rpisetup"></a>
+<h3>HowTo setup a RaspberryPi (ARMv7) / Rock64 (ARMv8) / Minnow (x86_64) </h3>
+<dl>
+<dt>Install the ASI library: 
+  (get the latest version from the ZWO 
+  <a href="https://astronomy-imaging-camera.com/software-drivers">webpage</a>
+  --&gt; ForDevelopers)
+  </dt>
+<dd><li>sudo cp libASICamera2.so.1.13.0930 /usr/local/lib/libASICamera2.so   </dd>
+<dd><li>sudo install asi.rules /lib/udev/rules.d </dd>
+<dd>and reconnect the camera, then the camera can be opened as non-root. </dd>
+<dd>Run 'cat /sys/module/usbcore/parameters/usbfs_memory_mb' to make sure the result is 200 </dd>
+<p>
+<dt>Install the EFW library: 
+  (get the latest version from the ZWO 
+  <a href="https://astronomy-imaging-camera.com/software-drivers">webpage</a>
+  --&gt; ForDevelopers)
+    </dt>
+<dd><li>sudo cp libEFWFilter.so.0.3.1205 /usr/local/lib/libEFWFilter.so   </dd>
+<dd><li>sudo install efw.rules /lib/udev/rules.d </dd>
+<dd>and reconnect filter wheel, then filter wheel can be opened as non-root. </dd>
+<dt>  </dt>
+<dd>  </dd>
+</dl>
+
+<a name="servermake"></a>
+<h3>HowTo compile/make the 'zwoserver'</h3>
+<dl>
+<dt><li>tar xf zwo0010.tar.gz </dt>
+<dt><li>cd src </dt>
+<dt><li>make zwoserver </dt>
+<dt><li>./zwoserver </dt>
+<dt>The screen output should be something like  </dt>
+<dd>ZwoServer-0.010  </dd>
+<dd>Feb 25 20:28:29: ZwoServer-v0.010: UT= 20:28.29 LT=hh:mm:ss  </dd>
+<dd>run_tcpip(52311) </dd>
+<dt>indicating that the ZwoServer is running and listening to port 52311 </dt>
+</dl>
+Please ignore the 'zwogui' in this distribution, as it is not functional.
+
+<a name="zwofinder"></a>
+<h3>HowTo connect the ZWO-Finder' GUI to the 'zwoserver'</h3>
+
+<img src="config.png">
+<P>
+Enter the IP-number or hostname of the computer running the 'zwoserver'.
+<br>
+If you leave the hostname empty, the GUI will try to connect to the 
+ZWO-camera connected to a local USB port.
+<p>
+<a href="./zwofinder.html">ZWO-Finder</a> documentation.
+
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<p>
+<hr> <!-- =============================================================== -->
+<p>
+
+<address>
+<a href="http://users.obs.carnegiescience.edu/birk/ChristophBirk.html">
+Christoph C. Birk</a>,
+2019-02-14, Carnegie Observatories
+</address>
+
+<p>
+<hr> <!-- =============================================================== -->
+
+</html>
+
+
