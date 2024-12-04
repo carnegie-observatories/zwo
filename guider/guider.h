@@ -31,7 +31,7 @@ typedef struct guider_tag {
   char          lastCommand[256];
   char          command_msg[128];      /* v0333 */
   int           slitW;                 /* v0408 */
-  double        north;                 /* NEW v0419 */
+  double        north;                 /* v0419 */
   /* GUI */
   Window      win;
   QlTool      *qltool;
@@ -57,7 +57,7 @@ typedef struct guider_tag {
   u_int       sendNumber;
   float       px;                      /* eff. pixscale (incl. binning) */
   double      angle,elsign,rosign,parity;
-  double      parit2; // todo remove 'parit2' NEW 0417
+  double      parit2; // todo remove 'parit2' v0417
   double      pa,azerp,elerp,sens,azg,elg;
   pthread_mutex_t mutex;
   volatile int update_flag;

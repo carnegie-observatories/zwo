@@ -38,7 +38,7 @@ int    sim_cx,sim_cy;                  /* v0408 */
 int    sim_cx2,sim_cy2;                /* v0416 */
 double sim_peak=250.0;
 double sim_sig2=0.70*18.9*18.9/2.35482;
-double sim_north=0.0,sim_angle=225.0,sim_radius=636.396;   /* NEW v0421 */
+double sim_north=0.0,sim_angle=225.0,sim_radius=636.396;   /* v0421 */
 
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
@@ -416,9 +416,6 @@ static void* run_cycle(void* param)
         }
 #endif
         /* NOTE: data is in the high 14-bits, shifted at rolling average */
-#if (DEBUG > 1)
-        int debug_sum=0;
-#endif
 #if 0 // TESTING
         if ((sim_north != 0) && (sim_angle == 225)) sim_angle -= sim_north;
         sim_cx2 = sim_cx+sim_radius*cos((sim_angle+sim_north)/RADS);
@@ -463,9 +460,6 @@ static void* run_cycle(void* param)
                 if ((y>=sim_cy-ww) && (y<=sim_cy+ww)) { 
                   double r2 = ((x-sim_cx)*(x-sim_cx)+(y-sim_cy)*(y-sim_cy));
                   int f = PRandom(sim_peak*exp(-r2/sim_sig2));
-#if (DEBUG > 1)
-                  debug_sum += f;
-#endif
                   if (f > 0x3b00) f = 0x3b00;  /* 15104 v0411 */
                   udata[p] += (f << 2);
                 }
@@ -487,9 +481,6 @@ static void* run_cycle(void* param)
           // double dt = (walltime(0)-c1)*1000.0;   /* [ms] */
           // printf("mask: %.2f [ms]\n",dt); /* takes about 5-10 ms */
         } /* endif(mask) */
-#if (DEBUG > 1)
-        printf("_sum=%d\n",debug_sum);
-#endif
         self->seqNumber = seq;
         ZwoFrame *frame = zwo_frame4writing(self,seq);
         if (frame) {
