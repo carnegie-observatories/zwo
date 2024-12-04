@@ -67,7 +67,7 @@ void* run_guider(void* param)
   } 
   tcsOpen = (err) ? 0 : 1;
 
-  if (!err) {                          /* TCSIS connection ok NEW v0417 */
+  if (!err) {                          /* TCSIS connection ok v0417 */
     if (g->gmode == GM_PR) {           /* gm1 */
       if (err) {
         sprintf(buf,"connection to EDS failed (err=%d)",err);
@@ -76,7 +76,7 @@ void* run_guider(void* param)
     }
     switch (g->gmode) {
     case GM_PR:
-    case GM_SV5:                       /* NEW v0416 */
+    case GM_SV5:                       /* v0416 */
       run_guider1(g);
       break;
     case GM_SV3:
@@ -150,14 +150,14 @@ static void run_guider1(void* param)
         pbuf = (Pixel*)realloc(pbuf,npix*sizeof(Pixel));
       }
       assert(npix); assert(pbuf);
-      if (g->gmode == GM_SV5) {        /* gm5 mode NEW v0416 */
+      if (g->gmode == GM_SV5) {        /* gm5 mode v0416 */
         if (qltool->guiding < 0) gm5_locked = 0;
         if (!gm5_locked) {             /* store distance and angle */
           msleep(500);                 /* delay for telescope update v0420 */
           if (qltool->guiding > 0) {   /* 2nd iteration (stable) */
             double x = qltool->curx[QLT_BOX] - qltool->curx[QLT_BOX-1];
             double y = qltool->cury[QLT_BOX] - qltool->cury[QLT_BOX-1];
-            n0 = g->north;             /* NEW v0419 */
+            n0 = g->north;             /* v0419 */
             r0 = qltool->arc_radius = sqrt(x*x+y*y);   /* [pixel] */
             a0 = atan2(y,x); while (a0 < 0) { a0 += 2.0*M_PI; } /* [radians] */
             qltool->arc_angle = a0 * RADS;   /* [degrees] */
@@ -482,7 +482,7 @@ static void run_guider4(void* param)          /* v0404 */
 
 /* ---------------------------------------------------------------- */
 
-static void tcs_error(Guider *g,int err)  /* NEW v0417 */
+static void tcs_error(Guider *g,int err)  /* v0417 */
 {
 #if (DEBUG > 0)
   fprintf(stderr,"%s(%p,%d)\n",__func__,g,err);
@@ -499,7 +499,7 @@ static void tcs_error(Guider *g,int err)  /* NEW v0417 */
 
 /* --- */
 
-static int tcs_recon(Guider *g)        /* NEW v0417 */
+static int tcs_recon(Guider *g)        /* v0417 */
 {
   char buf[128];
 #if (DEBUG > 0)

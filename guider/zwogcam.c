@@ -197,8 +197,8 @@ static time_t startup_time;
 static int    pa_interval=30;
 static float  elev=90,para=0;
 
-static int   baseD=1800,baseB=2,baseI=600;
-static int   eWIDE,eHIGH,pHIGH=117;
+static int   baseD=1800,baseB=2,baseI=600,pHIGH=117;
+static int   eWIDE,eHIGH;
 static int   wINFO;                    /* v0401 */
 static int   lSIZE=128;                /* v0402 */
 // static float pscale=0.02535f;  /* measured 20230113 Andor:6.5um, ZWO:2.32um */
@@ -252,9 +252,10 @@ static void    make_mask         (Guider*,const char*);
 static void    load_mask         (Guider*);
 
 static int     check_datapath    (char*,int);
-static int     cursor_blocked    (Guider*,int,int); /* v0421 */
+static int     cursor_blocked    (Guider*,int,int);
 static void    my_shutdown       (Bool);
-static int     read_inifile      (Guider*,int*,const char*);
+static int     read_inifile      (Guider*,const char*);
+static int     setup_m_switch    (char);
 
 /* ---------------------------------------------------------------- */
  
@@ -262,7 +263,7 @@ static int     read_inifile      (Guider*,int*,const char*);
 
 int main(int argc,char **argv)
 {
-  int        i,j,m=0;
+  int        i,j;
   int        sleeptime=0,winpos=CBX_TOPLEFT;
   int        x,y,w,h,d,tmode=0,err;
   char       buffer[1024],buf[128];
@@ -323,12 +324,7 @@ int main(int argc,char **argv)
         sGuider.rosign = (f > 0) ? 1.0 : ((f < 0) ? -1.0 : 0.0);
         break;
       case 'f':                        /* .ini file v0415 */
-        (void)read_inifile(&sGuider,&m,optarg);
-        switch (m) {
-          case '1': baseD=1000; baseB=2; baseI=500; pHIGH=82; break;
-          case '5': baseD=1512; baseB=2; baseI=504; pHIGH=87; break;
-          case '2': baseD=2000; baseB=2; baseI=500; pHIGH=82; break;
-        }
+        (void)read_inifile(&sGuider,optarg);
         break;
       case 'g':                        /* guiderCamera number {1..3} */
         sGuider.gnum = imin(3,imax(1,atoi(optarg)));
@@ -340,21 +336,7 @@ int main(int argc,char **argv)
         sGuider.parity = (atof(optarg) < 0) ? -1.0 : 1.0;
         break;
       case 'm':                        /* optical mode */
-        if (optarg[0] == '1') {
-          baseD=1000; baseB=2; baseI=500; pHIGH = 82;
-        } else
-        if (optarg[0] == '5') {
-          baseD=1512; baseB=2; baseI=504; pHIGH = 87; /* mod3 & mod8 */
-        } else
-        if (optarg[0] == '2') {
-          baseD=2000; baseB=2; baseI=500; pHIGH = 82;
-        } else
-        if (optarg[0] == 'h') {        /* avoid mask confusion using */
-          baseD=2048; baseB=1; baseI=512; pHIGH = 88; /* geometry */
-        } else 
-        if (optarg[0] == 'f') {        /* full */
-          baseD=2400; baseB=2; baseI=600; pHIGH = 117;
-        } else {
+        if (!setup_m_switch(optarg[0])) {
           fprintf(stderr,"unknown '-m' parameter '%s'\n",optarg); 
         }
         break;
@@ -1271,7 +1253,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
 
   if (!strcasecmp(cmd,"apa")) {        /* toggle camera position angle */
     if (*par1) {
-      g->pamode = 1; pa_interval = imax(2,imin(120,atoi(par1))); /* '2' NEW v0420 */
+      g->pamode = 1; pa_interval = imax(2,imin(120,atoi(par1))); /* v0420 */
     } else {
       g->pamode = (g->pamode) ? 0 : 1;
     }
@@ -1658,9 +1640,9 @@ static void* run_setup(void* param)
   message(g,PREFUN,MSS_INFO);
 
 #if 1 // todo ?Povilas
-  sprintf(buf,"%s (%d) - v%s",g->host             ,g->gnum,P_VERSION); // v0419
+  sprintf(buf,"%s (%d) - v%s",g->host,g->gnum,P_VERSION); // v0419
 #else
-  sprintf(buf,"%s (%d) - v%s",g->server->modelName,g->gnum,P_VERSION); // v0311
+  sprintf(buf,"%s (%d) - v%s",g->server->modelName,g->gnum,P_VERSION);
 #endif
   CBX_SetMainWindowName(&mwin,buf);
 
@@ -2534,7 +2516,7 @@ static int check_datapath(char* path,int interactive)
 
 /* ---------------------------------------------------------------- */
 
-static int cursor_blocked(Guider *g,int mode,int prnt)
+static int cursor_blocked(Guider *g,int mode,int prnt) /* v0421 */
 {
   int b=0;
 
@@ -2573,7 +2555,28 @@ static void my_shutdown(Bool force)
 
 /* ---------------------------------------------------------------- */
 
-static int read_inifile(Guider *g,int* m,const char* name) /* v0415 */
+static int setup_m_switch(char m)       /* NEW v0423 */
+{
+  int r=1;
+
+  // printf("m=%d (%c)\n",m,m); 
+  switch (m) {                         /* geometry modes */
+    case '1': baseD= 504; baseB=2; baseI=504; pHIGH=87;  break;
+    case '2': baseD=1000; baseB=2; baseI=500; pHIGH=82;  break; /* PFS */
+    case '3': baseD=1512; baseB=2; baseI=504; pHIGH=87;  break; /* MIKE */
+    case '4': baseD=2000; baseB=2; baseI=500; pHIGH=82;  break;
+    case '5': baseD=2520; baseB=2; baseI=504; pHIGH=87;  break; /* MagE NEW v0423 */
+    case 'h': baseD=2048; baseB=1; baseI=512; pHIGH=88;  break;
+    case 'f': baseD=2400; baseB=2; baseI=600; pHIGH=117; break;
+    default: r=0; break;
+  }
+  // printf("r=%d (%d,%d,%d,%d)\n",r,baseD,baseB,baseI,pHIGH);
+  return r;
+} 
+ 
+/* ---------------------------------------------------------------- */
+
+static int read_inifile(Guider *g,const char* name) /* v0415 */
 {
   int n=0;
   char file[512],buffer[1024],key[128],val[128];
@@ -2592,7 +2595,7 @@ static int read_inifile(Guider *g,int* m,const char* name) /* v0415 */
       if      (!strcmp(key,"host")) strcpy(g->host,val);
       else if (!strcmp(key,"port")) g->rPort = atoi(val); 
       else if (!strcmp(key,"gain")) strcpy(g->gain,val);
-      else if (!strcmp(key,"mode")) *m = (int)val[0];
+      else if (!strcmp(key,"mode")) setup_m_switch(val[0]);
       else if (!strcmp(key,"gnum")) g->gnum = atoi(val);
       else if (!strcmp(key,"gmode")) g->gmode = atoi(val);
       else if (!strcmp(key,"gmpar")) g->gmpar = (int)val[0];

@@ -913,7 +913,7 @@ static void fill_pixels(QlTool* qlt,int ncols,int lt)
 
 /* ---------------------------------------------------------------- */
 
-static void draw_arc(u_int *p,u_int c,int iw,int ih, /* NEW v0418 */
+static void draw_arc(u_int *p,u_int c,int iw,int ih, /* v0418 */
                      int xc,int yc,int r,double a1,double a2)
 {
   int x,y;
