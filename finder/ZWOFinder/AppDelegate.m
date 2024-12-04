@@ -591,6 +591,7 @@ static char* get_ut_timestr(char* string,time_t ut)
 
 - (int)openCCD:(int)high                // b0022
 {
+  char buf[128];
 #if (DEBUG > 0)
   fprintf(stderr,"%s(%d)",PREFUN,high);
 #endif
@@ -608,6 +609,8 @@ static char* get_ut_timestr(char* string,time_t ut)
   if (!err) err = [ccd setBPP:bits];
   if (!err) err = [ccd setFlipX:flipX Y:flipY];
   // called by setBPP if (!err) err = [ccd setGeometry:windowMode];
+  if (!err) err = [ccd getSerial:buf]; // NEW b0043
+  printf("ser=%s\n",buf); //xxx
   
   return err;
 }
@@ -742,9 +745,7 @@ static char* get_ut_timestr(char* string,time_t ut)
   [edit_wbred setIntValue:ccd.wbred];
   ccd.wblue = YprefGetInt(DBE_WBLUE,95,use_shared);
   [edit_wblue setIntValue:ccd.wblue];
- 
-  // TODO list of params kept on zwoserver / scheduler / GUI -- NO ?
- 
+  
   a = [EFW scan:zwoServer];            // filter
   [pop_filter removeAllItems];         // on main GUI window b0024
   if (a.count >= 1) {
@@ -933,7 +934,7 @@ static char* get_ut_timestr(char* string,time_t ut)
   }
   if (!ccd) return;
   
-  if (strstr(title,"Preferences")) {
+  if (strstr(title,"Preferences") || strstr(title,"Settings")) {
     [chk_autostart setState:(YprefGetInt(DBE_AUTOSTART,0,NO) ? NSOnState : NSOffState)];
     [edit_fitspath setStringValue:_fitsPath];
     assert(ccd);

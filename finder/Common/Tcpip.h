@@ -64,7 +64,7 @@ BOOL    TCPIP_ReadyForWrite(int sock);
 + (NSString*)errorString:(int)err;
 + (int)createClientSocket:(const char*)hostname port:(u_short)port;
 
-- (id)initWithHost:(const char*)hstr port:(int)pint online:(BOOL)on;
+- (instancetype)initWithHost:(const char*)hstr port:(int)pint online:(BOOL)on;
 - (int)open;
 - (int)open:(int)timeout;
 - (void)close;
@@ -95,7 +95,7 @@ BOOL    TCPIP_ReadyForWrite(int sock);
 + (NSString*)errorString:(int)err;
 + (int)createServerSocket:(u_short)port;
 
-- (id)initWithPort:(u_short)pin delegate:(id)del;
+- (instancetype)initWithPort:(u_short)pin delegate:(id)del;
 - (int)start;
 - (int)stop;
 

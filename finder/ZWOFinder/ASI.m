@@ -610,6 +610,31 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
 }
 
 /* ---------------------------------------------------------------- */
+
+- (int)getSerial:(char*)string          // NEW b0043
+{
+  int ret=ASI_SUCCESS;
+  
+  *string = '\0';
+  @synchronized(self) {
+    if (handle >= 0) {
+      if (zwoServer) {
+        ret = [zwoServer getSerial:(char*)string];
+      } else {  ASI_SN sn; char buf[32];
+        ret = ASIGetSerialNumber(handle,&sn);
+        if (ret == ASI_SUCCESS) {
+          assert(sizeof(sn.idNumber) == 8);
+          for (int i=0; i<8; i++) {
+            sprintf(buf,"%02x",sn.idNumber[i]); strcat(string,buf);
+          }
+        }
+      }
+    }
+  }
+  return (ret==ASI_SUCCESS) ? 0 : E_asi_error;
+}
+  
+/* ---------------------------------------------------------------- */
 #pragma mark "Exposure"
 /* ---------------------------------------------------------------- */
 //34567890123456789012345678901234567890
@@ -731,6 +756,7 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
   if (_bitDepth == 14) {
     shift = 2;
   }
+  // printf("shift=%d\n",shift);
   u_short *p = (u_short*)imgData;      // shift pixels
   if (shift == 4) {
     for (int i=0; i<npix; i++,p++) { *p = (*p >> 4); } // assert((*p & 0x000f) == 0)

@@ -139,7 +139,7 @@
 /* ---------------------------------------------------------------- */
 //34567890123456789012345678901234567890
 
-- (id)initWithHost:(const char*)hstr port:(int)pint online:(BOOL)on
+- (instancetype)initWithHost:(const char*)hstr port:(int)pint online:(BOOL)on
 {
 #if (DEBUG > 1)
   fprintf(stderr,"%s(%s,%d,%d)\n",__func__,hstr,pint,on);
@@ -374,7 +374,6 @@
 
 + (int)createServerSocket:(u_short)port
 {
-  char    hostname[256];
   int     sock=-1,protocol=0,err=0;
   struct  sockaddr_in saddr;
 
@@ -382,21 +381,24 @@
   saddr.sin_family = AF_INET; 
   saddr.sin_port = htons(port);
 
-  if (gethostname(hostname,sizeof(hostname))) err = E_tcpip_hostname;
-
   @synchronized(self) {
     if (!err) { struct protoent *proto;
       proto = getprotobyname("tcp");       /* get protocol by name */
       if (proto == NULL) err = E_tcpip_protocol;
       else               protocol = proto->p_proto;
     }
-    if (!err) { struct  hostent *hostp;
+#if 0 // with '1st interface' only
+    if (!err) {  char hostname[256];
+      if (gethostname(hostname,sizeof(hostname))) err = E_tcpip_hostname;
+    }
+#endif
+    if (!err) {
+#if 0 /* 1st interface */
+      struct hostent *hostp;
       hostp = gethostbyname(hostname);     /* get host IP address */
       if (hostp == NULL) err = E_tcpip_hostbyname;
-    } else {
-#if 0 /* 1st interface */
-      memcpy(&saddr.sin_addr,hostp->h_addr_list[0],hostp->h_length);
-#else /* allow any interface */
+      else memcpy(&saddr.sin_addr,hostp->h_addr_list[0],hostp->h_length);
+#else /* any interface */
       saddr.sin_addr.s_addr = INADDR_ANY;
 #endif
     }
@@ -434,7 +436,7 @@
 #pragma mark "Instance"
 /* ---------------------------------------------------------------- */
 
-- (id)initWithPort:(u_short)pin delegate:(id)del
+- (instancetype)initWithPort:(u_short)pin delegate:(id)del
 {
 #if (DEBUG > 0)
   fprintf(stderr,"%s(%d,%p)\n",__func__,pin,del);

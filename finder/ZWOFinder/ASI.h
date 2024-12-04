@@ -57,7 +57,9 @@ enum asi_error_enum {
 - (int)setGeometry:(BOOL)wmode;
 - (int)setFlipX:(int)fx Y:(int)fy;
 - (int)setTemp:(float)setp cooler:(BOOL)cool;
-- (int)setWhiteBalanceRed:(int)r blue:(int)b; 
+- (int)setWhiteBalanceRed:(int)r blue:(int)b;
+
+- (int)getSerial:(char*)string;
 
 - (int)updateTemp;
 

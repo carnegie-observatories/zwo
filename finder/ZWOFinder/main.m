@@ -79,7 +79,7 @@ int main(int argc, const char * argv[])
     sprintf(buf,"%s: Debug",PREFUN);
 #endif
     if (sizeof(void*) == 8) strcat(buf,"/64-bit");
-    assert(sizeof(long) == 8);         // NEW require 64-bit
+    assert(sizeof(long) == 8);         // require 64-bit
     assert(sizeof(int) == 4);          // LP64 data model
     fprintf(stderr,"%s\n",buf);
   }

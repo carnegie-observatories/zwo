@@ -35,7 +35,7 @@ float*   fits_load4 (const char*,int*,int*,int);
 @property (readonly,nonatomic,copy) NSString *failedFile;
 @property (readonly,nonatomic)      NSString *linktarg;
 
-- (id)initWithBase:(const char*)preStr width:(u_int)w height:(u_int)h;
+- (instancetype)initWithBase:(const char*)preStr width:(u_int)w height:(u_int)h;
 - (BOOL)open:(const char*)file paths:(NSArray*)datapaths;
 - (void)intValue:(int)value forKey:(const char*)key comment:(const char*)com;
 - (void)floatValue:(double)value forKey:(const char*)key prec:(int)dp comment:(const char*)com;

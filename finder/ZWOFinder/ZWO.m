@@ -115,10 +115,27 @@
     p = strsep(&b," "); if (p) _isColor   = atoi(p); // b0028
     p = strsep(&b," "); if (p) _bitDepth  = atoi(p); // b0037
     self.name = @(b);
-    NSLog(@"name=%@",self.name); // TODO serial number may be appended
+    NSLog(@"name=%@",self.name);
   }
 
   return err;
+}
+
+/* ---------------------------------------------------------------- */
+
+- (int)getSerial:(char*)string            // NEW b0043
+{
+  char cmd[128],res[128];
+#if (DEBUG > 0)
+  fprintf(stderr,"%s:%p\n",PREFUN,self);
+#endif
+
+  sprintf(cmd,"ASIGetSerialNumber\n");
+  int err = [self request:cmd response:res max:sizeof(res)];
+  if (!err) strcpy(string,res);
+  
+  return err;
+
 }
 
 /* ---------------------------------------------------------------- */
@@ -144,7 +161,7 @@
     sscanf(res,"%d %d %d %d %d %s",&_maxWidth,&_maxHeight,
                &_hasCooler,&_isColor,&_bitDepth,name);
     self.name = @(name);         // NEW b0040
-    NSLog(@"name=%@",self.name); // TODO serial number may be appended
+    NSLog(@"name=%@",self.name);
   }
 
   return err;

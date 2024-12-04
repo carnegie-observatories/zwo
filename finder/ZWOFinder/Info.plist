@@ -17,11 +17,11 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0-beta</string>
 	<key>CFBundleVersion</key>
-	<string>0042</string>
+	<string>0044</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>${MACOSX_DEPLOYMENT_TARGET}</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>C.C.Birk, Carnegie Observatories, 2018-2020</string>
+	<string>C.C.Birk, Carnegie Observatories, 2018-2022</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

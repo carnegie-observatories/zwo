@@ -34,6 +34,7 @@ enum zwo_error_enum {
 
 - (int)getNumASI;
 - (int)getCameraProperty;
+- (int)getSerial:(char*)string;
 - (int)setupASI;
 - (int)setControl:(int)control value:(int)value;
 - (int)getControl:(int)control value:(int*)value;

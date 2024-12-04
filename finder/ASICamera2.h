@@ -195,7 +195,7 @@ typedef enum ASI_EXPOSURE_STATUS {
 }ASI_EXPOSURE_STATUS;
 
 typedef struct _ASI_ID{
-	unsigned char id[8];
+	unsigned char idNumber[8];
 }ASI_ID;
 
 typedef ASI_ID ASI_SN;

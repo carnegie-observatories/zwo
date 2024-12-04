@@ -83,7 +83,7 @@ static double my_round(double x,int d)
 /* ---------------------------------------------------------------- */
 //34567890123456789012345678901234567890
 
-- (id)initWithBase:(const char*)preStr width:(u_int)w height:(u_int)h
+- (instancetype)initWithBase:(const char*)preStr width:(u_int)w height:(u_int)h
 {
 #if (DEBUG > 0)
   fprintf(stderr,"%s:%p\n",PREFUN,self);
