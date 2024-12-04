@@ -31,9 +31,10 @@
 #define PREFUN          __func__
 #endif
 
-int    sim_star=1,sim_slit=4;          /* NEW v0406 */
+int    sim_star=1,sim_slit=4;          /* NEW v0406 slitWidth=7 */
+int    sim_cx,sim_cy;                  /* NEW v0408 */
 double sim_peak=250.0;
-double sim_sig2=0.95*19.6*19.6/2.35482;
+double sim_sig2=0.70*19.6*19.6/2.35482;
 
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
@@ -196,6 +197,7 @@ int zwo_setup(ZwoStruct* self,int dim,int bin,int offx,int offy)
           dim,dim,bin,16);
   if (!err) err = zwo_request(self,cmd,buf,5);
   if (!err) self->aoiW = self->aoiH = dim;
+  sim_cx = sim_cy = dim/2;
   sprintf(cmd,"exptime 0.5");
   if (!err) err = zwo_request(self,cmd,buf,5);
   if (!err) self->expTime = atof(buf); 
@@ -435,19 +437,18 @@ static void* run_cycle(void* param)
                 } /* endfor(dy) */
                 if (w) udata[p] = (u_short)(0.5+(double)s/(double)w);
               } /* endif(masked) */
-#if 0 // TESTING -- center cross 5 pixels todo depends on image size
-              if ((x==900) && (y==900)) udata[p] = 0x3f00; 
-              if ((x==899) && (y==900)) udata[p] = 0x1f00; 
-              if ((x==900) && (y==899)) udata[p] = 0x1f00; 
-              if ((x==901) && (y==900)) udata[p] = 0x1f00; 
-              if ((x==900) && (y==901)) udata[p] = 0x1f00;
+#if 0 // TESTING -- center cross 5 pixels 
+              if ((x==sim_cx)   && (y==sim_cy))   udata[p] = 0x3f00; 
+              if ((x==sim_cx-1) && (y==sim_cy))   udata[p] = 0x1f00; 
+              if ((x==sim_cx)   && (y==sim_cy-1)) udata[p] = 0x1f00; 
+              if ((x==sim_cx+1) && (y==sim_cy))   udata[p] = 0x1f00; 
+              if ((x==sim_cx)   && (y==sim_cy+1)) udata[p] = 0x1f00;
 #endif
-#if 0 // TESTING -- gauss
-              int cx=self->aoiW/2,cy=self->aoiH/2; /* v0348 */
-              if ((x>=cx-20) && (x<=cx+20)) { 
-                if (fabs(x-cx) < sim_slit) continue; /* blank out slit */
-                if ((y>=cy-20) && (y<=cy+20)) { 
-                  double r2 = ((x-cx)*(x-cx)+(y-cy)*(y-cy));
+#if 0 // TESTING -- gauss 
+              if ((x>=sim_cx-20) && (x<=sim_cx+20)) { 
+                if (abs(x-self->aoiW/2) < sim_slit) continue; /* blank out slit */
+                if ((y>=sim_cy-20) && (y<=sim_cy+20)) { 
+                  double r2 = ((x-sim_cx)*(x-sim_cx)+(y-sim_cy)*(y-sim_cy));
                   /* flux = 2*PI*peak*sig*sig */
                   /* flux = 1.133*peak*fw*fw */
                   int f = PRandom(sim_peak*exp(-r2/sim_sig2));

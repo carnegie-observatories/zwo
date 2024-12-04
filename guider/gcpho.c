@@ -173,7 +173,7 @@ int fit_star(Pixel* x,int n,double* a,int itmax)
 
 /* --- */
 
-int fit_profile(Pixel* x,int n,double* a,int itmax)
+int fit_profile4(Pixel* x,int n,double* a,int itmax)
 {
   int    it,i,conv=0;
   const int ndeg=4;
@@ -229,21 +229,7 @@ int fit_profile(Pixel* x,int n,double* a,int itmax)
   show_a(a,ndeg); printf(" it=%d chiold=%.1f conv=%d (%d)\n",it,chi,conv,itmax);
 #endif
 
-#if (TIME_TEST > 0)
-  double t2 = walltime(0)-t1;
-  s1 = 0.8*s1 + 0.2*t2;
-  s2 = 0.8*s2 + 0.2*t2*t2;
-  sn = 0.8*sn + 0.2;
-  double ave = s1/sn;
-  double sig = 1000.0*sqrt(s2/sn-ave*ave);
-#if (TIME_TEST < 2)
-  static int cnt=0; cnt++;
-  if ((cnt % 10) == 0)
-#endif
-  printf("walltime=%.3f msec (%.1f,%.2f)\n",1000.0*t2,1000.0*ave,sig);
-#endif
-
-  return it;
+  return (it < itmax) ? 0 : 1;
 }
 
 /* ---------------------------------------------------------------- */

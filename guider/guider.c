@@ -68,7 +68,7 @@ void* run_guider(void* param)
     break;
   case GMODE_SV4:   // todo temporary ? remove ?
     g->g_tc->eighth = g->g_fw->eighth = 1;
-    strcpy(g->g_tc->name,"dx"); graph_scale(g->g_tc,-0.4,0.4,0); 
+    strcpy(g->g_tc->name,"dx"); graph_scale(g->g_tc,-4.0,4.0,0); 
     strcpy(g->g_fw->name,"dy"); graph_scale(g->g_fw,-4.0,4.0,0); 
     break;
   }
@@ -329,11 +329,11 @@ static void run_guider3(void* param)          /* v0350 */
 
 static void run_guider4(void* param)          /* NEW v0404 */
 {
-  double t1,t2,last=0;
+  double t1,t2;
   double fit[5];
-  double dx=0,dy=0,ody=0,ddy,gx,gy,azerr,elerr;
-  double back,fwhm=0,flux,cy=0;
-  int    ix,iy,vrad=0,ppix,v;
+  double dx=0,dy=0,ody=0,ddy,odx=0,ddx,gx,gy,azerr,elerr;
+  double back,fwhm=0,flux,cx=0,cy=0;
+  int    ix,iy,vrad=0,ppix,v,q_flagx,q_flagy;
   u_int  seqNumber=0;
   Guider *g = (Guider*)param;
   QlTool *qltool = g->qltool;
@@ -344,7 +344,7 @@ static void run_guider4(void* param)          /* NEW v0404 */
   while (g->loop_running && qltool->guiding) {
     msleep(20);
     ZwoFrame *frame = zwo_frame4reading(server,seqNumber);
-    if (frame) { int i=0,x,y,xx,yy,npix; double s,pk1=0,pk2=0,pk3=0;
+    if (frame) { int x,y,xx,yy,npix,n; double s,pk1=0,pk2=0,pk3=0;
       seqNumber = frame->seqNumber;
       gx = my_round(qltool->curx[QLT_BOX],1); /* 0.1 pixel resolution */
       gy = my_round(qltool->cury[QLT_BOX],1);
@@ -355,7 +355,7 @@ static void run_guider4(void* param)          /* NEW v0404 */
         npix = 1+2*vrad;
         pbuf = (Pixel*)realloc(pbuf,npix*sizeof(Pixel));
       }
-      for (yy=-vrad,ppix=0; yy<=vrad; yy++) { /* get profile along y-axis */
+      for (n=0,yy=-vrad,ppix=0; yy<=vrad; yy++) { /* get profile along y-axis */
         y = iy + yy;
         if (y < 0) continue;
         if (y >= frame->h) break;
@@ -366,25 +366,25 @@ static void run_guider4(void* param)          /* NEW v0404 */
           v = frame->data[x+y*frame->w]; if (v > ppix) ppix = v;
           s += (double)v; 
         }
-        pbuf[i].y = y;
-        pbuf[i].z = s;
+        pbuf[n].y = y;
+        pbuf[n].z = s;
         if      (s > pk1) { pk3 = pk2; pk2 = pk1; pk1 = s; } 
         else if (s > pk2) { pk3 = pk2; pk2 = s; }
         else if (s > pk3) { pk3 = s; }
-        i++;
+        n++;
       } 
-      assert(i <= npix);
+      assert(n <= npix);
       back = get_quads(frame->data,frame->w,frame->h,ix,iy,vrad,&dx,&dy); 
 #if (DEBUG > 1)
       printf("\nback=%.0f, peak=%.0f,%.0f,%.0f\n",back,pk1,pk2,pk3);
 #endif
       if (fwhm <= 0) fwhm  = 0.7;      /* default [arcsec] */
       if (cy <= 0) cy = iy;
-      fit[0] = back*(2*vrad+1);
+      fit[0] = back*(2*vrad+1);        /* y-fit */
       fit[1] = cy;
       fit[2] = pk2 - fit[0];
       fit[3] = fwhm/(SQRLN22*g->px); /* sigma [pixels] */
-      g->q_flag = fit_profile(pbuf,i,fit,3000);
+      q_flagy = fit_profile4(pbuf,n,fit,3000);
       back = fit[0]/(2*vrad+1);
       cy   = fit[1];
       flux = sqrt(2.0*M_PI)*fit[2]*fit[3];
@@ -394,42 +394,69 @@ static void run_guider4(void* param)          /* NEW v0404 */
       printf("back=%.0f, dy=%.1f, peak=%.1f, fwhm=%.3f, flux=%.0f\n",
              back,cy,peak,fwhm,flux);
 #endif
+      int sw=1+(g->slitW/2);           /* estimate x-center */
+      if (cx == 0) cx = ix;
+      for (n=0,xx=-vrad; xx<=vrad; xx++) { /* get profile along x-axis */
+        x = ix+xx;
+        if (x < 0) continue;
+        if (x >= frame->w) break;
+        for (s=0,yy=-vrad; yy<=vrad; yy++) { /* add pixels along x-axis */
+          y = iy + yy;
+          if (y < 0) continue;
+          if (y >= frame->h) break;
+          s += (double)frame->data[x+y*frame->w];
+        }
+        int mask = (fabs(xx) <= sw) ? 1 : 0;  // printf("%d %6.0f %d\n",x,s,mask); 
+        if (mask) continue;
+        pbuf[n].y = x;
+        pbuf[n].z = s;
+        n++;
+      }
+      int warn = (pbuf[n/2].z < (pbuf[0].z+pbuf[n-1].z)/2) ? 1 : 0;
+      if (warn) printf("WARNING 'sw' parameter probably too small WARNING\n"); //xxx
+      fit[1] = cx;                     /* use y-fit values as start point */
+      q_flagx = fit_profile4(pbuf,n,fit,3000);
+      cx = fit[1];
       zwo_frame_release(server,frame);
       t2 = walltime(0);
       pthread_mutex_lock(&g->mutex);
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
-      g->dx = dx;                      /* dimensionless ratio */
+      g->dx = cx-gx;                   /* [pixels] from fit NEW v0408 */
       g->dy = cy-gy;                   /* [pixels] from fit */
       g->flux = flux;
       g->ppix = ppix;
       g->back = back;
       g->fwhm = fwhm;
+      if (fabs(g->dx) > sw) q_flagx = 2;
+      g->q_flag = imax(q_flagy,q_flagx);  /* quality flag */
 #if 1 // xxx temporary plot todo ? show flux & fwhm
       graph_add1(g->g_tc,g->dx,1); 
       graph_add1(g->g_fw,g->dy,1);
 #endif
-      dx = ((dx > 0) ? 0.1 : -0.1);      /* [arcsec] */
-      if (walltime(0)-last < 5.0) dx = 0; 
-      else                        last = walltime(0);
       ddy = (qltool->guiding < 0) ? 0.0 : g->dy-ody; /* derivative */
       ody = g->dy;                     /* old 'dy' [pixels] */
       dy = g->dy + (server->rolling+1.0)*ddy; /* [pixels] */
       //printf("dy=%+.1f, ddy=%+.1f, dx=%+.2f, dy=%+.2f\n",g->dy,ddy,dx,dy); 
+      ddx = (qltool->guiding < 0) ? 0.0 : g->dx-odx; /* derivative */
+      odx = g->dx;                     /* old 'dx' [pixels] */
+      dx = g->dx + (server->rolling+1.0)*ddx; /* [pixels] */
       qltool->guiding = abs(qltool->guiding);  
-      if (dx || fabs(dy*g->px) > 0.05) { 
-        double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
-        dy *= g->px * fdge;            /* [arcsec] */
-        rotate(dx,dy,g->pa,g->parity,&azerr,&elerr);
-        //printf("dx=%.3f dy=%.3f, azerr=%.3f elerr=%.3f\n",dx,dy,azerr,elerr);
+      if ((fabs(dx*g->px) > 0.05) || (fabs(dy*g->px) > 0.05)) { 
+        // printf("dx=%.2f dy=%.2f\n",dx,dy); 
+        rotate(dx*g->px,dy*g->px,g->pa,g->parity,&azerr,&elerr);
+        // printf("az=%.2f el=%.2f\n",azerr,elerr); 
         graph_add1(g->g_az,azerr,0);
         graph_add1(g->g_el,elerr,0);
-        g->azg = g->sens * azerr;
-        g->elg = g->sens * elerr;
-        if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-          if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg); 
-          telio_aeg(g->azg,g->elg);
-        }
+        if (g->q_flag < 2) {           /* ok fit */
+          double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
+          g->azg = fdge * g->sens * azerr;
+          g->elg = fdge * g->sens * elerr;
+          if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
+            if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg); 
+            telio_aeg(g->azg,g->elg);
+          }
+        } /* q_flag */
       }
       g->update_flag = True;           /* update GUI */
       pthread_mutex_unlock(&g->mutex);

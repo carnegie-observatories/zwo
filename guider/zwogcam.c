@@ -264,7 +264,7 @@ static void    my_shutdown       (Bool);
 
 int main(int argc,char **argv)
 {
-  int        i,j;
+  int        i,j;       
   int        sleeptime=0,winpos=CBX_TOPLEFT;
   int        x,y,w,h,d,tmode=0,err;
   char       buffer[1024],buf[128];
@@ -288,6 +288,7 @@ int main(int argc,char **argv)
   pthread_mutex_init(&mesgMutex,NULL);
 
   sGuider.gnum = 1;
+  sGuider.gmpar = 'p';
   sGuider.angle = -120.0;
   sGuider.elsign = -1.0;
   sGuider.rosign =  0.0;
@@ -330,7 +331,9 @@ int main(int argc,char **argv)
           sGuider.rosign =  0.0;
           sGuider.parity = -1.0;       /* v0351 */
           sGuider.offx=-10; sGuider.offy=85; /* v0355 */
-          sGuider.gnum = 3;            /* == default 'gmode' */
+          sGuider.gnum = 3;   
+          sGuider.gmode = 4;  sGuider.gmpar = 't';
+          sGuider.slitW = 6;
         } else 
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
@@ -372,7 +375,6 @@ int main(int argc,char **argv)
     fprintf(stderr,"%s: invalid number of guider (hosts) defined\n",argv[0]);
     exit(1);
   }
-  sGuider.gmode = sGuider.gnum;
 
   if (vertical) pHIGH = imin(88,pHIGH);
   wINFO = lSIZE+4+PXw/3+39*PXw;
@@ -436,7 +438,6 @@ int main(int argc,char **argv)
   for (i=0; i<n_guiders; i++) {
     guiders[i] = &sGuider; // (Guider*)malloc(sizeof(Guider)); 
     Guider *g = guiders[i];
-    g->gmpar = 'p';
     sprintf(g->name,"gCam%d",g->gnum);
     g->server = zwo_create(gcamHost,SERVER_PORT);
     g->gid = 0;                        /* guiding thread ID */
@@ -1316,7 +1317,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   if (!strcasecmp(cmd,"bx")) {         // guider box size
     if (n >= 2) g->qltool->vrad = imax(7,(atoi(par1)-1)/2);
     sprintf(msgstr,"%d",1+2*g->qltool->vrad); 
-    sprintf(g->bxbox.text,"bx %4d",1+2*g->qltool->vrad);
+    sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad); // bug-fix v0408
     CBX_UpdateEditWindow(&g->bxbox);
   } else
   if (!strcasecmp(cmd,"close")) {      /* TESTING */
@@ -1546,6 +1547,10 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     g->qltool->smoothing = abs(atoi(par1));
     sprintf(g->smbox.text,"sm %7d",g->qltool->smoothing);
     CBX_UpdateEditWindow(&g->smbox);
+  } else
+  if (!strncasecmp(cmd,"sw",2)) {      /* NEW v0408 */
+    if (*par1) g->slitW = imax(1,atoi(par1));
+    else       sprintf(msgstr,"%d",g->slitW);
   } else 
   if (!strncasecmp(cmd,"start",4)) {   /* start exposure loop */
     int r = do_start(g,0);
@@ -1585,7 +1590,8 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     CBX_UpdateEditWindow(&g->gnbox);
   } else
   if (!strcmp(cmd,"sim")) {
-    extern int sim_star,sim_slit; extern double sim_peak,sim_sig2;
+    extern int sim_star,sim_slit,sim_cx,sim_cy; 
+    extern double sim_peak,sim_sig2;
     if (!strncasecmp(par1,"star",2)) sim_star = atoi(par2);
     else
     if (!strncasecmp(par1,"slit",2)) sim_slit = atoi(par2);
@@ -1595,6 +1601,16 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     if (!strncasecmp(par1,"fwhm",1)) {
       sim_sig2 = atof(par2);
       sim_sig2 = 2.0*pow(sim_sig2/(g->px*2.35482),2.0);
+    } else 
+    if (!strcasecmp(par1,"x")) {
+      if      (par2[0] == '+') sim_cx += 1;
+      else if (par2[0] == '-') sim_cx -= 1;
+      else                     sim_cx  = atoi(par2);
+    } else 
+    if (!strcasecmp(par1,"y")) {
+      if      (par2[0] == '+') sim_cy += 1;
+      else if (par2[0] == '-') sim_cy -= 1;
+      else                     sim_cy  = atoi(par2);
     }
   } else {
     err = E_ERROR; sprintf(msgstr,"unknown command: %s",cmd);
@@ -2320,7 +2336,7 @@ static void set_av(Guider* g,int a)
 {
   g->server->rolling = imax(0,imin(99,a));
 #if 0 // old "av" box format
-  sprintf(g->avbox.text,"av %4d",g->server->rolling);
+  sprintf(g->avbox.text,"av %d",g->server->rolling);
 #else
   sprintf(g->avbox.text,"%d",g->server->rolling);
 #endif

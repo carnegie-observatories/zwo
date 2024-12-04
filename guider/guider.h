@@ -38,13 +38,13 @@ typedef struct guider_tag {
   int           stored_send,stored_av,stored_mode;
   char          lastCommand[256];
   char          command_msg[128];      /* v0333 */
+  int           slitW;                 /* NEW v0408 */
   /* GUI */
   Window      win;
   QlTool      *qltool;
   GraphWindow *g_az,*g_el,*g_tc,*g_fw;
   EditWindow  tfbox;                   /* exposure time */
   EditWindow  dtbox;                   /* exposure->send countdown v0343 */
-  //xxx Menu        gdmenu;       /* guider options menu todo --> opmenu */
   EditWindow  fpbox,fdbox,fgbox;       /* frames per second */
   EditWindow  gdbox,tcbox,mxbox,bkbox,fwbox,dxbox,dybox;
   EditWindow  snbox,pxbox,bxbox,pabox,avbox;
