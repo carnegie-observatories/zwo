@@ -128,8 +128,6 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt = (QlTool*)malloc(sizeof(QlTool)); if (!qlt) return(NULL);
 
-  strcpy(qlt->name,"");
- 
   qlt->disp = mw->disp;
   qlt->parent = parent;
   qlt->theImage = NULL;
@@ -144,7 +142,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->guiding = 0;
   qlt->gmode = 0;
-  qlt->vrad = 15;
+  qlt->vrad = 15;   // todo 20 for PFS slitviewer
   qlt->smoothing = 0;
 
   qlt->enoise = 1.5;
@@ -1479,7 +1477,7 @@ double get_fwhm(u_short *data,int dimx,int dimy,int x0,int y0,int r,
 /* --- */
 
 double get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
-              double *cx,double* cy)
+              double *rx,double* ry)
 {
   int    x,y;
   double xp=0,yp=0,xm=0,ym=0,v;
@@ -1490,18 +1488,36 @@ double get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
   for (x=x0-r; x<=x0+r; x++) { 
     if (x == x0) continue;
     for (y=y0-r; y<=y0+r; y++) {   
-      v = (double)data[x+y*dimx]-b;
+      v = (double)data[x+y*dimx]-b; if (v < 0) continue;
       if (x > x0) xp += v;
       else        xm += v;
       if (y > y0) yp += v;
       if (y < y0) ym += v;
     }
   }
-  *cx = (xp-xm)/(xp+xm);
-  *cy = (yp-ym)/(yp+ym); 
-  // printf("%.0f %.0f %.0f %.0f --> %+.4f %+.4f\n",xp,xm,yp,ym,*cx,*cy);
+  *rx = (xp-xm)/(xp+xm);               /* ratio */
+  *ry = (yp-ym)/(yp+ym);  
+  // printf("%.0f %.0f %.0f %.0f --> %+.4f %+.4f\n",xp,xm,yp,ym,*rx,*ry);
 
   return b;
+}
+
+/* --- */
+
+double calc_quad(int vrad,int sw,double sig,int dx) /* NEW v0409 */
+{
+  int xx,yy;
+  double xp=0,xm=0,sig2=2.0*sig*sig; 
+
+  for (yy=-vrad; yy<=vrad; yy++) { 
+    for (xx=-vrad; xx<=-sw; xx++) {
+      xm += exp(-((xx-dx)*(xx-dx))/sig2);
+    }
+    for (xx=sw; xx<=vrad; xx++) { 
+      xp += exp(-((xx-dx)*(xx-dx))/sig2); 
+    }
+  }
+  return (xp-xm)/(xp+xm);
 }
 
 /* ---------------------------------------------------------------- */

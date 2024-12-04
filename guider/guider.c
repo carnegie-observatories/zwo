@@ -61,7 +61,7 @@ void* run_guider(void* param)
     strcpy(g->g_tc->name,"tc"); graph_scale(g->g_tc,0,10000,0); 
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0); 
     break;
-  case GMODE_SV:    // todo temporary ? remove ?
+  case GMODE_SV:    // todo temporary ? remove ? which plots ?Shec
     g->g_tc->eighth = g->g_fw->eighth = 1;
     strcpy(g->g_tc->name,"dx"); graph_scale(g->g_tc,-0.4,0.4,0); 
     strcpy(g->g_fw->name,"dy"); graph_scale(g->g_fw,-0.2,0.2,0); 
@@ -330,10 +330,10 @@ static void run_guider3(void* param)          /* v0350 */
 static void run_guider4(void* param)          /* NEW v0404 */
 {
   double t1,t2;
-  double fit[5];
-  double dx=0,dy=0,ody=0,ddy,odx=0,ddx,gx,gy,azerr,elerr;
-  double back,fwhm=0,flux,cx=0,cy=0;
-  int    ix,iy,vrad=0,ppix,v,q_flagx,q_flagy;
+  double fit[4];
+  double dx=0,dy=0,rx,ry,ody=0,ddy,odx=0,ddx,drx,gx,gy,azerr,elerr;
+  double back,fwhm=0,flux,cy=0;
+  int    ix,iy,vrad=0,ppix,v;
   u_int  seqNumber=0;
   Guider *g = (Guider*)param;
   QlTool *qltool = g->qltool;
@@ -374,81 +374,61 @@ static void run_guider4(void* param)          /* NEW v0404 */
         n++;
       } 
       assert(n <= npix);
-      back = get_quads(frame->data,frame->w,frame->h,ix,iy,vrad,&dx,&dy); 
+      back = get_quads(frame->data,frame->w,frame->h,ix,iy,vrad,&rx,&ry); 
 #if (DEBUG > 1)
-      printf("\nback=%.0f, peak=%.0f,%.0f,%.0f\n",back,pk1,pk2,pk3);
+      printf("\nb=%.0f rx=%.3f p=%.0f,%.0f,%.0f\n",back,rx,pk1,pk2,pk3);
 #endif
-      if (fwhm <= 0) fwhm  = 0.7;      /* default [arcsec] */
-      if (cy <= 0) cy = iy;
+      if ((fwhm <= 0) || (g->q_flag > 1)) fwhm = 0.7;  /* default [arcsec] */
+      if ((cy <= 0) || (g->q_flag > 1)) cy = iy;
       fit[0] = back*(2*vrad+1);        /* y-fit */
       fit[1] = cy;
       fit[2] = pk2 - fit[0];
       fit[3] = fwhm/(SQRLN22*g->px); /* sigma [pixels] */
-      q_flagy = fit_profile4(pbuf,n,fit,3000);
+      g->q_flag = fit_profile4(pbuf,n,fit,3000); 
       back = fit[0]/(2*vrad+1);
       cy   = fit[1];
       flux = sqrt(2.0*M_PI)*fit[2]*fit[3];
       fwhm = SQRLN22*fit[3]*g->px;   /* FWHM [arcsec] */
+      if ((flux < n) || (fwhm < 0.2)) g->q_flag = 2; 
 #if (DEBUG > 1)
-      double peak = fit[2];
       printf("back=%.0f, dy=%.1f, peak=%.1f, fwhm=%.3f, flux=%.0f\n",
-             back,cy,peak,fwhm,flux);
+             back,cy,fit[2],fwhm,flux);
 #endif
-      int sw=1+(g->slitW/2);           /* estimate x-center */
-      if (cx == 0) cx = ix;
-      for (n=0,xx=-vrad; xx<=vrad; xx++) { /* get profile along x-axis */
-        x = ix+xx;
-        if (x < 0) continue;
-        if (x >= frame->w) break;
-        for (s=0,yy=-vrad; yy<=vrad; yy++) { /* add pixels along x-axis */
-          y = iy + yy;
-          if (y < 0) continue;
-          if (y >= frame->h) break;
-          s += (double)frame->data[x+y*frame->w];
-        }
-        int mask = (fabs(xx) <= sw) ? 1 : 0;  // printf("%d %6.0f %d\n",x,s,mask); 
-        if (mask) continue;
-        pbuf[n].y = x;
-        pbuf[n].z = s;
-        n++;
-      }
-      int warn = (pbuf[n/2].z < (pbuf[0].z+pbuf[n-1].z)/2) ? 1 : 0;
-      if (warn) printf("WARNING 'sw' parameter probably too small WARNING\n"); //xxx
-      fit[1] = cx;                     /* use y-fit values as start point */
-      q_flagx = fit_profile4(pbuf,n,fit,3000);
-      cx = fit[1];
+      drx = calc_quad(vrad,1+(g->slitW/2),fit[3],1);
+      dx = rx/drx;
+#if (DEBUG > 1)
+      printf("rx=%f, drx=%f, dx=%f\n",rx,drx,dx);
+#endif
       zwo_frame_release(server,frame);
-      t2 = walltime(0);
       pthread_mutex_lock(&g->mutex);
+      t2 = walltime(0);
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
-      g->dx = cx-gx;                   /* [pixels] from fit NEW v0408 */
-      g->dy = cy-gy;                   /* [pixels] from fit */
-      g->flux = flux;
-      g->ppix = ppix;
-      g->back = back;
-      g->fwhm = fwhm;
-      if (fabs(g->dx) > sw) q_flagx = 2;
-      g->q_flag = imax(q_flagy,q_flagx);  /* quality flag */
-#if 1 // xxx temporary plot todo ? show flux & fwhm
-      graph_add1(g->g_tc,g->dx,1); 
-      graph_add1(g->g_fw,g->dy,1);
+      if (g->q_flag < 2) {             /* ok fit */
+        g->dx = dx;                      /* [pixels] from fit NEW v0408 */
+        g->dy = cy-gy;                   /* [pixels] from fit */
+        g->flux = flux;
+        g->ppix = ppix;
+        g->back = back;
+        g->fwhm = fwhm;
+#if 1 // xxx temporary plot todo ? show flux & fwhm ?Shec
+        graph_add1(g->g_tc,g->dx,1); 
+        graph_add1(g->g_fw,g->dy,1);
 #endif
-      ddy = (qltool->guiding < 0) ? 0.0 : g->dy-ody; /* derivative */
-      ody = g->dy;                     /* old 'dy' [pixels] */
-      dy = g->dy + (server->rolling+1.0)*ddy; /* [pixels] */
-      //printf("dy=%+.1f, ddy=%+.1f, dx=%+.2f, dy=%+.2f\n",g->dy,ddy,dx,dy); 
-      ddx = (qltool->guiding < 0) ? 0.0 : g->dx-odx; /* derivative */
-      odx = g->dx;                     /* old 'dx' [pixels] */
-      dx = g->dx + (server->rolling+1.0)*ddx; /* [pixels] */
-      qltool->guiding = abs(qltool->guiding);  
-      if ((fabs(dx*g->px) > 0.05) || (fabs(dy*g->px) > 0.05)) { 
-        // printf("dx=%.2f dy=%.2f\n",dx,dy); 
-        rotate(dx*g->px,dy*g->px,g->pa,g->parity,&azerr,&elerr);
-        // printf("az=%.2f el=%.2f\n",azerr,elerr); 
-        graph_add1(g->g_az,azerr,0);
-        graph_add1(g->g_el,elerr,0);
-        if (g->q_flag < 2) {           /* ok fit */
+        ddy = (qltool->guiding < 0) ? 0.0 : g->dy-ody; /* derivative */
+        ody = g->dy;                     /* old 'dy' [pixels] */
+        dy = g->dy + (server->rolling+1.0)*ddy; /* [pixels] */
+        ddx = (qltool->guiding < 0) ? 0.0 : g->dx-odx; /* derivative */
+        odx = g->dx;                     /* old 'dx' [pixels] */
+        dx = g->dx + (server->rolling+1.0)*ddx; /* [pixels] */
+        qltool->guiding = abs(qltool->guiding);  
+        if ((fabs(dx*g->px) > 0.05) || (fabs(dy*g->px) > 0.05)) { 
+          // printf("dx=%.2f dy=%.2f\n",dx,dy); 
+          rotate(dx*g->px,dy*g->px,g->pa,g->parity,&azerr,&elerr);
+          // printf("az=%.2f el=%.2f\n",azerr,elerr); 
+          graph_add1(g->g_az,azerr,0);
+          graph_add1(g->g_el,elerr,0);
+ //xxxyyy todo  eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
           double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
           g->azg = fdge * g->sens * azerr;
           g->elg = fdge * g->sens * elerr;
@@ -456,8 +436,8 @@ static void run_guider4(void* param)          /* NEW v0404 */
             if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg); 
             telio_aeg(g->azg,g->elg);
           }
-        } /* q_flag */
-      }
+        } /* > 0.05 */
+      } /* q_flag */
       g->update_flag = True;           /* update GUI */
       pthread_mutex_unlock(&g->mutex);
     } // endif(frame)

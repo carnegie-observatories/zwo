@@ -294,6 +294,7 @@ int main(int argc,char **argv)
   sGuider.rosign =  0.0;
   sGuider.parity =  1.0;
   sGuider.offx = sGuider.offy = 0;
+  sGuider.slitW = 6;
 
   { extern char *optarg; double f;     /* parse command line */  
     extern int opterr,optopt; opterr=0;
@@ -333,7 +334,6 @@ int main(int argc,char **argv)
           sGuider.offx=-10; sGuider.offy=85; /* v0355 */
           sGuider.gnum = 3;   
           sGuider.gmode = 4;  sGuider.gmpar = 't';
-          sGuider.slitW = 6;
         } else 
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
@@ -655,9 +655,8 @@ int main(int argc,char **argv)
                               g->bxbox.x,g->bxbox.y+XXh+PXh/3,
                               g->smbox.x,g->msbox[0].y,g->smbox.w, 
                               g->status.dimx);
-    sprintf(g->qltool->name,"QlTool%d",1+i);  // todo remove?
     g->qltool->gmode = g->gmode;
-    if (g->gmode == 3) g->qltool->lmag = 2;  /* v0354 */
+    if (g->gmode >= GMODE_SV) g->qltool->lmag = 2;  /* v0354,v0409 */
     sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad);
   } /* endfor(n_guiders) */
   done = False;

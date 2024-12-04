@@ -352,7 +352,7 @@ int telio_slew(double alpha,double delta,double equinox)
 int telio_aeg(float az,float el)
 {
   char cmd[128];
-#if (DEBUG > 0) && !defined(ENG_MODE) //xxx1
+#if (DEBUG > 0) && !defined(ENG_MODE)
   fprintf(stderr,"%s(%.2f,%.2f)\n",PREFUN,az,el);
 #endif
   assert(telio_count > 0);             /* connection already open */
@@ -368,7 +368,7 @@ int telio_aeg(float az,float el)
 int telio_gpaer(int mode,float az,float el)
 {
   char cmd[128];
-#if (DEBUG > 0)
+#if (DEBUG > 0) && !defined(ENG_MODE) 
   fprintf(stderr,"%s(%d,%.2f,%.2f)\n",PREFUN,mode,az,el);
 #endif
  
