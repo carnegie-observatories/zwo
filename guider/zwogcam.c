@@ -1583,6 +1583,19 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     sprintf(msgstr,"%d %d",g->server->gain,g->server->offset);
     sprintf(g->gnbox.text,"gain %5d",g->server->gain);
     CBX_UpdateEditWindow(&g->gnbox);
+  } else
+  if (!strcmp(cmd,"sim")) {
+    extern int sim_star,sim_slit; extern double sim_peak,sim_sig2;
+    if (!strncasecmp(par1,"star",2)) sim_star = atoi(par2);
+    else
+    if (!strncasecmp(par1,"slit",2)) sim_slit = atoi(par2);
+    else
+    if (!strncasecmp(par1,"peak",1)) sim_peak = atof(par2);
+    else
+    if (!strncasecmp(par1,"fwhm",1)) {
+      sim_sig2 = atof(par2);
+      sim_sig2 = 2.0*pow(sim_sig2/(g->px*2.35482),2.0);
+    }
   } else {
     err = E_ERROR; sprintf(msgstr,"unknown command: %s",cmd);
   }
@@ -2330,7 +2343,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
 {
   g->gmode = imax(1,imin(GM_MAX,m));
   if (c) g->gmpar = (c == 'p') ? 'p' : 't';
-  if (g->gmode == 3) sprintf(g->gmbox.text,"gm %1d%c",g->gmode,g->gmpar);
+  if (g->gmode >= 3) sprintf(g->gmbox.text,"gm %1d%c",g->gmode,g->gmpar);
   else               sprintf(g->gmbox.text,"gm %2d",g->gmode);
   CBX_UpdateEditWindow(&g->gmbox);
   g->qltool->gmode = g->gmode;

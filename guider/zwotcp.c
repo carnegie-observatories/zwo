@@ -31,6 +31,10 @@
 #define PREFUN          __func__
 #endif
 
+int    sim_star=1,sim_slit=0;          /* NEW v0406 */
+double sim_peak=250.0;
+double sim_sig2=0.95*19.6*19.6/2.35482;
+
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
  
@@ -438,16 +442,15 @@ static void* run_cycle(void* param)
               if ((x==901) && (y==900)) udata[p] = 0x1f00; 
               if ((x==900) && (y==901)) udata[p] = 0x1f00;
 #endif
-#if 1 // TESTING -- gauss xxx
+#if 0 // TESTING -- gauss xxx
               int cx=self->aoiW/2,cy=self->aoiH/2; /* v0348 */
-              double pk=500.0*self->expTime;
               if ((x>=cx-20) && (x<=cx+20)) { 
-                if (fabs(x-cx) <= 3) continue; /* blank out slit */
+                if (fabs(x-cx) < sim_slit) continue; /* blank out slit */
                 if ((y>=cy-20) && (y<=cy+20)) { 
                   double r2 = ((x-cx)*(x-cx)+(y-cy)*(y-cy));
                   /* flux = 2*PI*peak*sig*sig */
                   /* flux = 1.133*peak*fw*fw */
-                  int f = PRandom(pk*exp(-r2/(0.85*14*14/2.35482)));
+                  int f = PRandom(sim_peak*exp(-r2/sim_sig2));
 #if (DEBUG > 1)
                   debug_sum += f;
 #endif

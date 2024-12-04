@@ -16,7 +16,7 @@
 
 /* ---------------------------------------------------------------- */
 
-#define DEBUG      2  //xxx1
+#define DEBUG      1 
 #define TIME_TEST  0
 
 /* ---------------------------------------------------------------- */
@@ -168,7 +168,7 @@ int fit_star(Pixel* x,int n,double* a,int itmax)
   printf("walltime=%.3f msec (%.1f,%.2f)\n",1000.0*t2,1000.0*ave,sig);
 #endif
 
-  return it;
+  return (it < itmax) ? 0 : 1;
 }
 
 /* --- */
@@ -177,8 +177,8 @@ int fit_profile(Pixel* x,int n,double* a,int itmax)
 {
   int    it,i,conv=0;
   const int ndeg=4;
-  double da[4]   = {5.0,0.5  ,5.0,0.05};  /* bias,y0,peak,fwhm */
-  double alim[4] = {0.1,0.002,0.2,0.002};
+  double da[4]   = {10.0,0.5  , 5.0,0.05};  /* bias,y0,peak,fwhm */
+  double alim[4] = { 1.0,0.002, 0.5,0.002};
   double dc[4],dcold[4],chi,chi1,chi2,chiold,sumdc;
 #if (TIME_TEST > 0)
   double t1 = walltime(0);
@@ -187,7 +187,7 @@ int fit_profile(Pixel* x,int n,double* a,int itmax)
 
   for (i=0; i<ndeg; i++) dcold[i] = 0.0;
   chi = chiold = get_chi1(x,n,a);
-  show_a(a,ndeg); printf(" chi=%f\n",chi); //xxx
+  //show_a(a,ndeg); printf(" chi=%f\n",chi); 
 
   for (it=1; it<=itmax; it++) {
     for (i=0; i<ndeg; i++) {
@@ -248,7 +248,8 @@ int fit_profile(Pixel* x,int n,double* a,int itmax)
 
 /* ---------------------------------------------------------------- */
 
-int ccbphot(Pixel* x,int n,double* fit,int itmax) // xxxyyy --> guider.c
+#if 0 //xxx
+int ccbphot(Pixel* x,int n,double* fit,int itmax) 
 {
   double a[5];
 #if (DEBUG > 1)
@@ -275,9 +276,11 @@ int ccbphot(Pixel* x,int n,double* fit,int itmax) // xxxyyy --> guider.c
 
   return it;
 }
+#endif
 
 /* --- */
 
+#if 0 //xxx
 int ccbprofile(Pixel* x,int n,double* fit,int itmax) // todo --> guider.c
 {
   double a[4];
@@ -297,13 +300,13 @@ int ccbprofile(Pixel* x,int n,double* fit,int itmax) // todo --> guider.c
 
   fit[0] = a[0];                       // background
   fit[1] = a[1];                       // y-center
-  fit[2] = 2.0*M_PI*a[3]*a[3]*a[2];    // total count xxxyyy
-  fit[2] = sqrt(2.0*M_PI)*a[3]*a[2];    // total count xxxyyy
+  fit[2] = sqrt(2.0*M_PI)*a[3]*a[2];    // total count 
   fit[3] = 2.35482*a[3];               // fwhm
   fit[4] = a[2];                       // peak
 
   return it;
 }
+#endif
 
 
 /* ---------------------------------------------------------------- */

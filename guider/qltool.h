@@ -79,7 +79,7 @@ void    qltool_lmag(QlTool*,int);
 double get_background(u_short*,int,int,int,int,int,double*);
 double get_fwhm(u_short*,int,int,int,int,int,double,double,
                 double*,double*,double*,double*,double*);
-int    get_quads(u_short*,int,int,int,int,int,double*,double*);
+double get_quads(u_short*,int,int,int,int,int,double*,double*);
 
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */

@@ -1014,7 +1014,7 @@ static void do_lupe24(QlTool* qlt)
     int x2 = xc + qlt->vrad*lmag;
     int y1 = yc - qlt->vrad*lmag;
     int y2 = yc + qlt->vrad*lmag;
-    if (qlt->gmode >= GMODE_SV) {      /* guide-cross v0348 xxxyyy */
+    if (qlt->gmode >= GMODE_SV) {      /* guide-cross v0348 NEW v0405 */
       draw_cross(lupe,lgrey,qlt->lWIDE,qlt->lHIGH,xc,yc,
                  2*qlt->vrad*lmag,2*qlt->vrad*lmag);
     } else {                           /* guide-box */
@@ -1478,7 +1478,7 @@ double get_fwhm(u_short *data,int dimx,int dimy,int x0,int y0,int r,
 
 /* --- */
 
-int get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
+double get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
               double *cx,double* cy)
 {
   int    x,y;
@@ -1501,7 +1501,7 @@ int get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
   *cy = (yp-ym)/(yp+ym); 
   // printf("%.0f %.0f %.0f %.0f --> %+.4f %+.4f\n",xp,xm,yp,ym,*cx,*cy);
 
-  return 0;
+  return b;
 }
 
 /* ---------------------------------------------------------------- */
