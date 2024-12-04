@@ -44,7 +44,7 @@ typedef struct fitskey_tag {
   char* keyword;
 } FITSKey;
 
-typedef struct system_parameters_tag { // IDEA use 'Guider' 
+typedef struct system_parameters_tag { // IDEA combine with Guider struct
   /* camera */
   char   instrument[64],serial[32];
   int    dimx,dimy;

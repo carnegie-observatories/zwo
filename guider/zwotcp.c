@@ -54,7 +54,7 @@ ZwoStruct* zwo_create(const char* host,int port)
   self->modelName[0] = '\0';
   self->serialNumber[0] = '\0';
   self->tempSensor = 0.0f;
-  self->tempSetpoint = 2.0f; // TODO default temperature
+  self->tempSetpoint = 2.0f; // TODO default temperature?
   self->coolerPercent = 0; 
   self->aoiW = self->aoiH = 0;
   self->expTime = 0.5f;
@@ -444,7 +444,7 @@ static void* run_cycle(void* param)
               if ((x==sim_cx+1) && (y==sim_cy))   udata[p] = 0x1f00; 
               if ((x==sim_cx)   && (y==sim_cy+1)) udata[p] = 0x1f00;
 #endif
-#if 1 // TESTING -- gauss
+#if 0 // TESTING -- gauss
               static const int ww=30;
               if ((x>=sim_cx-ww) && (x<=sim_cx+ww)) { 
                 if (abs(x-self->aoiW/2) < sim_slit) continue; /* blank out slit */
@@ -456,7 +456,7 @@ static void* run_cycle(void* param)
 #if (DEBUG > 1)
                   debug_sum += f;
 #endif
-                  if (f > 0x3b00) f = 0x3b00; // NEW v0411
+                  if (f > 0x3b00) f = 0x3b00; // 15104 NEW v0411
                   udata[p] += (f << 2);
                 }
               }
@@ -480,7 +480,7 @@ static void* run_cycle(void* param)
             for (i=0; i<npix; i++,p++,d++) *p = *d >> 2; // shift data
             if (roll_buf) { free((void*)roll_buf); roll_buf=NULL; }
           } else { int mul=self->rolling; float div=1+self->rolling;
-#if (TIME_TEST > 1) // IDEA "debug" level
+#if (TIME_TEST > 1)
             double c1 = walltime(0);
 #endif
             if (!roll_buf) {

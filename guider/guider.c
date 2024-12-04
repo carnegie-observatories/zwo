@@ -61,7 +61,7 @@ void* run_guider(void* param)
     message(g,buf,MSS_ERROR);
   } else tcsOpen = 1;
 
-  if (g->gmode == GMODE_PR) {
+  if (g->gmode == GM_PR) {
     err = eds_open(2);                 /* v0336 */
     if (err) {
       sprintf(buf,"connection to EDS failed (err=%d)",err);
@@ -70,16 +70,16 @@ void* run_guider(void* param)
   }
 
   switch (g->gmode) {
-  case GMODE_PR:
+  case GM_PR:
     run_guider1(g);
     break;
-  case GMODE_SV:
+  case GM_SV3:
     run_guider3(g);
     break;
-  case GMODE_SV4:
+  case GM_SV4:
     run_guider4(g);
     break;
-  default:   // todo ?Povilas
+  default: 
     message(g,"invalid guider mode",MSS_WARN);
     g->gid = 0;
     break;
@@ -196,9 +196,9 @@ static void run_guider1(void* param)
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
       if (g->q_flag < 2) { double azerr,elerr; /* we have valid measurement */
-        if ((qltool->guiding == -4) || (qltool->guiding == -5)) {  /* adjust g.box */
-          gx = cx; ix = qltool->curx[QLT_BOX] = (int)my_round(gx,0);
-          gy = cy; iy = qltool->cury[QLT_BOX] = (int)my_round(gy,0);
+        if ((qltool->guiding == -4) || (qltool->guiding == -5)) {  /* adjust */
+          gx = cx; ix = qltool->curx[QLT_BOX] = (int)my_round(gx,0); /* guide */
+          gy = cy; iy = qltool->cury[QLT_BOX] = (int)my_round(gy,0); /* box */
         }
         g->flux = flux;
         g->ppix = (double)ppix;
@@ -234,7 +234,7 @@ static void run_guider1(void* param)
           eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
         }
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-          telio_aeg(g->azg,g->elg);  // todo everytime ?Povilas
+          telio_aeg(g->azg,g->elg);
         } 
       } else {
         g->azg = g->elg = 0;
@@ -368,9 +368,8 @@ static void run_guider4(void* param)          /* v0404 */
       back = fit[0]/(2*vrad+1);
       cy   = fit[1];
       fwhm = SQRLN22*fit[3]*g->px;   /* FWHM [arcsec] */
-      printf("flux=%.0f (%d)\n",flux,n*n);
       if ((fwhm > 5.0) || (fwhm < 0.1)) g->q_flag = 2; /* sanity check */
-      if ((fabs(cy-gy) > vrad) || (flux < 2*n*n))  g->q_flag = 2;
+      if ((fabs(cy-gy) > vrad) || (flux < 1*n*n))  g->q_flag = 2;
 #if (DEBUG > 1)
       printf("back=%.0f, dy=%.1f, peak=%.1f, fwhm=%.3f, flx=%.0f\n",
              back,cy,fit[2],fwhm,flx);
@@ -385,10 +384,10 @@ static void run_guider4(void* param)          /* v0404 */
       zwo_frame_release(server,frame);
       pthread_mutex_lock(&g->mutex);
       t2 = walltime(0);
-      g->fps = 0.8*g->fps + 0.2/(t2-t1); // todo how can this be >1/tf ?
+      g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
       if (g->q_flag < 2) {             /* ok fit */
-        g->dx = dx;                    /* [pixels] from ratio NEW v0408 */
+        g->dx = dx;                    /* [pixels] from ratio v0408 */
         g->dy = cy-gy;                 /* [pixels] from fit */
         g->flux = flux;
         g->ppix = ppix;
@@ -410,7 +409,7 @@ static void run_guider4(void* param)          /* v0404 */
           // printf("dx=%.2f dy=%.2f\n",dx,dy); 
           rotate(dx*g->px,dy*g->px,g->pa,g->parity,&azerr,&elerr);
           // printf("az=%.2f el=%.2f\n",azerr,elerr); 
- // todo ?Povilas eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
+          // ?Povilas eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
           double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
           g->azg = fdge * g->sens * azerr;
           g->elg = fdge * g->sens * elerr;

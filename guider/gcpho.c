@@ -20,7 +20,7 @@
 #define TIME_TEST  0
 
 /* ---------------------------------------------------------------- */
-/* todo explain strategy */
+/* TODO explain strategy */
 /* ---------------------------------------------------------------- */
 
 /* Note: 'static' and 'inline' make code slower */

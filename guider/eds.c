@@ -103,17 +103,7 @@ static int eds_send(const char* line)
   if (eds_port) {
     sprintf(cmd,"%s\n",line);          /* append [LF] v0342 */
     int nbytes = 1+(int)strlen(cmd);   /* send trailing '\0' v0339 */
-    TCPIP_Send2(eds_sock,cmd,nbytes);
-#if 0 // v0346 no response from EDS -- todo remove ?Povilas
-    { char buf[128];
-    double t1 = walltime(0);           /* v0340,v0341 */
-    err = TCPIP_Receive3(eds_sock,buf,sizeof(buf)-1,50000);
-    double t2 = walltime(0);
-    printf("(%d bytes sent) ",nbytes);
-    if (err) printf("no response from EDS (%.3f sec)\n",t2-t1);
-    else     printf("EDS response: %s (%.3f sec)\n",buf,t2-t1);
-    }
-#endif
+    TCPIP_Send2(eds_sock,cmd,nbytes);  /* no response from EDS */
   } else msleep(20);
 
   eds_unlock();

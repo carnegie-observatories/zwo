@@ -140,7 +140,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->guiding = 0;
   qlt->gmode = 0;
-  qlt->vrad = 20;                      /* NEW v0410 todo 15 for PR ?Povilas */
+  qlt->vrad = 15;                      /* TODO 20 ?Povilas */
   qlt->smoothing = 0;
 
   qlt->enoise = 1.5;

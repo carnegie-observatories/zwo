@@ -52,15 +52,12 @@
  * v0.348  2023-12-13  offset
  * v0.350  2023-12-18  slitview guider (gm=3)
  * v0.400  2024-01-05  single camera only, layout optimizations
+ * v0.408  2024-01-29  guide mode 'gm4'
+ * v0.415  2024-02-20  configuration files
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
  *
- * IDEA add command history
- * IDEA scroll message log
- * IDEA "control" key required optionally
- *
- * TODO .ini file
  * TODO update FITS header (EPOCH wrong in Magellan example)
  *
  * ---------------------------------------------------------------- */
@@ -192,18 +189,18 @@ static EditWindow utbox,rtbox;
 
 static Guider sGuider;                 /* singleton v0400 */
 static Guider *guiders[1];             /* historical */
-static int n_guiders=0;                /* historical */
+static const int n_guiders=1;          /* historical */
 
-static time_t next_disk=0;
+static time_t disk_next=0;
 static time_t startup_time;
 static int    pa_interval=30;
 static float  elev=90,para=0;
 
-static int   baseD=1800,baseB=2,baseI=600;  /* default=ZWO todo 500 */
+static int   baseD=1800,baseB=2,baseI=600;
 static int   eWIDE,eHIGH,pHIGH=117;
 static int   wINFO;                    /* v0401 */
 static int   lSIZE=128;                /* v0402 */
-static float pscale=0.02535f;  /* measured 20230113 Andor:6.5um, ZWO:2.32um */
+// static float pscale=0.02535f;  /* measured 20230113 Andor:6.5um, ZWO:2.32um */
 
 static const Bool require_control_key=True; // IDEA allow False
 
@@ -213,7 +210,6 @@ static pthread_mutex_t scanMutex,mesgMutex;
 
 static char   paString[128];
 
-static int   rotatorPort=0;
 static int   vertical=0;
 
 /* function prototype(s) ------------------------------------------ */
@@ -257,6 +253,7 @@ static void    load_mask         (Guider*);
 
 static int     check_datapath    (char*,int);
 static void    my_shutdown       (Bool);
+static int     read_inifile      (Guider*,int*,const char*);
 
 /* ---------------------------------------------------------------- */
  
@@ -264,11 +261,11 @@ static void    my_shutdown       (Bool);
 
 int main(int argc,char **argv)
 {
-  int        i,j;       
+  int        i,j,m=0;
   int        sleeptime=0,winpos=CBX_TOPLEFT;
   int        x,y,w,h,d,tmode=0,err;
   char       buffer[1024],buf[128];
-  char       xserver[256],gcamHost[128];
+  char       xserver[256];
   XEvent     event;
   XSizeHints hint;
 
@@ -277,7 +274,7 @@ int main(int argc,char **argv)
   startup_time = cor_time(0);
 
   strcpy(xserver,genv2("DISPLAY",""));
-  strcpy(fontname,genv2("ZWOGUIDERFONT",DEF_FONT)); 
+  strcpy(fontname,genv2("GCAMZWOFONT",DEF_FONT)); /* v0415 */
   mwin.disp = NULL;
 #ifdef MACOSX
   winpos = CBX_CalcPosition(45,0);
@@ -288,13 +285,23 @@ int main(int argc,char **argv)
   pthread_mutex_init(&mesgMutex,NULL);
 
   sGuider.gnum = 1;                    /* PR */
-  sGuider.gmpar = 'p';
+  sGuider.gmpar = 't';                 /* default 'p' ?Shec */
   sGuider.angle = -120.0;
   sGuider.elsign = -1.0;
   sGuider.rosign =  0.0;
   sGuider.parity =  1.0;
   sGuider.offx = sGuider.offy = 0;
   sGuider.slitW = 6;
+  sGuider.px = 0.051;                  /* 2*0.02535 - measured 20230113 */
+  sGuider.lmag = sGuider.bx = 0;
+  sGuider.pct = sGuider.bkg = sGuider.span = 0;
+  strcpy(sGuider.host,"localhost");
+  sGuider.rPort = 0;
+#ifdef ENG_MODE
+  strcpy(sGuider.gain,"");
+#else
+  strcpy(sGuider.gain,"hi");
+#endif
 
   { extern char *optarg; double f;     /* parse command line */  
     extern int opterr,optopt; opterr=0;
@@ -304,38 +311,47 @@ int main(int argc,char **argv)
         sGuider.angle = atof(optarg);
         break;
       case 'e':                        /* 'elsign' v0311 */
-        f = atof(optarg);         /* v0315 */
+        f = atof(optarg);              /* v0315 */
         sGuider.elsign = (f > 0) ? 1.0 : ((f < 0) ? -1.0 : 0.0);
         break;
       case 'r':                        /* 'rosign' v0311 */
         f = atof(optarg);
         sGuider.rosign = (f > 0) ? 1.0 : ((f < 0) ? -1.0 : 0.0);
         break;
-      case 'f':                        /* fontname */
-        strcpy(fontname,optarg);
+      case 'f':                        /* .ini file NEW v0415 */
+        (void)read_inifile(&sGuider,&m,optarg);
+        switch (m) {
+          case '1': baseD=1000; baseB=2; baseI=500; pHIGH=82; break;
+          case '5': baseD=1512; baseB=2; baseI=504; pHIGH=87; break;
+          case '2': baseD=2000; baseB=2; baseI=500; pHIGH=82; break;
+        }
         break;
       case 'g':                        /* guiderCamera number {1..3} */
         sGuider.gnum = imin(3,imax(1,atoi(optarg)));
         break;
       case 'h':                        /* camera (rPi) host */
-        strcpy(gcamHost,optarg);
-        n_guiders++;
+        strcpy(sGuider.host,optarg);
         break; 
       case 'i':                        /* parity v0351 */
-        sGuider.parity = atof(optarg);
+        sGuider.parity = (atof(optarg) < 0) ? -1.0 : 1.0;
         break;
       case 'm':                        /* optical mode */
-        if (optarg[0] == 'p') {        /* PFS slitviewer v0345 */
-          baseD=1200; baseB=2; baseI=600; pHIGH = 117;  // todo 'm1' ?Shec
-          baseD=1000; baseB=2; baseI=500; pHIGH = 82;
-          sGuider.angle  = -128.0; 
+        if (optarg[0] == 'p') {        /* PFS slitviewer v0345 todo remove */
+          baseD=1000; baseB=2; baseI=500; pHIGH = 82; 
+          sGuider.angle  = -128.0;
           sGuider.elsign = -1.0;
           sGuider.rosign =  0.0;
           sGuider.parity = -1.0;       /* v0351 */
           sGuider.offx=-10; sGuider.offy=85; /* v0355 */
           sGuider.gnum = 3;   
           sGuider.gmode = 4;  sGuider.gmpar = 't'; 
-          pscale = 0.0265;             /* ?Shec NEW v0410 todo all instruments? */
+          sGuider.px = 0.053;          /* v0410 */
+          sGuider.bx = 41;
+          sGuider.lmag = 2;
+          sGuider.pct = 60;
+          sGuider.bkg = 24;
+          sGuider.span = 5000;
+          strcpy(sGuider.gain,"lo");
         } else 
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
@@ -356,8 +372,8 @@ int main(int argc,char **argv)
       case 'o':                        /* offset v0348 */
         sscanf(optarg,"%d,%d",&sGuider.offx,&sGuider.offy); 
         break;
-      case 'p':                        /* rotatorPort v0313 */
-        rotatorPort = atoi(optarg); 
+      case 'p':                        /* rotator port v0313 */
+        sGuider.rPort = atoi(optarg);   
         break;
       case 't':                        /* TCS */
         tmode = atoi(optarg);
@@ -371,11 +387,6 @@ int main(int argc,char **argv)
         break;
       }
     } /* endwhile(getopt) */
-  }
-
-  if (n_guiders != 1) {
-    fprintf(stderr,"%s: invalid number of guider (hosts) defined\n",argv[0]);
-    exit(1);
   }
 
   if (vertical) pHIGH = imin(88,pHIGH);
@@ -393,10 +404,10 @@ int main(int argc,char **argv)
     err = telio_init(TELIO_NONE,0);
     break;
   case 1:                              /* Baade v0315 */
-    err = telio_init(TELIO_MAG1,(rotatorPort) ? 5810+rotatorPort : 5801);
+    err = telio_init(TELIO_MAG1,(sGuider.rPort) ? 5810+sGuider.rPort : 5801);
     break;
   case 2:                              /* Clay v0315*/
-    err = telio_init(TELIO_MAG2,(rotatorPort) ? 5810+rotatorPort : 5801);
+    err = telio_init(TELIO_MAG2,(sGuider.rPort) ? 5810+sGuider.rPort : 5801);
     break;
   default:                             /* Simulator */
     err = telio_init(TELIO_NONE,5801); 
@@ -441,7 +452,7 @@ int main(int argc,char **argv)
     guiders[i] = &sGuider; // (Guider*)malloc(sizeof(Guider)); 
     Guider *g = guiders[i];
     sprintf(g->name,"gCam%d",g->gnum);
-    g->server = zwo_create(gcamHost,SERVER_PORT);
+    g->server = zwo_create(g->host,SERVER_PORT);
     g->gid = 0;                        /* guiding thread ID */
     g->qltool = NULL;
     g->loop_running = g->house_running = False; 
@@ -451,11 +462,10 @@ int main(int argc,char **argv)
     g->fps = g->flux = g->ppix = g->back = g->fwhm = g->dx = g->dy = 0;
     g->sens = 0.5;
     g->pa = 0.0;
-    g->shmode = (g->gmode == GMODE_SH) ? 1 : 0;
+    g->shmode = (g->gmode == GM_SH) ? 1 : 0;
     g->pamode = 1;                     /* v0066 */
     g->esmode = 0;
     g->msmode = 1;
-    g->px = pscale*baseB;
     g->sendNumber = 1;                 /* v0313 */
     strcpy(g->send_host,telio_host);
     g->send_port = 5700+g->gnum-1;     /* v0316 */
@@ -483,7 +493,7 @@ int main(int argc,char **argv)
     st->exptime = 0.5f; 
     st->ca = modulo(g->angle+180.0,0,360);  /* v0316 */
     st->camera = g->gnum;                /* v0317 */
-    st->rotn = rotatorPort;              /* v0317 */
+    st->rotn = sGuider.rPort;            /* v0317 */
     st->psize = 4.63f;                   /* [um] v0327 */
     strcpy(st->st_str,""); strcpy(st->ha_str,""); strcpy(st->tg_str,""); 
   }
@@ -646,15 +656,12 @@ int main(int argc,char **argv)
                               g->smbox.x,g->msbox[0].y,g->smbox.w, 
                               g->status.dimx);
     g->qltool->gmode = g->gmode;
-#ifndef ENG_MODE
-    if (g->gmode >= GM_SV3) {
-      g->qltool->lmag = 2;  /* v0354,v0409 */
-      qltool_scale(g->qltool,"pct","60","");   /* NEW v0410 todo just PFS ?Shec */
-      qltool_scale(g->qltool,"bkg","24","");
-      qltool_scale(g->qltool,"spa","5000","");
-    }
-#endif
-    sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad); // todo bx=31 for PR?Povilas
+    if (g->lmag > 0) g->qltool->lmag = g->lmag;  /* overwrite NEW v0415 */
+    if (g->pct  > 0) { sprintf(buf,"%d",g->pct); qltool_scale(g->qltool,"pct",buf,""); }
+    if (g->bkg  > 0) { sprintf(buf,"%d",g->bkg); qltool_scale(g->qltool,"bkg",buf,""); }
+    if (g->span > 0) { sprintf(buf,"%d",g->span); qltool_scale(g->qltool,"spa",buf,""); }
+    if (g->bx > 0) { sprintf(buf,"bx %d",g->bx); handle_command(g,buf,0); }
+    else sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad);
   } /* endfor(n_guiders) */
   done = False;
 
@@ -793,12 +800,6 @@ int main(int argc,char **argv)
   } /* while(!done) */                 /* end of main-loop */
 
   /* free up all the resources and exit --------------------------- */
-
-#if 0 // TODO
-  if (info.port != 0) {                /* TCP/IP enabled */
-    (void)TCPIP_TerminateServerThread(&info,1000);
-  }
-#endif
 
   CBX_CloseMainWindow(&mwin);
 
@@ -943,8 +944,8 @@ static void update_ut(void)
   fprintf(stderr,"%s()\n",PREFUN);
 #endif
 
-  if (cor_time(0) == ut_now) return;   /* current time IDEA TCS offtime */
-  ut_now = cor_time(0);                /* IDEA depends on time server */
+  if (cor_time(0) == ut_now) return;   /* current time */
+  ut_now = cor_time(0);
 
   sprintf(utbox.text,"UT %s",get_ut_timestr(buf,ut_now));
   CBX_UpdateEditWindow(&utbox); 
@@ -977,12 +978,11 @@ static void update_ut(void)
     }
     sprintf(rtbox.text,"et %.1f%s",runtime,buf);
     CBX_UpdateEditWindow(&rtbox); 
-    // IDEA return to execute only one thing each time
   }
 
   if (ut_now >= pa_next) { int i; Guider *g;
     for (i=0; i<n_guiders; i++) { 
-      g = guiders[i];  // printf("g=%p\n",g);
+      g = guiders[i];
       if (g->pamode) {
         thread_detach(run_tele,NULL);
         pa_next = ut_now + pa_interval;
@@ -991,14 +991,14 @@ static void update_ut(void)
     }
   }
   
-  if (ut_now >= next_disk) { // IDEA thread_detach
-    Guider *g = guiders[0];
+  if (ut_now >= disk_next) {           /* check disk */
+    Guider *g = guiders[0];            /* takes about 0.5 msec */
     float file_system = checkfs(g->status.datapath); 
     if (file_system < 0.05) { char buf[128]; 
       sprintf(buf,"WARNING: disk %.1f%% full",100.0*(1.0-file_system));
       message(g,buf,MSS_WARN);
     }
-    next_disk = ut_now+600;
+    disk_next = ut_now+607;            /* every 10 minutes */
   }
 }
 
@@ -1269,7 +1269,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
 
   msgstr = g->command_msg; *msgstr = '\0';  /* clear return v0333 */
 
-  if (!strncmp(command,"!",1)) {       /* v0323 TODO */
+  if (!strncmp(command,"!",1)) {       /* v0323 IDEA command history */
     handle_command(g,g->lastCommand,showMsg);
     return 0;
   }
@@ -1417,7 +1417,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     set_pa(g,atof(par1),0);
   } else
   if (!strcasecmp(cmd,"px")) {         /* pixel scale */
-    g->px = fmax(0.001,atof(par1)/1000.0); 
+    if (n > 1) g->px = fmax(0.001,atof(par1)/1000.0); /* NEW v0415 */
     int px = (int)my_round(1000.0*g->px,0);
     sprintf(g->pxbox.text,(px >= 1000) ? "px %d" : "px  %03d",px);
     CBX_UpdateEditWindow(&g->pxbox);
@@ -1434,9 +1434,6 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     if (n > 1) g->shmode = atoi(par1); // TODO what does this do?
      else      err = E_MISSPAR;        /* missing parameter */
   } else
-  if (!strcasecmp(cmd,"sky") || !strcasecmp(cmd,"sub")) {
-    err = E_NOTIMP;
-  } else
   if (!strcasecmp(cmd,"sn")) {         /* guider sensitivity */
     set_sens(g,atof(par1));
   } else
@@ -1444,11 +1441,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       !strcasecmp(cmd,"pct")  || !strcasecmp(cmd,"bkg")) {
     qltool_scale(g->qltool,cmd,par1,par2);
   } else 
-  if (!strcasecmp(cmd,"tc")) {         /* send a TCS command */
-    err = E_NOTIMP;
-    printf("send a TCS command %s %s %s\n",par1,par2,par3); // TODO 
-  } else
-  if (!strcasecmp(cmd,"tec")) {        /* cooler on/off */
+  if (!strcasecmp(cmd,"tec")) {        /* cooler setting */
     if (*par1) {
       err = zwo_temperature(g->server,par1); 
       if (!strcmp(par1,"off")) {
@@ -1541,7 +1534,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     sprintf(g->smbox.text,"sm %7d",g->qltool->smoothing);
     CBX_UpdateEditWindow(&g->smbox);
   } else
-  if (!strncasecmp(cmd,"sw",2)) {      /* NEW v0408 */
+  if (!strncasecmp(cmd,"sw",2)) {      /* slit width for gm4 fit */
 #ifdef ENG_MODE
     if (*par1) g->slitW = imax(0,atoi(par1));
 #else
@@ -1568,7 +1561,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   } else                               /* shutdown server */
   if (!strncasecmp(cmd,"shutdown",4) || !strncasecmp(cmd,"poweroff",5)) {
     if (g->loop_running) do_stop(g,3000);
-    err = zwo_server(g->server,cmd,buf); // shutdown TODO test at SBS */
+    err = zwo_server(g->server,cmd,buf); /* shutdown requires 'root' at rPi */
   } else                               /* shutdown server */
   if (!strncasecmp(cmd,"gain",4))  {   /* todo default offsets ?Povilas */
     int gain=-1,offs=-1;
@@ -1686,10 +1679,11 @@ static void* run_setup(void* param)
 #ifdef ENG_MODE
     err = zwo_gain(g->server,-1,-1);   /* read back current gain */
 #else
-    if (g->gmode < GMODE_SV) { 
-      handle_command(g,"gain hi",1);   /* set default gain v0323 */
+    if (*g->gain) {
+      sprintf(buf,"gain %s",g->gain);
+      handle_command(g,buf,1);         /* set default gain v0323 */
     } else {
-      handle_command(g,"gain lo",1);   /* set default gain NEW v0410 */
+      err = zwo_gain(g->server,-1,-1);
     }
 #endif
     sprintf(g->gnbox.text,"gain %5d",g->server->gain);
@@ -1741,7 +1735,7 @@ static void* run_init(void* param)
   if (!err) {
     err = zwo_open(g->server);
     if (err) {
-      sprintf(buf,"cannot connect to %s:%d",g->server->host,g->server->port);
+      sprintf(buf,"no connection to %s:%d",g->server->host,g->server->port);
       message(g,buf,MSS_ERROR);
     } else {
       if (!strncmp(g->server->modelName,"-E",2)) {
@@ -1963,7 +1957,7 @@ static void* run_cycle(void* param)
       } else {                         /* no new frame */
         dt = (int)floor(tNow-tFrame);  /* time since last frame */
         if (dt > nodata) {
-          message(g,"no data",MSS_WARN); // todo print reason 
+          message(g,"no data",MSS_WARN); // todo print reason -- experiment
           nodata *= 1.5;               /* slow down warnings */
         }
       }
@@ -1985,7 +1979,7 @@ static void* run_cycle(void* param)
             else            sprintf(g->tcbox.text,"tc %5.0f",flux);
             CBX_UpdateEditWindow(&g->tcbox);
             sprintf(g->mxbox.text,"mx %5.0f",ppix);
-            g->mxbox.fg = (ppix > 15000) ? app->red : app->black; /* v0411 ?Shec */
+            g->mxbox.fg = (ppix > 15000) ? app->red : app->black; /* NEW v0411 */
             CBX_UpdateEditWindow(&g->mxbox);
             sprintf(g->bkbox.text,"bk %5.0f",back); 
             CBX_UpdateEditWindow(&g->bkbox);
@@ -2370,19 +2364,19 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
   g->qltool->gmode = g->gmode;
 
   switch (g->gmode) {                  /* NEW v0414 */
-  case GMODE_PR:
+  case GM_PR:
     strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
     strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
     break;
-  case GMODE_SV:                       /* [ratio] */
+  case GM_SV3:                         /* [ratio] */
     strcpy(g->g_tc->name,"rx"); graph_scale(g->g_tc,-0.5,0.5,0x03);
     strcpy(g->g_fw->name,"ry"); graph_scale(g->g_fw,-0.5,0.5,0x03);
     strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
     strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
     break;
-  case GMODE_SV4:  /* [arcsec] before rotation and derivative */
+  case GM_SV4:  /* [arcsec] before rotation and derivative */
     strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"X");  graph_scale(g->g_az,-1.0,1.0,0x03);
@@ -2525,7 +2519,7 @@ static int check_datapath(char* path,int interactive)
       *path = '\0';
     }
   }
-  if (*path) next_disk = 0;
+  if (*path) disk_next = 0;
 
   return (*path) ? 1 : 0;
 }
@@ -2552,6 +2546,53 @@ static void my_shutdown(Bool force)
     if (wait) msleep(1000);
     done = True;
   }
+}
+
+/* ---------------------------------------------------------------- */
+
+static int read_inifile(Guider *g,int* m,const char* name) /* NEW v0415 */
+{
+  int n=0;
+  char file[512],buffer[1024],key[128],val[128];
+
+  if (*name == '/') strcpy(file,name);
+  else             sprintf(file,"%s/%s",genv3("GCAMZWOINI","HOME","."),name);
+  FILE *fp = fopen(file,"r");
+  if (!fp) {
+    fprintf(stderr,"failed to open %s\n",file);
+    return -1;
+  }
+  while (fgets(buffer,sizeof(buffer),fp) != NULL) {
+    if (sscanf(buffer,"%s %s",key,val) == 2) {
+      n++;
+      // printf("%s: %s\n",key,val); 
+      if      (!strcmp(key,"host")) strcpy(g->host,val);
+      else if (!strcmp(key,"gain")) strcpy(g->gain,val);
+      else if (!strcmp(key,"mode")) *m = (int)val[0];
+      else if (!strcmp(key,"gnum")) g->gnum = atoi(val);
+      else if (!strcmp(key,"gmode")) g->gmode = atoi(val);
+      else if (!strcmp(key,"gmpar")) g->gmpar = (int)val[0];
+      else if (!strcmp(key,"angle")) g->angle = atof(val);
+      else if (!strcmp(key,"elsign")) g->elsign = atof(val);
+      else if (!strcmp(key,"rosign")) g->rosign = atof(val);
+      else if (!strcmp(key,"parity")) g->parity = (atof(val) < 0) ? -1.0 : 1.0;
+      else if (!strcmp(key,"offx")) g->offx = atoi(val);
+      else if (!strcmp(key,"offy")) g->offy = atoi(val);
+      else if (!strcmp(key,"px")) g->px = atof(val)/1000.0;
+      else if (!strcmp(key,"lmag")) g->lmag = atoi(val);
+      else if (!strcmp(key,"pct")) g->pct = atoi(val);
+      else if (!strcmp(key,"bkg")) g->bkg = atoi(val);
+      else if (!strcmp(key,"span")) g->span = atoi(val);
+      else if (!strcmp(key,"bx")) g->bx = atoi(val);
+      else if (!strcmp(key,"sw")) g->slitW = atoi(val); 
+      else if (!strcmp(key,"port")) g->rPort = atoi(val); 
+      else n--;
+
+    }
+  }
+  fclose(fp);
+  printf("%d items read from %s\n",n,file);
+  return n;
 }
 
 /* ---------------------------------------------------------------- */

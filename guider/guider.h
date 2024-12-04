@@ -17,10 +17,6 @@
 
 void* run_guider(void* param);
 
-enum guider_modes_enum { 
-  GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV,GMODE_SV4 // todo replace GM_
-};
-
 /* ---------------------------------------------------------------- */
 
 typedef struct guider_tag {
@@ -38,7 +34,7 @@ typedef struct guider_tag {
   int           stored_send,stored_av,stored_mode;
   char          lastCommand[256];
   char          command_msg[128];      /* v0333 */
-  int           slitW;                 /* NEW v0408 */
+  int           slitW;                 /* v0408 */
   /* GUI */
   Window      win;
   QlTool      *qltool;
@@ -70,6 +66,11 @@ typedef struct guider_tag {
   volatile double fps,flux,ppix,back,fwhm,dx,dy;
   char        send_host[128];
   int         send_port;
+  /* setup parameters (.ini file) */
+  int         rPort;
+  int         lmag,bx;
+  int         pct,bkg,span;       /* default scaling */
+  char        host[128],gain[32];
 } Guider;
 
 /* ---------------------------------------------------------------- */
