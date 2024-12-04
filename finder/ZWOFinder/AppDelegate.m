@@ -743,7 +743,7 @@ static char* get_ut_timestr(char* string,time_t ut)
   ccd.wblue = YprefGetInt(DBE_WBLUE,95,use_shared);
   [edit_wblue setIntValue:ccd.wblue];
  
-  // TODO list of params kept on zwoserver / scheduler / GUI
+  // TODO list of params kept on zwoserver / scheduler / GUI -- NO ?
  
   a = [EFW scan:zwoServer];            // filter
   [pop_filter removeAllItems];         // on main GUI window b0024
@@ -838,7 +838,7 @@ static char* get_ut_timestr(char* string,time_t ut)
 
   if (sender == chk_reticle) {
     view_image.reticleMode = ([chk_reticle state] == NSOnState) ? YES : NO;
-    [view_image setNeedsDisplay:YES];
+    view_image.needsDisplay = YES;  // b0042
   } else
   if (sender == chk_flipx) {
     flipX = ([sender state] == NSOnState) ? 1 : 0;
@@ -946,7 +946,11 @@ static char* get_ut_timestr(char* string,time_t ut)
     [panel_preferences makeKeyAndOrderFront:self];
   } else
   if (strstr(title,"Logfile")) {
+#if (MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_13)
+    [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:main_logger.logfile]];
+#else
     [[NSWorkspace sharedWorkspace] openFile:main_logger.logfile];
+#endif
   } else
   if (strstr(title,"DataPath")) {
     NSURL *url = [NSURL fileURLWithPath:_fitsPath isDirectory:YES];

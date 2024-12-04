@@ -78,11 +78,9 @@ int main(int argc, const char * argv[])
 #else
     sprintf(buf,"%s: Debug",PREFUN);
 #endif
-#ifdef __x86_64__
-    strcat(buf,"/64-bit");
-#else
-    strcat(buf,"/32-bit");
-#endif
+    if (sizeof(void*) == 8) strcat(buf,"/64-bit");
+    assert(sizeof(long) == 8);         // NEW require 64-bit
+    assert(sizeof(int) == 4);          // LP64 data model
     fprintf(stderr,"%s\n",buf);
   }
 #endif

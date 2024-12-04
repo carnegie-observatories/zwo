@@ -29,8 +29,9 @@
 
   [super drawRect:rect];
 
+#if (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_13)
   if (![self lockFocusIfCanDraw]) return;
-
+#endif
   CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
 
   CGFloat img_w = self.frame.size.width; 
@@ -52,8 +53,9 @@
     CGContextMoveToPoint(context,x1,y); CGContextAddLineToPoint(context,x2,y);
     CGContextDrawPath(context,kCGPathStroke);
   }
-
+#if (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_13)
   [self unlockFocus];
+#endif
 }
 
 /* ---------------------------------------------------------------- */

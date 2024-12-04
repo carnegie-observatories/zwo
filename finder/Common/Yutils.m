@@ -581,10 +581,10 @@ void YcontrolEnable(NSControl* control,BOOL enable)
 void YviewNeedsDisplay(NSView* view)
 {
   if ([NSThread isMainThread]) {
-    [view setNeedsDisplay:YES];
+    view.needsDisplay = YES;
   } else {
     dispatch_async(dispatch_get_main_queue(),^(void) {
-      [view setNeedsDisplay:YES];
+      view.needsDisplay = YES;
     });
   }
 }
