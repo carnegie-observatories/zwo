@@ -247,69 +247,6 @@ int fit_profile(Pixel* x,int n,double* a,int itmax)
 }
 
 /* ---------------------------------------------------------------- */
-
-#if 0 //xxx
-int ccbphot(Pixel* x,int n,double* fit,int itmax) 
-{
-  double a[5];
-#if (DEBUG > 1)
-  fprintf(stderr,"%s(%p,%d,%p,%d)\n",__func__,x,n,fit,itmax);
-#endif
-
-  a[0] = fit[0];                       /* bias/back */
-  a[1] = fit[1];                       /* x0 */
-  a[2] = fit[2];                       /* y0 */
-  a[3] = fit[5];                       /* peak */
-  a[4] = fit[4];                       /* sigma */
-
-  // int i;
-  // for (i=0; i<5; i++) printf("a[%d]=%f ",i,a[i]); printf("\n");
-  int it = fit_star(x,n,a,itmax);
-  // for (i=0; i<5; i++) printf("b[%d]=%f ",i,a[i]); printf("\n");
-
-  fit[0] = a[0];                       // background
-  fit[1] = a[1];                       // x-center
-  fit[2] = a[2];                       // y-center
-  fit[3] = 2.0*M_PI*a[4]*a[4]*a[3];    // total count
-  fit[4] = 2.35482*a[4];               // fwhm
-  fit[5] = a[3];                       // peak
-
-  return it;
-}
-#endif
-
-/* --- */
-
-#if 0 //xxx
-int ccbprofile(Pixel* x,int n,double* fit,int itmax) // todo --> guider.c
-{
-  double a[4];
-#if (DEBUG > 1)
-  fprintf(stderr,"%s(%p,%d,%p,%d)\n",__func__,x,n,fit,itmax);
-#endif
-
-  a[0] = fit[0];                       /* bias/back */
-  a[1] = fit[1];                       /* y0 */
-  a[2] = fit[3];         /* peak todo switch order here and elsewhere !!!*/
-  a[3] = fit[2];                       /* sigma */
-
-  // int i;
-  // for (i=0; i<5; i++) printf("a[%d]=%f ",i,a[i]); printf("\n");
-  int it = fit_profile(x,n,a,itmax);
-  // for (i=0; i<5; i++) printf("b[%d]=%f ",i,a[i]); printf("\n");
-
-  fit[0] = a[0];                       // background
-  fit[1] = a[1];                       // y-center
-  fit[2] = sqrt(2.0*M_PI)*a[3]*a[2];    // total count 
-  fit[3] = 2.35482*a[3];               // fwhm
-  fit[4] = a[2];                       // peak
-
-  return it;
-}
-#endif
-
-
-/* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 

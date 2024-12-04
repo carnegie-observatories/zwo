@@ -46,7 +46,7 @@ enum lookup_tables {LUT_GREY, LUT_INV, LUT_RAIN, LUT_BBDY};
 
 enum scaling_modes { SCALE_CUTS,SCALE_MED,SCALE_MIMA,SCALE_SPAN };
 
-enum guider_modes_enum { GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV }; // TODO duplicate xxxyyy
+enum guider_modes_enum { GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV }; // TODO duplicate 
 
 /* INCLUDEs ------------------------------------------------------- */
 

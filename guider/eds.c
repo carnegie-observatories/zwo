@@ -104,7 +104,7 @@ static int eds_send(const char* line)
     sprintf(cmd,"%s\n",line);          /* append [LF] v0342 */
     int nbytes = 1+(int)strlen(cmd);   /* send trailing '\0' v0339 */
     TCPIP_Send2(eds_sock,cmd,nbytes);
-#if 0 // v0346 no response from EDS -- todo remove 
+#if 0 // v0346 no response from EDS -- todo remove ?Povilas
     { char buf[128];
     double t1 = walltime(0);           /* v0340,v0341 */
     err = TCPIP_Receive3(eds_sock,buf,sizeof(buf)-1,50000);

@@ -328,9 +328,9 @@ int main(int argc,char **argv)
           sGuider.angle  = -128.0; 
           sGuider.elsign = -1.0;
           sGuider.rosign =  0.0;
-          sGuider.parity = -1.0;      /* v0351 */
+          sGuider.parity = -1.0;       /* v0351 */
           sGuider.offx=-10; sGuider.offy=85; /* v0355 */
-          sGuider.gnum = 4;            /* == default 'gmode' xxxyyy */
+          sGuider.gnum = 3;            /* == default 'gmode' */
         } else 
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
@@ -488,7 +488,7 @@ int main(int argc,char **argv)
   /* create main-window ------------------------------------------- */
  
   sprintf(buf,"%s (v%s)",guiders[0]->status.instrument,P_VERSION);
-  printf("eWIDE=%d, eHIGH=%d\n",eWIDE,eHIGH); //xxx
+  // printf("eWIDE=%d, eHIGH=%d\n",eWIDE,eHIGH); 
   CXT_OpenMainWindow(&mwin,winpos,eWIDE,eHIGH,&hint,buf,P_TITLE,True);
   // XSynchronize(mwin.disp,True);
   CBX_SelectInput(&mwin,ExposureMask | KeyPressMask);
@@ -544,7 +544,7 @@ int main(int argc,char **argv)
     sprintf(buf,"px  %03d",(int)my_round(1000.0*g->px,0));
     CBX_CreateAutoOutput_Ext(&mwin,&g->pxbox,p,x,y,w,XXh,buf);
     y += XXh+PXh/3;
-#ifdef PA_BOX // todo no (Shec)
+#ifdef PA_BOX 
     d  = 3*PXw;
     CBX_CreateAutoOutput_Ext(&mwin,&g->pabox,p,x+d,y,w-d,XXh,"    0");
 #else
@@ -1964,9 +1964,9 @@ static void* run_cycle(void* param)
             if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); /* NEW v0402 */
             else            sprintf(g->tcbox.text,"tc %5.0f",flux);
             CBX_UpdateEditWindow(&g->tcbox);
-            sprintf(g->mxbox.text,"mx %5.0f",ppix); //xxx depends on gmode
+            sprintf(g->mxbox.text,"mx %5.0f",ppix);
             CBX_UpdateEditWindow(&g->mxbox);
-            sprintf(g->bkbox.text,"bk %5.0f",back); //xxx depends 
+            sprintf(g->bkbox.text,"bk %5.0f",back); 
             CBX_UpdateEditWindow(&g->bkbox);
             sprintf(g->fwbox.text,"fw %5.2f",fwhm);
             CBX_UpdateEditWindow(&g->fwbox);

@@ -7,7 +7,7 @@
  * ---------------------------------------------------------------- */
 
 #ifndef DEBUG
-#define DEBUG           1          /* xxx1 debug level */
+#define DEBUG           1          /* debug level */
 #endif
 
 /* ---------------------------------------------------------------- */
@@ -54,11 +54,6 @@ void* run_guider(void* param)
   strcpy(g->mxbox.text,"mx"); CBX_UpdateEditWindow(&g->mxbox);
   strcpy(g->bkbox.text,"bk"); CBX_UpdateEditWindow(&g->bkbox);
   strcpy(g->fwbox.text,"fw"); CBX_UpdateEditWindow(&g->fwbox);
-#if 1 //xxx
-  if (g->qltool->guiding > 0) sprintf(g->gdbox.text,"gd move");
-  else                        sprintf(g->gdbox.text,"gd calc");
-  CBX_UpdateEditWindow(&g->gdbox);
-#endif
 
   switch (g->gmode) {                  /* plot title/scaling NEW v0404 */
   case GMODE_PR: default:
@@ -308,6 +303,7 @@ static void run_guider3(void* param)          /* v0350 */
       dx = ((dx > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
       dy = ((dy > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
       counter++;                       /* only every 'av' frames or 5 seconds */
+      qltool->guiding = abs(qltool->guiding);  
       if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) { 
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
         graph_add1(g->g_az,azerr,0);
@@ -316,7 +312,6 @@ static void run_guider3(void* param)          /* v0350 */
         if ((fabs(g->dx) > 0.1) || (fabs(g->dy) > 0.05)) { /* v0355 */
           g->azg = g->sens * azerr;
           g->elg = g->sens * elerr;
-          qltool->guiding = abs(qltool->guiding);  
           if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
             assert(g->gmode == 3);
             if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg);  /* v0354 */
@@ -334,18 +329,18 @@ static void run_guider3(void* param)          /* v0350 */
 
 static void run_guider4(void* param)          /* NEW v0404 */
 {
-  double t1,t2,last;
+  double t1,t2,last=0;
   double fit[5];
-  double dx=0,dy=0,gx,gy,azerr,elerr;
+  double dx=0,dy=0,ody=0,ddy,gx,gy,azerr,elerr;
   double back,fwhm=0,flux,cy=0;
   int    ix,iy,vrad=0,ppix,v;
-  u_int  seqNumber=0,counter=0;
+  u_int  seqNumber=0;
   Guider *g = (Guider*)param;
   QlTool *qltool = g->qltool;
   ZwoStruct *server = g->server;
   Pixel *pbuf=NULL;
 
-  last = t1 = walltime(0);
+  t1 = walltime(0);
   while (g->loop_running && qltool->guiding) {
     msleep(20);
     ZwoFrame *frame = zwo_frame4reading(server,seqNumber);
@@ -410,27 +405,30 @@ static void run_guider4(void* param)          /* NEW v0404 */
       g->ppix = ppix;
       g->back = back;
       g->fwhm = fwhm;
-#if 1 // xxx temporary plot todo ? remove ?
+#if 1 // xxx temporary plot todo ? show flux & fwhm
       graph_add1(g->g_tc,g->dx,1); 
       graph_add1(g->g_fw,g->dy,1);
 #endif
-      dx = (dx > 0) ? 0.1 : -0.1;      /* [arcsec] */
-      dy = g->dy * g->px;              /* [arcsec] */
-      counter++;                       /* only every 'av' frames or 5 seconds */
-      if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) { 
+      dx = ((dx > 0) ? 0.1 : -0.1);      /* [arcsec] */
+      if (walltime(0)-last < 5.0) dx = 0; 
+      else                        last = walltime(0);
+      ddy = (qltool->guiding < 0) ? 0.0 : g->dy-ody; /* derivative */
+      ody = g->dy;                     /* old 'dy' [pixels] */
+      dy = g->dy + (server->rolling+1.0)*ddy; /* [pixels] */
+      //printf("dy=%+.1f, ddy=%+.1f, dx=%+.2f, dy=%+.2f\n",g->dy,ddy,dx,dy); 
+      qltool->guiding = abs(qltool->guiding);  
+      if (dx || fabs(dy*g->px) > 0.05) { 
+        double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
+        dy *= g->px * fdge;            /* [arcsec] */
         rotate(dx,dy,g->pa,g->parity,&azerr,&elerr);
+        //printf("dx=%.3f dy=%.3f, azerr=%.3f elerr=%.3f\n",dx,dy,azerr,elerr);
         graph_add1(g->g_az,azerr,0);
         graph_add1(g->g_el,elerr,0);
-        counter = 0; last = walltime(0);
-        double fdge = 1.0; //xxx (g->q_flag == 0) ? 0.35 : 0.2;
-        g->azg = fdge * g->sens * azerr;
-        g->elg = fdge * g->sens * elerr;
-        qltool->guiding = abs(qltool->guiding);  
+        g->azg = g->sens * azerr;
+        g->elg = g->sens * elerr;
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-          if ((fabs(g->azg) > 0.01) || (fabs(g->elg) > 0.01)) { //xxxyyy
-            if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg); 
-            telio_aeg(g->azg,g->elg);
-          }
+          if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg); 
+          telio_aeg(g->azg,g->elg);
         }
       }
       g->update_flag = True;           /* update GUI */

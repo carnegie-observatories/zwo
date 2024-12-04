@@ -44,7 +44,7 @@ typedef struct guider_tag {
   GraphWindow *g_az,*g_el,*g_tc,*g_fw;
   EditWindow  tfbox;                   /* exposure time */
   EditWindow  dtbox;                   /* exposure->send countdown v0343 */
-  Menu        gdmenu;       /* guider options menu todo --> opmenu */
+  //xxx Menu        gdmenu;       /* guider options menu todo --> opmenu */
   EditWindow  fpbox,fdbox,fgbox;       /* frames per second */
   EditWindow  gdbox,tcbox,mxbox,bkbox,fwbox,dxbox,dybox;
   EditWindow  snbox,pxbox,bxbox,pabox,avbox;

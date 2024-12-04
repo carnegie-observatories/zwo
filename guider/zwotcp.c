@@ -31,7 +31,7 @@
 #define PREFUN          __func__
 #endif
 
-int    sim_star=1,sim_slit=0;          /* NEW v0406 */
+int    sim_star=1,sim_slit=4;          /* NEW v0406 */
 double sim_peak=250.0;
 double sim_sig2=0.95*19.6*19.6/2.35482;
 
@@ -435,14 +435,14 @@ static void* run_cycle(void* param)
                 } /* endfor(dy) */
                 if (w) udata[p] = (u_short)(0.5+(double)s/(double)w);
               } /* endif(masked) */
-#if 0 // TESTING -- center cross 5 pixels todo cx,cy
+#if 0 // TESTING -- center cross 5 pixels todo depends on image size
               if ((x==900) && (y==900)) udata[p] = 0x3f00; 
               if ((x==899) && (y==900)) udata[p] = 0x1f00; 
               if ((x==900) && (y==899)) udata[p] = 0x1f00; 
               if ((x==901) && (y==900)) udata[p] = 0x1f00; 
               if ((x==900) && (y==901)) udata[p] = 0x1f00;
 #endif
-#if 0 // TESTING -- gauss xxx
+#if 0 // TESTING -- gauss
               int cx=self->aoiW/2,cy=self->aoiH/2; /* v0348 */
               if ((x>=cx-20) && (x<=cx+20)) { 
                 if (fabs(x-cx) < sim_slit) continue; /* blank out slit */
