@@ -23,6 +23,7 @@ enum guider_modes_enum { GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV };
 
 typedef struct guider_tag {
   int           gnum,gmode;            /* v0313 */
+  char          gmpar;                 /* NEW v0354 */
   int           fmode;                 /* v0329 */
   char          name[32];
   FITSpars      status;
@@ -36,6 +37,7 @@ typedef struct guider_tag {
   int           offx,offy;
   char          lastCommand[256];
   char          command_msg[128];      /* v0333 */
+  double        parity; // todo others (eg. angle,rosign,elsign)
   /* GUI */
   Window      win;
   QlTool      *qltool;
@@ -66,7 +68,6 @@ typedef struct guider_tag {
   volatile double fps,flux,ppix,back,fwhm,dx,dy;
   char        send_host[128];
   int         send_port;
-  double      parity; // NEW display parity todo others (eg. angle,rosign,elsign)
 } Guider;
 
 /* ---------------------------------------------------------------- */

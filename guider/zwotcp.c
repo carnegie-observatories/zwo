@@ -179,7 +179,7 @@ int zwo_setup(ZwoStruct* self,int dim,int bin,int offx,int offy)
   pthread_mutex_lock(&self->ioLock);
   sprintf(cmd,"offtime %ld",cor_time(0));
   if (!err) err = zwo_request(self,cmd,buf,5);
-  sprintf(cmd,"setup %d %d %d %d %d %d", 
+  sprintf(cmd,"setup %d %d %d %d %d %d",   // todo limit offset to chip boundary
           offx+(self->sensorW/bin-dim)/2,offy+(self->sensorH/bin-dim)/2, // NEW v0348
           dim,dim,bin,16);
   if (!err) err = zwo_request(self,cmd,buf,5);
@@ -430,7 +430,7 @@ static void* run_cycle(void* param)
               if ((x==901) && (y==900)) udata[p] = 0x1f00; 
               if ((x==900) && (y==901)) udata[p] = 0x1f00;
 #endif
-#if 0 // TESTING -- gauss
+#if 0 // TESTING -- gauss -- todo vertical slit 
               int cx=self->aoiW/2,cy=self->aoiH/2; /* v0348 */
               if ((x>=cx-20) && (x<=cx+20)) { 
                 if ((y>=cy-20) && (y<=cy+20)) { 

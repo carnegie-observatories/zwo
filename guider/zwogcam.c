@@ -234,7 +234,7 @@ typedef struct {
 static ZwoIdentity ident[MAX_NGUIDERS];
 
 static double angle=-120.0,elsign=-1.0,rosign=0.0;  /* MIKE defaults todo guider_struct */
-static double parity=+1.0;             /* NEW v0351 */
+static double parity=+1.0;             /* v0351 */
 static char   paString[128];
 
 static int   rotatorPort=0;
@@ -257,6 +257,7 @@ static void    set_mm            (Guider*,int);
 static void    set_fm            (Guider*,int);
 static void    set_av            (Guider*,int);
 static void    set_sf            (Guider*,int);
+static void    set_gm            (Guider*,int,char);
 
 static int     do_start          (Guider*,int);
 static int     do_stop           (Guider*,int);
@@ -349,7 +350,7 @@ int main(int argc,char **argv)
         ident[ni].port = (p) ? SERVER_PORT+atoi(p+1) : SERVER_PORT; 
         ni++;
         break; 
-      case 'i':                        /* parity NEW v0351 */
+      case 'i':                        /* parity v0351 */
         parity = atof(optarg);
         break;
       case 'm':                        /* optical mode */
@@ -359,7 +360,7 @@ int main(int argc,char **argv)
         if (optarg[0] == 'p') {        /* PFS v0345 */
           baseD=1200; baseB=2; baseI=600; pHIGH = 102; 
           // todo offx,offy
-          angle=-128.0; rosign=0.0; elsign=-1.0; parity=-1.0; // NEW v0351
+          angle=-128.0; rosign=0.0; elsign=-1.0; parity=-1.0; /* v0351 */
           ident[ng].gnum = 3;          /* == default 'gmode' */
         } else 
         if (optarg[0] == '2') {
@@ -372,7 +373,7 @@ int main(int argc,char **argv)
           baseD=2400; baseB=2; baseI=600; pHIGH = 102;
         }
         break;
-      case 'o':                        /* offset NEW v0348 */
+      case 'o':                        /* offset v0348 */
         sscanf(optarg,"%d,%d",&offx,&offy); 
         break;
       case 'p':                        /* rotatorPort v0313 */
@@ -489,6 +490,7 @@ int main(int argc,char **argv)
     Guider *g = guiders[i];
     g->gnum = ident[i].gnum;
     g->gmode = ident[i].gmode;
+    g->gmpar = 'p';
     g->parity = parity;   // todo from 'ident'
     sprintf(g->name,"gCam%d",g->gnum);
     if (ident[i].port) {               /* explicit host */
@@ -590,6 +592,7 @@ int main(int argc,char **argv)
                               g->status.dimx,g->status.dimy,baseI);
     sprintf(g->qltool->name,"QlTool%d",1+i);
     g->qltool->gmode = g->gmode;
+    if (g->gmode == 3) g->qltool->lmag = 2;  /* NEW v0354 */
     /* 1st column ------------------------------------------------- */
     Window p = g->win;
     x += g->qltool->lWIDE + PXw/2;     
@@ -630,8 +633,7 @@ int main(int argc,char **argv)
     x += g->gdbox.w + 3*PXw;
     y  = 2;
     w  = 8*PXw;
-    sprintf(buf,"gm %4d",g->gmode);    /* v0313 */
-    CBX_CreateAutoOutput_Ext(&mwin,&g->gmbox,p,x,y,w,XXh,buf);
+    CBX_CreateAutoOutput_Ext(&mwin,&g->gmbox,p,x,y,w,XXh,"gm");
     y += 3+XXh+PXh/3;                  /* Note: 3+XXh in qltool.c */
     CBX_CreateAutoOutput_Ext(&mwin,&g->gabox,p,x,y,w,XXh,"ga    1");
     y += 3+XXh+PXh/3;
@@ -711,7 +713,7 @@ int main(int argc,char **argv)
   sprintf(paString,"PA = %.1f %cELEV %cROTE (%c)",angle,  /* v0315 */
          (elsign > 0) ? '+' : (elsign < 0) ? '-' : '0',  
          (rosign > 0) ? '+' : (rosign < 0) ? '-' : '0',
-         (parity > 0) ? '+' : '-');        /* NEW v0351 */
+         (parity > 0) ? '+' : '-');        /* v0351 */
   message(guiders[0],paString,MSS_INFO);   /* v0311 */
 
   /* -------------------------------------------------------------- */
@@ -725,6 +727,7 @@ int main(int argc,char **argv)
     set_mm  (g,1);                     /* mouse mode v0313 */
     set_sens(g,0.5);                   /* guider sensitivity */
     set_pa  (g,360.0,0);
+    set_gm  (g,g->gmode,0);
     assert(g->server);
     if (g->server) thread_detach(run_init,g);
     for (j=0; j<QLT_NCURSORS; j++) {   /* v0346 */
@@ -1526,9 +1529,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       if (g->qltool->guiding) {        /* not while guiding v0349 */
         message(g,"cannot change 'gm' while guiding",MSS_WARN);
       } else {
-        g->gmode = g->qltool->gmode = m;
-        sprintf(g->gmbox.text,"gm %4d",g->gmode);
-        CBX_UpdateEditWindow(&g->gmbox);
+        set_gm(g,m,*par2);
       }
     }
   } else
@@ -1643,7 +1644,8 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   } else
   /* --- extended commmand set ------------------------------------ */
   if (!strncasecmp(cmd,"lmag",3)) {    /* lupe magnification */
-    qltool_lmag(g->qltool,atoi(par1));
+    if (*par1) qltool_lmag(g->qltool,atoi(par1));
+    else       sprintf(msgstr,"%d",g->qltool->lmag);
   } else
   if (!strncasecmp(cmd,"lut",3)) {     /* color lookup table */
     if (n >= 2) qltool_lut(g->qltool,par1);
@@ -2440,6 +2442,18 @@ static void set_sf(Guider* g,int s)    /* v0343 */
   if (s) sprintf(g->dtbox.text,"%d",imax(0,s));
   else    strcpy(g->dtbox.text,"-");
   CBX_UpdateEditWindow(&g->dtbox);
+}
+
+/* ---------------------------------------------------------------- */
+
+static void set_gm(Guider* g,int m,char c)  /* NEW v0354 */
+{
+  g->gmode = imax(1,imin(3,m));
+  if (c) g->gmpar = (c == 'p') ? 'p' : 't';
+  if (g->gmode == 3) sprintf(g->gmbox.text,"gm %3d%c",g->gmode,g->gmpar);
+  else               sprintf(g->gmbox.text,"gm %4d",g->gmode);
+  CBX_UpdateEditWindow(&g->gmbox);
+  g->qltool->gmode = g->gmode;
 }
 
 /* ---------------------------------------------------------------- */

@@ -209,7 +209,7 @@ void run_guider1(void* param)
         g->dx = (dx-gx);
         g->dy = (dy-gy);
         if (qltool->guiding < 0) graph_scale(g->g_tc,0,1.333*flux,0);
-        graph_add1(g->g_tc,flux,0);
+        graph_add1(g->g_tc,flux,0);    // todo how often ?Shec ?Povilas
         graph_add1(g->g_fw,fwhm,0);
         rotate(g->px*(dx-gx),g->px*(dy-gy),g->pa,g->parity,&azerr,&elerr);
         graph_add1(g->g_az,azerr,0);
@@ -237,7 +237,7 @@ void run_guider1(void* param)
           eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
         }
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-          telio_aeg(g->azg,g->elg);
+          telio_aeg(g->azg,g->elg);    // todo how often ?Shec ?Povilas
         } 
       } else {
         g->azg = g->elg = 0;
@@ -258,7 +258,7 @@ void run_guider1(void* param)
 
 void run_guider3(void* param)          /* v0350 */
 {
-  double t1,t2;
+  double t1,t2,last;
   double gx,gy,dx=0,dy=0,azerr,elerr;
   int    ix,iy;
   u_int  seqNumber=0,counter=0;
@@ -271,7 +271,7 @@ void run_guider3(void* param)          /* v0350 */
   ix = (int)my_round(gx,0);
   iy = (int)my_round(gy,0);
 
-  t1 = walltime(0);
+  last = t1 = walltime(0);
   while (g->loop_running && qltool->guiding) {
     msleep(20);
     ZwoFrame *frame = zwo_frame4reading(server,seqNumber);
@@ -279,7 +279,7 @@ void run_guider3(void* param)          /* v0350 */
       seqNumber = frame->seqNumber;
       assert(g->gmode == GMODE_SV);
       get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&dx,&dy);
-#if 1 // todo move up 
+#if 1 // todo move up ?
       double ggx = my_round(qltool->curx[QLT_BOX],1);
       double ggy = my_round(qltool->cury[QLT_BOX],1);
       if ((gx != ggx) || (gy != ggy)) {
@@ -295,29 +295,29 @@ void run_guider3(void* param)          /* v0350 */
       t1 = t2;
       g->dx = dx;
       g->dy = dy;
-#if 1 //xxx
+#if 1 //xxx 
       dx = ((dx > 0) ? 0.1 : -0.1) / (g->px);   // todo ?Shec
       dy = ((dy > 0) ? 0.1 : -0.1) / (g->px);
 #endif
-      rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
-      graph_add1(g->g_az,azerr,0);
-      graph_add1(g->g_el,elerr,0);
-      g->azg = g->sens * azerr;
-      g->elg = g->sens * elerr;
       qltool->guiding = abs(qltool->guiding);
-      int doit=1;                      /* only every 'av' frames */
-      if (server->rolling) {   
-        if (++counter % server->rolling) doit = 0; // todo max. per 2 secs? */
-      }
-      if (doit) {
+      counter++;                       /* only every 'av' frames or 5 seconds */
+      if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) {
+        counter = 0; last = walltime(0);
+        rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
+        graph_add1(g->g_az,azerr,0);
+        graph_add1(g->g_el,elerr,0);
+        g->azg = g->sens * azerr;
+        g->elg = g->sens * elerr;
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
+          assert(g->gmode == 3);
+          if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg);  /* NEW v0354 */
           telio_aeg(g->azg,g->elg);
         }
       }
       g->update_flag = True;           /* update GUI */
       pthread_mutex_unlock(&g->mutex);
     } // endif(frame)
- } // endwhile(loop-doing && guiding)
+  } // endwhile(loop-doing && guiding)
 }
 
 /* ---------------------------------------------------------------- */
