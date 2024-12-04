@@ -1,0 +1,12 @@
+/*
+ * gcpho.h 
+ *
+ */
+
+typedef struct {
+  short  x,y;
+  double z;
+} Pixel;
+
+int  ccbphot(Pixel* x,int n,double* fit,int itmax);
+
