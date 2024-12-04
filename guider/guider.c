@@ -279,7 +279,7 @@ void run_guider3(void* param)          /* NEW v0350 */
       seqNumber = frame->seqNumber;
       assert(g->gmode == GMODE_SV);
       get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&dx,&dy);
-#if 1 // todo move up
+#if 1 // todo move up 
       double ggx = my_round(qltool->curx[QLT_BOX],1);
       double ggy = my_round(qltool->cury[QLT_BOX],1);
       if ((gx != ggx) || (gy != ggy)) {
@@ -305,10 +305,9 @@ void run_guider3(void* param)          /* NEW v0350 */
       g->azg = g->sens * azerr;
       g->elg = g->sens * elerr;
       qltool->guiding = abs(qltool->guiding);
-      int doit=1;                      /* v0344 */
-      counter++;
+      int doit=1;                      /* only every 'av' frames */
       if (server->rolling) {
-        if (counter % server->rolling) doit = 0;
+        if (++counter % server->rolling) doit = 0;
       }
       if (doit) {
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) {

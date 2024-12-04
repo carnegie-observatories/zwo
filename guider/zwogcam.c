@@ -59,7 +59,7 @@
  * IDEA scroll message log
  * IDEA "control" key required optionally
  *
- * TODO .ini file (sky parity and PA formula)
+ * TODO .ini file
  * TODO update FITS header (EPOCH wrong in Magellan example)
  *
  * ---------------------------------------------------------------- */
@@ -96,7 +96,7 @@
 #include "utils.h"                     /* generic utilities */
 #include "ptlib.h"                     /* POSIX threads lib */
 #include "guider.h"                    /* qltool.h,graph.h,fits.h */
-#include "gcpho.h"   // todo remove here ?
+//#include "gcpho.h"   // todo remove here ?
 #include "telio.h"
 #include "random.h"
 #include "eds.h"
@@ -233,8 +233,9 @@ typedef struct {
 } ZwoIdentity;
 static ZwoIdentity ident[MAX_NGUIDERS];
 
-static double angle=-120.0,elsign=0.0,rosign=-1.0;
-static char  paString[128];
+static double angle=-120.0,elsign=-1.0,rosign=0.0;  /* MIKE defaults */
+static double parity=+1.0;             /* NEW v0351 */
+static char   paString[128];
 
 static int   rotatorPort=0;
 
@@ -320,7 +321,7 @@ int main(int argc,char **argv)
 
   { extern char *optarg; char *p;      /* parse command line */  
     extern int opterr,optopt; opterr=0;
-    while ((i=getopt(argc,argv,"a:e:f:g:h:m:n:o:p:r:s:t:v")) != EOF) {
+    while ((i=getopt(argc,argv,"a:e:f:g:h:i:m:n:o:p:r:s:t:v")) != EOF) {
       switch (i) {
       case 'a':                        /* 'angle' v0311 */
         angle = atof(optarg); 
@@ -348,6 +349,9 @@ int main(int argc,char **argv)
         ident[ni].port = (p) ? SERVER_PORT+atoi(p+1) : SERVER_PORT; 
         ni++;
         break; 
+      case 'i':                        /* parity NEW v0351 todo HTML */
+        parity = atof(optarg);
+        break;
       case 'm':                        /* optical mode */
         if (optarg[0] == 'z') {        /* ZWO (default) */
           baseD=1800; baseB=2; baseI=600; pHIGH = 102; 
@@ -355,7 +359,7 @@ int main(int argc,char **argv)
         if (optarg[0] == 'p') {        /* PFS v0345 todo implicit offx,offy*/
           baseD=1200; baseB=2; baseI=600; pHIGH = 102; 
           // todo offx,offy
-          // todo 'e' 'r' 'a'
+          angle=-128.0; rosign=0.0; elsign=-1.0; parity=-1.0; // NEW v0351
           ident[ng].gnum = 3;          /* == default 'gmode' */
         } else 
         if (optarg[0] == '2') {
@@ -368,7 +372,7 @@ int main(int argc,char **argv)
           baseD=2400; baseB=2; baseI=600; pHIGH = 102;
         }
         break;
-      case 'o':                        /* offset NEW v0348 todo HTML 'x y' */
+      case 'o':                        /* offset NEW v0348 todo HTML */
         sscanf(optarg,"%d,%d",&offx,&offy); 
         break;
       case 'p':                        /* rotatorPort v0313 */
@@ -703,9 +707,10 @@ int main(int argc,char **argv)
   } /* endfor(n_guiders) */
   done = False;
 
-  sprintf(paString,"PA = %.1f %cELEV %cROTE",angle,  /* v0315 */
+  sprintf(paString,"PA = %.1f %cELEV %cROTE (%c)",angle,  /* v0315 */
          (elsign > 0) ? '+' : (elsign < 0) ? '-' : '0',  
-         (rosign > 0) ? '+' : (rosign < 0) ? '-' : '0');
+         (rosign > 0) ? '+' : (rosign < 0) ? '-' : '0',
+         (parity > 0) ? '+' : '-');        /* NEW v0351 */
   message(guiders[0],paString,MSS_INFO);   /* v0311 */
 
   /* -------------------------------------------------------------- */
@@ -721,7 +726,7 @@ int main(int argc,char **argv)
     set_pa  (g,360.0,0);
     assert(g->server);
     if (g->server) thread_detach(run_init,g);
-    for (j=0; j<QLT_NCURSORS; j++) {   /* NEW v0346 */
+    for (j=0; j<QLT_NCURSORS; j++) {   /* v0346 */
       float x = g->qltool->curx[j];
       float y = g->qltool->cury[j];
       eds_send82i(g->gnum,1+j,x,y);
@@ -833,7 +838,7 @@ int main(int argc,char **argv)
               int c = g->qltool->cursor_mode;
               float x = g->qltool->curx[c];
               float y = g->qltool->cury[c];
-              eds_send82i(g->gnum,1+c,x,y); /* NEW v0346 */
+              eds_send82i(g->gnum,1+c,x,y); /* v0346 */
               break;
             }
             if (handle_key(g,&event)) break;
@@ -938,12 +943,15 @@ static void redraw_compass(Guider* g)
 
   x = g->gmbox.x + r;
   y = g->dybox.y - PXh/3;
-  north = -fabs(g->pa) + para;         /* N/E */
-  east  = north + ((g->pa > 0) ? 90.0 : -90.0);
+  north = parity*(-fabs(g->pa) + para);     /* N/E */
+  if (parity > 0) east  = north + ((g->pa > 0) ? 90.0 : -90.0);
+  else            east  = north + ((g->pa < 0) ? 90.0 : -90.0);
   draw_compass(g,x,y,r,north,east,app->green); 
 
   x += 2*r + PXw;
-  north = -fabs(g->pa);                /* az,el */
+  north = -fabs(g->pa)*parity;              /* az,el */
+  if (parity > 0) east  = north + ((g->pa < 0) ? 90.0 : -90.0);
+  else            east  = north + ((g->pa > 0) ? 90.0 : -90.0);
   east  = north + ((g->pa < 0) ? 90.0 : -90.0);
   draw_compass(g,x,y,r,north,east,app->red); 
 
@@ -1512,7 +1520,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       if ((m < 1) || (m > 3)) {
         message(g,"invalid guider mode",MSS_WARN);
       } else
-      if (g->qltool->guiding) {        /* not while guiding NEW v0349 */
+      if (g->qltool->guiding) {        /* not while guiding v0349 */
         message(g,"cannot change 'gm' while guiding",MSS_WARN);
       } else {
         g->gmode = g->qltool->gmode = m;
@@ -1608,7 +1616,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       qltool_redraw(g->qltool,False);
       float x = g->qltool->curx[g->qltool->cursor_mode];
       float y = g->qltool->cury[g->qltool->cursor_mode];
-      eds_send82i(g->gnum,1+g->qltool->cursor_mode,x,y); /* NEW v0347 */
+      eds_send82i(g->gnum,1+g->qltool->cursor_mode,x,y); /* v0347 */
     }
   } else
   if (!strcasecmp(cmd,"xyr")) {        /* move cursor 1-5 */
@@ -1627,7 +1635,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       qltool_redraw(g->qltool,False);
       float x = g->qltool->curx[g->qltool->cursor_mode];
       float y = g->qltool->cury[g->qltool->cursor_mode];
-      eds_send82i(g->gnum,1+g->qltool->cursor_mode,x,y); /* NEW v0347 */
+      eds_send82i(g->gnum,1+g->qltool->cursor_mode,x,y); /* v0347 */
     }
   } else
   /* --- extended commmand set ------------------------------------ */
