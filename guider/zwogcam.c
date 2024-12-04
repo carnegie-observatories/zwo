@@ -952,7 +952,7 @@ static void redraw_compass(Guider* g)
   north = -fabs(g->pa)*parity;              /* az,el */
   if (parity > 0) east  = north + ((g->pa < 0) ? 90.0 : -90.0);
   else            east  = north + ((g->pa > 0) ? 90.0 : -90.0);
-  east  = north + ((g->pa < 0) ? 90.0 : -90.0);
+  // bug-fix      east  = north + ((g->pa < 0) ? 90.0 : -90.0); // v0352 NEW
   draw_compass(g,x,y,r,north,east,app->red); 
 
   redraw_gwin(g);
