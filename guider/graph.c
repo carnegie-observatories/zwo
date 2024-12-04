@@ -65,6 +65,7 @@ GraphWindow* graph_create(MainWindow* mw,Window parent,const char* fn,
   g->vmin = -1.0f;
   g->vmax = +1.0f;
   g->half = 1;
+  g->quarter = g->eighth = 0;
   g->x = x;
   g->y = y;
   g->w = w;
@@ -148,6 +149,20 @@ void graph_redraw(GraphWindow* g)
   if (g->half) {
     XSetLineAttributes(disp,gc,1,LineOnOffDash,CapRound,JoinRound);
     y = (y0+y1)/2;
+    XDrawLine(disp,win,gc,x0,y,x1,y);
+  }
+  if (g->quarter) {                    /* v0355 */
+    XSetLineAttributes(disp,gc,1,LineOnOffDash,CapRound,JoinRound);
+    y = 1*(y0+y1)/4;
+    XDrawLine(disp,win,gc,x0,y,x1,y);
+    y = 3*(y0+y1)/4;
+    XDrawLine(disp,win,gc,x0,y,x1,y);
+  }
+  if (g->eighth) {                     /* NEW v0355 */
+    XSetLineAttributes(disp,gc,1,LineOnOffDash,CapRound,JoinRound);
+    y = 3*(y0+y1)/8;
+    XDrawLine(disp,win,gc,x0,y,x1,y);
+    y = 5*(y0+y1)/8;
     XDrawLine(disp,win,gc,x0,y,x1,y);
   }
 

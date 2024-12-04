@@ -168,7 +168,7 @@ int zwo_setup(ZwoStruct* self,int dim,int bin,int offx,int offy)
   int  err=0;
   char cmd[128],buf[128];
 #if (DEBUG > 0)
-  fprintf(stderr,"%s(%s,%d,%d)\n",PREFUN,self->modelName,dim,bin);
+  fprintf(stderr,"%s(%s,%d,%d,%d,%d)\n",PREFUN,self->modelName,dim,bin,offx,offy);
 #endif
   assert(self);
   assert(self->handle >= 0);
@@ -179,8 +179,16 @@ int zwo_setup(ZwoStruct* self,int dim,int bin,int offx,int offy)
   pthread_mutex_lock(&self->ioLock);
   sprintf(cmd,"offtime %ld",cor_time(0));
   if (!err) err = zwo_request(self,cmd,buf,5);
-  sprintf(cmd,"setup %d %d %d %d %d %d",   // todo limit offset to chip boundary
-          offx+(self->sensorW/bin-dim)/2,offy+(self->sensorH/bin-dim)/2, // NEW v0348
+#if (DEBUG > 1)
+  printf("x: %d %d (%d)\n",offx+(self->sensorW/bin-dim)/2,  /* left */
+                           offx+(self->sensorW/bin-dim)/2+dim, /* right */
+                           self->sensorW/bin);
+  printf("y: %d %d (%d)\n",offy+(self->sensorH/bin-dim)/2, /* bottom */
+                           offy+(self->sensorH/bin-dim)/2+dim,  /* top */
+                           self->sensorH/bin);
+#endif
+  sprintf(cmd,"setup %d %d %d %d %d %d",    /* 'off' v0348 */
+          offx+(self->sensorW/bin-dim)/2,offy+(self->sensorH/bin-dim)/2,
           dim,dim,bin,16);
   if (!err) err = zwo_request(self,cmd,buf,5);
   if (!err) self->aoiW = self->aoiH = dim;
@@ -430,9 +438,10 @@ static void* run_cycle(void* param)
               if ((x==901) && (y==900)) udata[p] = 0x1f00; 
               if ((x==900) && (y==901)) udata[p] = 0x1f00;
 #endif
-#if 0 // TESTING -- gauss -- todo vertical slit 
+#if 0 // TESTING -- gauss
               int cx=self->aoiW/2,cy=self->aoiH/2; /* v0348 */
               if ((x>=cx-20) && (x<=cx+20)) { 
+                // if (fabs(x-cx) > 3) { /* blank out slit */
                 if ((y>=cy-20) && (y<=cy+20)) { 
                   double r2 = ((x-cx)*(x-cx)+(y-cy)*(y-cy));
                   /* flux = 2*PI*peak*sig*sig */
@@ -442,6 +451,7 @@ static void* run_cycle(void* param)
                   debug_sum += f;
 #endif
                   udata[p] += (f << 2);
+                // }
                 }
               }
 #endif

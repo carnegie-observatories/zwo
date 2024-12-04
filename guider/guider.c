@@ -97,7 +97,7 @@ void run_guider1(void* param)
   double cx,cy,gx,gy,dx=0,dy=0,fwhm=0,back,flux,peak;
   double fit[6];
   double next_eds=0;
-  int    ix,iy,ppix=0,vrad=0,npix=0;
+  int    ix,iy,ppix=0,vrad=0,npix=0,doit=1;
   u_int  seqNumber=0,counter=0;
   Pixel  *pbuf=NULL;
   Guider *g = (Guider*)param;
@@ -198,7 +198,7 @@ void run_guider1(void* param)
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
       if (g->q_flag < 2) { double azerr,elerr; /* we have valid measurement */
-        if (qltool->guiding == -5) {   /* adjust guider box */
+        if ((qltool->guiding == -4) || (qltool->guiding == -5)) {  /* adjust g.box */
           gx = dx; ix = qltool->curx[QLT_BOX] = (int)my_round(gx,0);
           gy = dy; iy = qltool->cury[QLT_BOX] = (int)my_round(gy,0);
         }
@@ -227,8 +227,7 @@ void run_guider1(void* param)
         g->azerp = azerr;              /* store last error */
         g->elerp = elerr;
         qltool->guiding = abs(qltool->guiding);
-        int doit=1;                    /* v0344 */
-        counter++;
+        counter++; doit=1;
         if (server->rolling && (walltime(0) < next_eds)) {
           if (counter % server->rolling) doit = 0;
         }
@@ -237,7 +236,7 @@ void run_guider1(void* param)
           eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
         }
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-          telio_aeg(g->azg,g->elg);    // todo how often ?Shec ?Povilas
+          telio_aeg(g->azg,g->elg);  // todo everytime ?Povilas
         } 
       } else {
         g->azg = g->elg = 0;
@@ -266,6 +265,12 @@ void run_guider3(void* param)          /* v0350 */
   QlTool *qltool = g->qltool;
   ZwoStruct *server = g->server;
 
+#if 1 //xxx temporary plot
+  g->g_tc->eighth = g->g_fw->eighth = 1;
+  graph_scale(g->g_tc,-0.4,0.4,0);  // dx 
+  graph_scale(g->g_fw,-0.2,0.2,0);  // dy
+#endif
+
   gx = my_round(qltool->curx[QLT_BOX],1);  /* 0.1 pixel resolution */
   gy = my_round(qltool->cury[QLT_BOX],1);
   ix = (int)my_round(gx,0);
@@ -293,25 +298,29 @@ void run_guider3(void* param)          /* v0350 */
       pthread_mutex_lock(&g->mutex);
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
-      g->dx = dx;
-      g->dy = dy;
-#if 1 //xxx 
-      dx = ((dx > 0) ? 0.1 : -0.1) / (g->px);   // todo ?Shec
-      dy = ((dy > 0) ? 0.1 : -0.1) / (g->px);
+      g->dx = dx;                      /* use as criterion if we */
+      g->dy = dy;                      /* should send a correction */
+#if 1 // xxx temporary plot NEW 
+      graph_add1(g->g_tc,dx,1); 
+      graph_add1(g->g_fw,dy,1);
 #endif
-      qltool->guiding = abs(qltool->guiding);
+      dx = ((dx > 0) ? 0.1 : -0.1) / (g->px); // TODO remove 'px' here and 
+      dy = ((dy > 0) ? 0.1 : -0.1) / (g->px); // below at 'rotate'
       counter++;                       /* only every 'av' frames or 5 seconds */
-      if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) {
-        counter = 0; last = walltime(0);
+      if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) { 
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
         graph_add1(g->g_az,azerr,0);
         graph_add1(g->g_el,elerr,0);
-        g->azg = g->sens * azerr;
-        g->elg = g->sens * elerr;
-        if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
-          assert(g->gmode == 3);
-          if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg);  /* NEW v0354 */
-          telio_aeg(g->azg,g->elg);
+        counter = 0; last = walltime(0);
+        if ((fabs(g->dx) > 0.1) || (fabs(g->dy) > 0.05)) { /* NEW v0355 */
+          g->azg = g->sens * azerr;
+          g->elg = g->sens * elerr;
+          qltool->guiding = abs(qltool->guiding);  
+          if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
+            assert(g->gmode == 3);
+            if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg);  /* v0354 */
+            telio_aeg(g->azg,g->elg);
+          }
         }
       }
       g->update_flag = True;           /* update GUI */
@@ -323,4 +332,4 @@ void run_guider3(void* param)          /* v0350 */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
-/* ---------------------------------------------------------------- */
+

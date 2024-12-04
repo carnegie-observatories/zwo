@@ -19,7 +19,7 @@ typedef struct {
   float           **data;
   pthread_mutex_t lock;                /* MT-safe lock */
   float           vmin,vmax;
-  int             half;
+  int             half,quarter,eighth;
 } GraphWindow;
 
 /* ---------------------------------------------------------------- */

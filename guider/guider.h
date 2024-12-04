@@ -23,7 +23,7 @@ enum guider_modes_enum { GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV };
 
 typedef struct guider_tag {
   int           gnum,gmode;            /* v0313 */
-  char          gmpar;                 /* NEW v0354 */
+  char          gmpar;                 /* v0354 */
   int           fmode;                 /* v0329 */
   char          name[32];
   FITSpars      status;

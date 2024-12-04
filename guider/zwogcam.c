@@ -138,11 +138,7 @@ extern void swab(const void *from, void *to, ssize_t n);
 #ifdef FONTSIZE
 int PXh=FONTSIZE;
 #else
-#ifdef MACOSX
-int PXh=12;
-#else
 int PXh=14;
-#endif
 #endif
 #define PXw         (10+(PXh-14)/2)
 #define XXh         (PXh+4)
@@ -359,8 +355,8 @@ int main(int argc,char **argv)
         } else 
         if (optarg[0] == 'p') {        /* PFS v0345 */
           baseD=1200; baseB=2; baseI=600; pHIGH = 102; 
-          // todo offx,offy
           angle=-128.0; rosign=0.0; elsign=-1.0; parity=-1.0; /* v0351 */
+          offx=-10; offy=85;           /* NEW v0355 */
           ident[ng].gnum = 3;          /* == default 'gmode' */
         } else 
         if (optarg[0] == '2') {
@@ -386,7 +382,7 @@ int main(int argc,char **argv)
         tmode = atoi(optarg);
         break;
       case 'v':                        /* vertical layout v0310 */
-        vertical = 1;
+        vertical = 1;                  /* TODO update HTML screen shot */
         break;
       case '?':
         fprintf(stderr,"%s: option '-%c' unknown or parameter missing\n",
@@ -592,7 +588,7 @@ int main(int argc,char **argv)
                               g->status.dimx,g->status.dimy,baseI);
     sprintf(g->qltool->name,"QlTool%d",1+i);
     g->qltool->gmode = g->gmode;
-    if (g->gmode == 3) g->qltool->lmag = 2;  /* NEW v0354 */
+    if (g->gmode == 3) g->qltool->lmag = 2;  /* v0354 */
     /* 1st column ------------------------------------------------- */
     Window p = g->win;
     x += g->qltool->lWIDE + PXw/2;     
@@ -651,10 +647,10 @@ int main(int argc,char **argv)
     w = (!vertical) ? (632-x-1*PXw)/2 : (gWIDE-x-1*PXw)/2;
     h = pHIGH;
     d = w/2;
-    g->g_tc = graph_create(&mwin,g->win,fontname,"tc",x,y,w,h,1,d);
+    g->g_tc = graph_create(&mwin,g->win,fontname,"dx",x,y,w,h,1,d); //xxx tc
     graph_scale(g->g_tc,0,10000,0);
     x = (!vertical) ? 632 -w - PXw/2 : gWIDE -w - PXw/2;
-    g->g_fw = graph_create(&mwin,g->win,fontname,"fw",x,y,w,h,1,d);
+    g->g_fw = graph_create(&mwin,g->win,fontname,"dy",x,y,w,h,1,d); //xxx fw
     graph_scale(g->g_fw,0.0,2.0,0);
     y += h + 3;
     x = 1;
@@ -1263,7 +1259,6 @@ static int handle_msmode(void* param,XEvent* event)
       if (g->pamode) err = set_pa(g,g->pa,1);
       if (!err) { double dx,dy,da,de;
         qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
-        assert(parity == g->parity); //xxx
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
         assert(GMODE_SV == 3);         /* 3: move PR&SH */
         err = telio_gpaer(g->gmode,-da,-de);
@@ -1279,7 +1274,6 @@ static int handle_msmode(void* param,XEvent* event)
       if (g->pamode) err = set_pa(g,g->pa,1);
       if (!err) { double dx,dy,da,de;
         qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
-        assert(parity == g->parity); //xxx
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
         err = telio_aeg(da,de);
       }
@@ -2446,7 +2440,7 @@ static void set_sf(Guider* g,int s)    /* v0343 */
 
 /* ---------------------------------------------------------------- */
 
-static void set_gm(Guider* g,int m,char c)  /* NEW v0354 */
+static void set_gm(Guider* g,int m,char c)  /* v0354 */
 {
   g->gmode = imax(1,imin(3,m));
   if (c) g->gmpar = (c == 'p') ? 'p' : 't';
