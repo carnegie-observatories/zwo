@@ -617,7 +617,7 @@ void get_altaz(double st,double lat,double ra,double dec,double* alt,double* az)
   x = cos(h/RADS) * cos(dec/RADS);   // rect. coords
   y = sin(h/RADS) * cos(dec/RADS);
   z =               sin(dec/RADS);
-  a = x*sin(lat/RADS) - z*cos(lat/RADS); // rotate
+  a = x*sin(lat/RADS) - z*cos(lat/RADS);
   b = y;
   c = x*cos(lat/RADS) + z*sin(lat/RADS);
 
@@ -1310,18 +1310,19 @@ double stringVal(const char* buf,int i)
 
 /* ---------------------------------------------------------------- */
 
-void rotate(double xi,double yi,double pa,double* az,double* el)
+void rotate(double xi,double yi,double pa,double pr,double* az,double* el)
 {
   double radpa = fabs(pa) / RADS;
   double sinpa = sin(radpa);
   double cospa = cos(radpa);
   assert(radpa != 0);                  /* Magellan uses +360 */
+  assert(fabs(pr) == 1.0);             /* parity NEW v0353 */
   if (pa < 0) {                        /* rotate into AZ,EL coodinates */
-    *az = +(xi * cospa) -(yi * sinpa);
-    *el = -(xi * sinpa) -(yi * cospa);
+    *az = +(pr*xi * cospa) -(yi * sinpa);
+    *el = -(pr*xi * sinpa) -(yi * cospa);
   } else {
-    *az = -(xi * cospa) -(yi * sinpa);
-    *el = +(xi * sinpa) -(yi * cospa);
+    *az = -(pr*xi * cospa) -(yi * sinpa);
+    *el = +(pr*xi * sinpa) -(yi * cospa);
   }
 }
 

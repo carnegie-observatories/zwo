@@ -1017,7 +1017,7 @@ static void do_lupe24(QlTool* qlt)
     int x2 = xc + qlt->vrad*lmag;
     int y1 = yc - qlt->vrad*lmag;
     int y2 = yc + qlt->vrad*lmag;
-    if (qlt->gmode == GMODE_SV) {      /* guide-cross NEW v0348 */
+    if (qlt->gmode == GMODE_SV) {      /* guide-cross v0348 */
       draw_cross(lupe,lgrey,qlt->lWIDE,qlt->lHIGH,xc,yc,
                  2*qlt->vrad*lmag,2*qlt->vrad*lmag);
     } else {                           /* guide-box */

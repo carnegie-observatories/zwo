@@ -230,10 +230,10 @@ typedef struct {
   char host[128];
   int  port;
   int  gnum,gmode;                     /* v0313 */
-} ZwoIdentity;
+} ZwoIdentity;  // todo need other parameters, eg. angle, parity
 static ZwoIdentity ident[MAX_NGUIDERS];
 
-static double angle=-120.0,elsign=-1.0,rosign=0.0;  /* MIKE defaults */
+static double angle=-120.0,elsign=-1.0,rosign=0.0;  /* MIKE defaults todo guider_struct */
 static double parity=+1.0;             /* NEW v0351 */
 static char   paString[128];
 
@@ -349,14 +349,14 @@ int main(int argc,char **argv)
         ident[ni].port = (p) ? SERVER_PORT+atoi(p+1) : SERVER_PORT; 
         ni++;
         break; 
-      case 'i':                        /* parity NEW v0351 todo HTML */
+      case 'i':                        /* parity NEW v0351 */
         parity = atof(optarg);
         break;
       case 'm':                        /* optical mode */
         if (optarg[0] == 'z') {        /* ZWO (default) */
           baseD=1800; baseB=2; baseI=600; pHIGH = 102; 
         } else 
-        if (optarg[0] == 'p') {        /* PFS v0345 todo implicit offx,offy*/
+        if (optarg[0] == 'p') {        /* PFS v0345 */
           baseD=1200; baseB=2; baseI=600; pHIGH = 102; 
           // todo offx,offy
           angle=-128.0; rosign=0.0; elsign=-1.0; parity=-1.0; // NEW v0351
@@ -372,7 +372,7 @@ int main(int argc,char **argv)
           baseD=2400; baseB=2; baseI=600; pHIGH = 102;
         }
         break;
-      case 'o':                        /* offset NEW v0348 todo HTML */
+      case 'o':                        /* offset NEW v0348 */
         sscanf(optarg,"%d,%d",&offx,&offy); 
         break;
       case 'p':                        /* rotatorPort v0313 */
@@ -489,6 +489,7 @@ int main(int argc,char **argv)
     Guider *g = guiders[i];
     g->gnum = ident[i].gnum;
     g->gmode = ident[i].gmode;
+    g->parity = parity;   // todo from 'ident'
     sprintf(g->name,"gCam%d",g->gnum);
     if (ident[i].port) {               /* explicit host */
       g->server = zwo_create(ident[i].host,ident[i].port);
@@ -952,7 +953,7 @@ static void redraw_compass(Guider* g)
   north = -fabs(g->pa)*parity;              /* az,el */
   if (parity > 0) east  = north + ((g->pa < 0) ? 90.0 : -90.0);
   else            east  = north + ((g->pa > 0) ? 90.0 : -90.0);
-  // bug-fix      east  = north + ((g->pa < 0) ? 90.0 : -90.0); // v0352 NEW
+  // bug-fix      east  = north + ((g->pa < 0) ? 90.0 : -90.0); // v0352
   draw_compass(g,x,y,r,north,east,app->red); 
 
   redraw_gwin(g);
@@ -1259,7 +1260,8 @@ static int handle_msmode(void* param,XEvent* event)
       if (g->pamode) err = set_pa(g,g->pa,1);
       if (!err) { double dx,dy,da,de;
         qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
-        rotate(g->px*dx,g->px*dy,g->pa,&da,&de);
+        assert(parity == g->parity); //xxx
+        rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
         assert(GMODE_SV == 3);         /* 3: move PR&SH */
         err = telio_gpaer(g->gmode,-da,-de);
         if (!err && (g->msmode < 0)) err = telio_aeg(da,de);
@@ -1274,7 +1276,8 @@ static int handle_msmode(void* param,XEvent* event)
       if (g->pamode) err = set_pa(g,g->pa,1);
       if (!err) { double dx,dy,da,de;
         qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
-        rotate(g->px*dx,g->px*dy,g->pa,&da,&de);
+        assert(parity == g->parity); //xxx
+        rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
         err = telio_aeg(da,de);
       }
       telio_close();
@@ -2221,7 +2224,7 @@ static void load_mask(Guider *g)       /* v0322 */
   assert(server->mask);
   int npix = server->aoiW * server->aoiH;
   assert(server->aoiW == server->aoiH);
-  if (g->offx || g->offy) {            /* NEW v0348 */
+  if (g->offx || g->offy) {            /* v0348 todo mask_name() */
     sprintf(name,"zwo%s_%d_%d_%d.mask",server->serialNumber,
             server->aoiW,g->offx,g->offy);
   } else {
@@ -2261,7 +2264,7 @@ static void make_mask(Guider *g,const char* par)  /* v0319 */
   assert(server->mask);
   int npix = server->aoiW * server->aoiH;
   assert(server->aoiW == server->aoiH);
-  if (g->offx || g->offy) {            /* NEW v0348 */
+  if (g->offx || g->offy) {            /* v0348 */
     sprintf(name,"zwo%s_%d_%d_%d.mask",server->serialNumber,
             server->aoiW,g->offx,g->offy);
   } else {

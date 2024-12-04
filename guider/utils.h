@@ -118,7 +118,7 @@ double   modtop            (double,double);
 
 double   stringVal         (const char* buf,int i);
 
-void  rotate (double,double,double,double*,double*);
+void  rotate (double,double,double,double,double*,double*);
 
 /* ---------------------------------------------------------------- */
 

@@ -211,7 +211,7 @@ void run_guider1(void* param)
         if (qltool->guiding < 0) graph_scale(g->g_tc,0,1.333*flux,0);
         graph_add1(g->g_tc,flux,0);
         graph_add1(g->g_fw,fwhm,0);
-        rotate(g->px*(dx-gx),g->px*(dy-gy),g->pa,&azerr,&elerr);
+        rotate(g->px*(dx-gx),g->px*(dy-gy),g->pa,g->parity,&azerr,&elerr);
         graph_add1(g->g_az,azerr,0);
         graph_add1(g->g_el,elerr,0);
         double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
@@ -233,7 +233,7 @@ void run_guider1(void* param)
           if (counter % server->rolling) doit = 0;
         }
         if (doit) {                    /* send EDS-801 v0336 */
-          next_eds = walltime(0) + 1.0; /* NEW v0347 */
+          next_eds = walltime(0) + 1.0; /* v0347 */
           eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
         }
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
@@ -256,7 +256,7 @@ void run_guider1(void* param)
 
 /* ---------------------------------------------------------------- */
 
-void run_guider3(void* param)          /* NEW v0350 */
+void run_guider3(void* param)          /* v0350 */
 {
   double t1,t2;
   double gx,gy,dx=0,dy=0,azerr,elerr;
@@ -299,15 +299,15 @@ void run_guider3(void* param)          /* NEW v0350 */
       dx = ((dx > 0) ? 0.1 : -0.1) / (g->px);   // todo ?Shec
       dy = ((dy > 0) ? 0.1 : -0.1) / (g->px);
 #endif
-      rotate(g->px*dx,g->px*dy,g->pa,&azerr,&elerr);
+      rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
       graph_add1(g->g_az,azerr,0);
       graph_add1(g->g_el,elerr,0);
       g->azg = g->sens * azerr;
       g->elg = g->sens * elerr;
       qltool->guiding = abs(qltool->guiding);
       int doit=1;                      /* only every 'av' frames */
-      if (server->rolling) {
-        if (++counter % server->rolling) doit = 0;
+      if (server->rolling) {   
+        if (++counter % server->rolling) doit = 0; // todo max. per 2 secs? */
       }
       if (doit) {
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) {

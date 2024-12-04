@@ -66,6 +66,7 @@ typedef struct guider_tag {
   volatile double fps,flux,ppix,back,fwhm,dx,dy;
   char        send_host[128];
   int         send_port;
+  double      parity; // NEW display parity todo others (eg. angle,rosign,elsign)
 } Guider;
 
 /* ---------------------------------------------------------------- */
