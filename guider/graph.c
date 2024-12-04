@@ -52,7 +52,7 @@ GraphWindow* graph_create(MainWindow* mw,Window parent,const char* fn,
   
   pthread_mutex_init(&g->lock,NULL); 
   g->disp = mw->disp;
-  strcpy(g->name,nm);
+  strcpy(g->name,nm); 
   g->nc = nc;
   g->m = (int*)malloc(nc*sizeof(int));
   g->cur = (int*)malloc(nc*sizeof(int));
@@ -72,6 +72,7 @@ GraphWindow* graph_create(MainWindow* mw,Window parent,const char* fn,
   g->h = h;
   CBX_Lock(0);
   g->win = XCreateSimpleWindow(g->disp,parent,x,y,w,h,1,app->black,app->lgrey);
+  //xxxyyy g->win = XCreateSimpleWindow(g->disp,parent,x,y,w,h,0,app->black,app->grey);
   XMapRaised(g->disp,g->win);
   CBX_Unlock();
   CBX_SelectInput_Ext(g->disp,g->win,ExposureMask);
@@ -132,7 +133,11 @@ void graph_redraw(GraphWindow* g)
   pthread_mutex_lock(&g->lock);
 
   y0 = 2+PXh/2;               y1 = g->h-PXh/2;  h = (double)(y1-y0);
+#if 0 // horizontal
   x0 = 3+PXw*strlen(g->name); x1 = g->w-PXw/2;  w = (double)(x1-x0);
+#else
+  x0 = 3+PXw;                 x1 = g->w-PXw/2;  w = (double)(x1-x0); // todo less margin?
+#endif
 
   (void)CBX_Lock(0);
 
@@ -144,7 +149,14 @@ void graph_redraw(GraphWindow* g)
   XDrawLine(disp,win,gc,x1,y1,x0,y1);
   XDrawLine(disp,win,gc,x0,y1,x0,y0);
 
+#if 0  // horizontal
   XDrawString(disp,win,gc,1,(y0+y1)/2+PXh/3,g->name,strlen(g->name));
+#else  // vertical NEW v0401
+  y = (y0+y1)/2 - (PXh*strlen(g->name))/2 + 2*PXh/3;
+  for (i=0; i<strlen(g->name); i++) { 
+    XDrawString(disp,win,gc,1,y+i*PXh,g->name+i,1);
+  }
+#endif
 
   if (g->half) {
     XSetLineAttributes(disp,gc,1,LineOnOffDash,CapRound,JoinRound);

@@ -438,7 +438,7 @@ static void* run_cycle(void* param)
               if ((x==901) && (y==900)) udata[p] = 0x1f00; 
               if ((x==900) && (y==901)) udata[p] = 0x1f00;
 #endif
-#if 0 // TESTING -- gauss
+#if 1 // TESTING -- gauss xxx
               int cx=self->aoiW/2,cy=self->aoiH/2; /* v0348 */
               if ((x>=cx-20) && (x<=cx+20)) { 
                 // if (fabs(x-cx) > 3) { /* blank out slit */

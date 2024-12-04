@@ -49,8 +49,9 @@
  * v0.334  2023-08-17  EDS 
  * v0.343  2023-09-13  layout changes, "send" countdown
  * v0.344  2023-10-31  guider correction and EDS every 'av' frame
- * v0.348  2023-12-13  offset todo needs new .mask
+ * v0.348  2023-12-13  offset
  * v0.350  2023-12-18  slitview guider (gm=3)
+ * v0.400  2024-01-05  single camera only, layout optimizations
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
@@ -61,6 +62,7 @@
  *
  * TODO .ini file
  * TODO update FITS header (EPOCH wrong in Magellan example)
+ * todo vertical
  *
  * ---------------------------------------------------------------- */
 
@@ -103,7 +105,7 @@
 
 /* DEFINEs -------------------------------------------------------- */
 
-#define PA_BOX
+#define PA_BOX   // todo ?Shec
 
 #define P_TITLE         "ZwoGcam"
 
@@ -168,8 +170,6 @@ enum guider_enum {
  
 /* --- */
 
-#define MAX_NGUIDERS 3
-
 #define HOST_NONE    "none"
 
 /* TYPEDEFs ------------------------------------------------------- */
@@ -183,8 +183,8 @@ typedef struct gcam_header_tag {
 
 Application *app;
 char logfile[512];
-int vertical=0;                        /* horizontal mode v0310 */
-int gWIDE,gHIGH,eWIDE,eHIGH,pHIGH=102; /* v0310 */
+int gWIDE,eWIDE,eHIGH,pHIGH=107; /* v0310 */
+int wINFO;  // NEW v0401
 int showMagPix=0;                      /* v0323 NOTE: singleton */
 
 /* function prototype(s) */
@@ -203,34 +203,27 @@ static Menu       fimenu;              /* file dropdown menu */
 static Menu       opmenu;              /* options dropdown menu */
 static EditWindow utbox,rtbox;
 
-static Guider *guiders[MAX_NGUIDERS];
+static Guider sGuider;                 /* singleton v0.400 NEW */
+static Guider *guiders[1];
 static int n_guiders=0;
+static char gcamHost[128];
 
 static time_t next_disk=0;
 static time_t startup_time;
 static int    pa_interval=30;
 static float  elev=90,para=0;
 
-static int   baseD=1800,baseB=2,baseI=600;  /* default=ZWO */
+static int   baseD=1800,baseB=2,baseI=600;  /* default=ZWO todo 500 */
 static float pscale=0.02535f;  /* measured 20230113 Andor:6.5um, ZWO:2.32um */
 
 static const Bool require_control_key=True; // IDEA allow False
 
 static char    setup_rc[512];          /* dot-file in $HOME */
 
-static Guider  *focusGuider=NULL;
+static Guider  *focusGuider=NULL;  // todo remove with single guider
 
 static pthread_mutex_t scanMutex,mesgMutex;
 
-typedef struct {
-  char host[128];
-  int  port;
-  int  gnum,gmode;                     /* v0313 */
-} ZwoIdentity;  // todo need other parameters, eg. angle, parity
-static ZwoIdentity ident[MAX_NGUIDERS];
-
-static double angle=-120.0,elsign=-1.0,rosign=0.0;  /* MIKE defaults todo guider_struct */
-static double parity=+1.0;             /* v0351 */
 static char   paString[128];
 
 static int   rotatorPort=0;
@@ -286,9 +279,9 @@ static void    my_shutdown       (Bool);
 
 int main(int argc,char **argv)
 {
-  int        i,j,ng=0,ni=0;
+  int        i,j;
   int        sleeptime=0,winpos=CBX_TOPLEFT;
-  int        x,y,w,h,d,tmode=0,err,offx=0,offy=0;
+  int        x,y,w,h,d,tmode=0,err;
   char       buffer[1024],buf[128];
   char       xserver[256];
   char       sendHost[128]=HOST_NONE;  /* v0315 */
@@ -310,67 +303,69 @@ int main(int argc,char **argv)
   pthread_mutex_init(&scanMutex,NULL);
   pthread_mutex_init(&mesgMutex,NULL);
 
-  for (i=0; i<MAX_NGUIDERS; i++) {     /* clear structures */
-    strcpy(ident[i].host,"");
-    ident[i].port = 0;
-    ident[i].gnum = 0;                 /* guiderCamera number */
-  }
+  sGuider.gnum = 1;
+  sGuider.angle = -120.0;
+  sGuider.elsign = -1.0;
+  sGuider.rosign =  0.0;
+  sGuider.parity =  1.0;
+  sGuider.offx = sGuider.offy = 0;
 
-  { extern char *optarg; char *p;      /* parse command line */  
+  { extern char *optarg; double f;     /* parse command line */  
     extern int opterr,optopt; opterr=0;
-    while ((i=getopt(argc,argv,"a:e:f:g:h:i:m:n:o:p:r:s:t:v")) != EOF) {
+    while ((i=getopt(argc,argv,"a:e:f:g:h:i:m:n:o:p:r:s:t:")) != EOF) {
       switch (i) {
       case 'a':                        /* 'angle' v0311 */
-        angle = atof(optarg); 
+        sGuider.angle = atof(optarg);
         break;
       case 'e':                        /* 'elsign' v0311 */
-        elsign = atof(optarg);         /* v0315 */
-        elsign = (elsign > 0) ? 1.0 : ((elsign < 0) ? -1.0 : 0.0);
+        f = atof(optarg);         /* v0315 */
+        sGuider.elsign = (f > 0) ? 1.0 : ((f < 0) ? -1.0 : 0.0);
         break;
       case 'r':                        /* 'rosign' v0311 */
-        rosign = atof(optarg);
-        rosign = (rosign > 0) ? 1.0 : ((rosign < 0) ? -1.0 : 0.0);
+        f = atof(optarg);
+        sGuider.rosign = (f > 0) ? 1.0 : ((f < 0) ? -1.0 : 0.0);
         break;
       case 'f':                        /* fontname */
         strcpy(fontname,optarg);
         break;
       case 'g':                        /* guiderCamera number {1..3} */
-        ident[ng].gnum = imin(3,imax(1,atoi(optarg)));
-        ng++;
+        sGuider.gnum = imin(3,imax(1,atoi(optarg)));
         break;
-      case 'h':                        /* explicit host */
-        if (ni == MAX_NGUIDERS) break;
-        strcpy(buffer,optarg);
-        p = strchr(buffer,':'); if (p) *p = '\0';
-        strcpy(ident[ni].host,buffer);
-        ident[ni].port = (p) ? SERVER_PORT+atoi(p+1) : SERVER_PORT; 
-        ni++;
+      case 'h':                        /* camera (rPi) host */
+        strcpy(gcamHost,optarg);
+        n_guiders++;
         break; 
       case 'i':                        /* parity v0351 */
-        parity = atof(optarg);
+        sGuider.parity = atof(optarg);
         break;
       case 'm':                        /* optical mode */
         if (optarg[0] == 'z') {        /* ZWO (default) */
-          baseD=1800; baseB=2; baseI=600; pHIGH = 102; 
+          baseD=1800; baseB=2; baseI=600; //xxx pHIGH = 102; 
         } else 
         if (optarg[0] == 'p') {        /* PFS v0345 */
-          baseD=1200; baseB=2; baseI=600; pHIGH = 102; 
-          angle=-128.0; rosign=0.0; elsign=-1.0; parity=-1.0; /* v0351 */
-          offx=-10; offy=85;           /* NEW v0355 */
-          ident[ng].gnum = 3;          /* == default 'gmode' */
+          baseD=1200; baseB=2; baseI=600; //xxx pHIGH = 102; 
+          sGuider.angle  = -128.0; 
+          sGuider.elsign = -1.0;
+          sGuider.rosign =  0.0;
+          sGuider.parity = -1.0;      /* v0351 */
+          sGuider.offx=-10; sGuider.offy=85; /* NEW v0355 */
+          sGuider.gnum = 3;            /* == default 'gmode' */
         } else 
         if (optarg[0] == '2') {
-          baseD=2048; baseB=2; baseI=512; pHIGH = 101;
+          baseD=2048; baseB=2; baseI=512; //xxx pHIGH = 101;
         } else
         if (optarg[0] == '1') {
-          baseD=2048; baseB=1; baseI=512; pHIGH = 101;
+          baseD=2048; baseB=1; baseI=512; //xxx pHIGH = 101;
+        } else
+        if (optarg[0] == '5') {
+          baseD=2000; baseB=2; baseI=500; pHIGH = 90; //xxxyyy optimize height
         } else 
         if (optarg[0] == 'f') {        /* full */
-          baseD=2400; baseB=2; baseI=600; pHIGH = 102;
+          baseD=2400; baseB=2; baseI=600; //xxx pHIGH = 102;
         }
         break;
       case 'o':                        /* offset v0348 */
-        sscanf(optarg,"%d,%d",&offx,&offy); 
+        sscanf(optarg,"%d,%d",&sGuider.offx,&sGuider.offy); 
         break;
       case 'p':                        /* rotatorPort v0313 */
         rotatorPort = atoi(optarg); 
@@ -381,9 +376,6 @@ int main(int argc,char **argv)
       case 't':                        /* TCS */
         tmode = atoi(optarg);
         break;
-      case 'v':                        /* vertical layout v0310 */
-        vertical = 1;                  /* TODO update HTML screen shot */
-        break;
       case '?':
         fprintf(stderr,"%s: option '-%c' unknown or parameter missing\n",
                 P_TITLE,(char)optopt);
@@ -392,40 +384,16 @@ int main(int argc,char **argv)
     } /* endwhile(getopt) */
   }
 
-  n_guiders = imax(ni,ng);
-  if (n_guiders == 0) {
-    fprintf(stderr,"%s: no guiders (hosts) defined\n",argv[0]);
+  if (n_guiders != 1) {
+    fprintf(stderr,"%s: invalid number of guider (hosts) defined\n",argv[0]);
     exit(1);
   }
-  for (i=0; i<n_guiders; i++) {
-    if (ident[i].gnum == 0) {          /* no guider number defined */
-      if (n_guiders == 1) ident[i].gnum = 1;
-      else                ident[i].gnum = 1+i;
-    }
-    ident[i].gmode = ident[i].gnum;    /* default mode {PR,SH,SV} */
-  }
-#if (DEBUG > 0)
-  for (i=0; i<n_guiders; i++) {
-    printf("%d: h=%s p=%d g=%d\n",i,ident[i].host,ident[i].port,ident[i].gnum);
-  }
-#endif
+  sGuider.gmode = sGuider.gnum;
 
-  if (vertical) {                      /* v0310 */
-    gWIDE = 632;
-    eWIDE = 6+(n_guiders*(2+gWIDE));
-#ifdef MACOSX
-    eHIGH = 810;
-#else
-    eHIGH = 1144;                      /* MATE desktop @1920x1200 */
-#endif
-  } else {
-    if (n_guiders>1) { fprintf(stderr,"veritcal layout required\n"); exit(1); }
-    assert(n_guiders == 1);
-    gWIDE = 632+4+baseI;
-    eWIDE = 6+1*(2+632)+baseI+4;
-    eHIGH = baseI+33;
-  }
-  gHIGH = eHIGH-XXh-9;
+  wINFO = 128+2+2+PXw/3+39*PXw;
+  gWIDE = wINFO+4+baseI;       // todo vertical xxxyyyzzz
+  eWIDE = 1*(2+wINFO)+baseI+4;
+  eHIGH = baseI+6;
 
   InitRandom(0,0,0);                   /* QlTool uses Random */
 
@@ -468,12 +436,12 @@ int main(int argc,char **argv)
   /* get setup from files */
 
   log_path(logfile,"ZWOGUIDERLOG","zwogcam"); /* create logfile name */
-  sprintf(buf,"zwogcam%d.log",ident[0].gnum);
+  sprintf(buf,"zwogcam%d.log",sGuider.gnum);
   lnk_logfile(logfile,buf);            /* link to $HOME */
   sprintf(buf,"%s-v%s",P_TITLE,P_VERSION);
   message(NULL,buf,MSS_FILE);
 
-  sprintf(buf,"zwogcam%drc",ident[0].gnum); /* runNumber & dataPath */
+  sprintf(buf,"zwogcam%drc",sGuider.gnum); /* runNumber & dataPath */
   (void)set_path(setup_rc,buf);        /* $HOME v0311 */
   // printf("setup=%s\n",setup_rc);
   get_string(setup_rc,DBE_DATAPATH,buffer,genv2("HOME","/tmp"));
@@ -481,19 +449,13 @@ int main(int argc,char **argv)
   if (!i) strcpy(buffer,genv2("HOME","/tmp"));
   // printf("path= %s\n",buffer);
 
+  assert(n_guiders == 1);
   for (i=0; i<n_guiders; i++) {
-    guiders[i] = (Guider*)malloc(sizeof(Guider)); 
+    guiders[i] = &sGuider; // (Guider*)malloc(sizeof(Guider)); 
     Guider *g = guiders[i];
-    g->gnum = ident[i].gnum;
-    g->gmode = ident[i].gmode;
     g->gmpar = 'p';
-    g->parity = parity;   // todo from 'ident'
     sprintf(g->name,"gCam%d",g->gnum);
-    if (ident[i].port) {               /* explicit host */
-      g->server = zwo_create(ident[i].host,ident[i].port);
-    } else {
-      g->server = NULL;
-    }
+    g->server = zwo_create(gcamHost,SERVER_PORT);
     g->gid = 0;                        /* guiding thread ID */
     g->loop_running = g->house_running = False; 
     g->stop_flag = False;
@@ -512,7 +474,6 @@ int main(int argc,char **argv)
     g->send_port = 5700+g->gnum-1;     /* v0316 */
     g->stored_tf1 = 0.5f; g->stored_tf3 = 1.0f;
     g->stored_send = 0; g->stored_av = 0; g->stored_mode = 1;
-    g->offx = offx; g->offy = offy;
     strcpy(g->lastCommand,"");
     strcpy(g->command_msg,"");
     /* setup 'status' structure */
@@ -533,7 +494,7 @@ int main(int argc,char **argv)
     st->binning = baseB;
     st->pixscale = g->px;              /* FITS header */
     st->exptime = 0.5f; 
-    st->ca = modulo(angle+180.0,0,360);  /* v0316 */
+    st->ca = modulo(g->angle+180.0,0,360);  /* v0316 */
     st->camera = g->gnum;                /* v0317 */
     st->rotn = rotatorPort;              /* v0317 */
     st->psize = 4.63f;                   /* v0327 */
@@ -543,6 +504,7 @@ int main(int argc,char **argv)
   /* create main-window ------------------------------------------- */
  
   sprintf(buf,"%s (v%s)",guiders[0]->status.instrument,P_VERSION);
+  printf("eWIDE=%d, eHIGH=%d\n",eWIDE,eHIGH); //xxx
   CXT_OpenMainWindow(&mwin,winpos,eWIDE,eHIGH,&hint,buf,P_TITLE,True);
   // XSynchronize(mwin.disp,True);
   CBX_SelectInput(&mwin,ExposureMask | KeyPressMask | EnterWindowMask);
@@ -559,7 +521,7 @@ int main(int argc,char **argv)
     (void)CBX_AddMenuEntry(&opmenu,"Logfile",0);  // OPT_LOGFILE
 
   w = 11*PXw;
-  x = eWIDE - w - PXw/2;
+  x = wINFO - w - PXw/3;
   y = fimenu.y;
   CBX_CreateAutoOutput(&mwin,&utbox,x,y,w,XXh,"UT");
   x -= w + PXw;
@@ -567,10 +529,14 @@ int main(int argc,char **argv)
 
   for (i=0; i<n_guiders; i++) {        /* guider controls */
     Guider *g = guiders[i];
+#if 1 //xxxyyy
+    g->win = mwin.win;
+#else
     g->win = CBX_CreateSimpleWindow(&mwin,2+i*(2+gWIDE),2+XXh+3,
                                     gWIDE,gHIGH,app->grey);
     CBX_SelectInput_Ext(mwin.disp,g->win,ExposureMask | KeyPressMask | 
                         EnterWindowMask );
+#endif
 
     /* dropdown menu ---------------------------------------------- */
     CBX_CreateAutoDrop(&mwin,&g->gdmenu,opmenu.x+(1+i)*(opmenu.w+PXw/2),
@@ -578,90 +544,89 @@ int main(int argc,char **argv)
       CBX_AddMenuEntry(&g->gdmenu,"Flip-X",0);   // GDR_FLIP_X
       CBX_AddMenuEntry(&g->gdmenu,"Flip-Y",0);   // GDR_FLIP_Y
       CBX_AddMenuEntry(&g->gdmenu,NULL,CBX_SEPARATOR);
-      CBX_AddMenuEntry(&g->gdmenu,"SendHost",0); // GDR_HOST
+      CBX_AddMenuEntry(&g->gdmenu,"SendHost",0); // GDR_HOST todo EDSHost
       CBX_AddMenuEntry(&g->gdmenu,NULL,CBX_SEPARATOR);
       CBX_AddMenuEntry(&g->gdmenu,"Reset",0);    // GDR_RESET
     /* quicklook tool --------------------------------------------- */
-    x = 1;
-    y = 1;
-    g->qltool = qltool_create(&mwin,g->win,fontname,x,y,
+    x = 2;
+    y = 1+XXh+XXh/3-1;
+    g->qltool = qltool_create(&mwin,g->win,fontname,wINFO,y,
                               g->status.dimx,g->status.dimy,baseI);
     sprintf(g->qltool->name,"QlTool%d",1+i);
     g->qltool->gmode = g->gmode;
     if (g->gmode == 3) g->qltool->lmag = 2;  /* v0354 */
     /* 1st column ------------------------------------------------- */
-    Window p = g->win;
-    x += g->qltool->lWIDE + PXw/2;     
-    y  = 2;
-    w  = 10*PXw;
-    CBX_CreateAutoOutput_Ext(&mwin,&g->tcbox,p,x,y,w,XXh,"tc 0");
-    y += 3+XXh+PXh/3;                  /* Note: 3+XXh in qltool.c */
+    Window p = g->win;                 /* parent */
+    x += g->qltool->lWIDE + 4;     
+    w  = (17*PXw)/2;                   /* NEW v0400 */
+    CBX_CreateAutoOutput_Ext(&mwin,&g->tcbox,p,x,y,w,XXh,"tc 88888"); //xxx
+    y += XXh+PXh/3;
     CBX_CreateAutoOutput_Ext(&mwin,&g->mxbox,p,x,y,w,XXh,"mx 0");
-    y += 3+XXh+PXh/3;
+    y += XXh+PXh/3;
     CBX_CreateAutoOutput_Ext(&mwin,&g->bkbox,p,x,y,w,XXh,"bk 0");
-    y += 3+XXh+PXh/3;
+    y += XXh+PXh/3;
     CBX_CreateAutoOutput_Ext(&mwin,&g->fwbox,p,x,y,w,XXh,"fw 0");
-    y += 3+XXh+PXh/3;
+    y += XXh+PXh/3;
     CBX_CreateAutoOutput_Ext(&mwin,&g->dxbox,p,x,y,w,XXh,"dx 0");
-    y += 3+XXh+PXh/3;
+    y += XXh+PXh/3;
     CBX_CreateAutoOutput_Ext(&mwin,&g->dybox,p,x,y,w,XXh,"dy 0");
     /* 2nd column ------------------------------------------------- */
     x += g->tcbox.w + PXw/2;           
-    y  = 2;
-    w  = 8*PXw;
-    CBX_CreateAutoOutput_Ext(&mwin,&g->gdbox,p,x,y,w,XXh,"gd  off");
-    y += 3+XXh+PXh/3;                  /* Note: 3+XXh in qltool.c */
+    y  = g->tcbox.y;
+    w  = (15*PXw)/2;
+    CBX_CreateAutoOutput_Ext(&mwin,&g->gdbox,p,x,y,w,XXh,"gd off");
+    y += XXh+PXh/3;   
     CBX_CreateAutoOutput_Ext(&mwin,&g->snbox,p,x,y,w,XXh,"sn    0");
-    y += 3+XXh+PXh/3; 
+    y += XXh+PXh/3; 
     sprintf(buf,"px  %03d",(int)my_round(1000.0*g->px,0));
     CBX_CreateAutoOutput_Ext(&mwin,&g->pxbox,p,x,y,w,XXh,buf);
-    y += 3+XXh+PXh/3;
-    sprintf(buf,"bx %4d",1+2*g->qltool->vrad);
-    CBX_CreateAutoOutput_Ext(&mwin,&g->bxbox,p,x,y,w,XXh,buf);
-    y += 3+XXh+PXh/3;
-#ifdef PA_BOX
+    y += XXh+PXh/3;
+#ifdef PA_BOX // todo no (Shec)
     d  = 3*PXw;
     CBX_CreateAutoOutput_Ext(&mwin,&g->pabox,p,x+d,y,w-d,XXh,"    0");
 #else
     CBX_CreateAutoOutput_Ext(&mwin,&g->pabox,p,x,y,w,XXh,"pa    0");
 #endif
     /* 3rd column ------------------------------------------------- */
-    x += g->gdbox.w + 3*PXw;
-    y  = 2;
-    w  = 8*PXw;
+    x += g->gdbox.w + PXw/2;
+    y  = g->gdbox.y;
+    w  = (11*PXw)/2;
     CBX_CreateAutoOutput_Ext(&mwin,&g->gmbox,p,x,y,w,XXh,"gm");
-    y += 3+XXh+PXh/3;                  /* Note: 3+XXh in qltool.c */
-    CBX_CreateAutoOutput_Ext(&mwin,&g->gabox,p,x,y,w,XXh,"ga    1");
-    y += 3+XXh+PXh/3;
-    CBX_CreateAutoOutput_Ext(&mwin,&g->fmbox,p,x,y,w,XXh,"fm    1");
-    y += 3+XXh+PXh/3;
-    CBX_CreateAutoOutput_Ext(&mwin,&g->mmbox,p,x,y,w,XXh,"mm    0");
+    y += XXh+PXh/3;
+    CBX_CreateAutoOutput_Ext(&mwin,&g->gabox,p,x,y,w,XXh,"ga  1");
+    y += XXh+PXh/3;
+    CBX_CreateAutoOutput_Ext(&mwin,&g->fmbox,p,x,y,w,XXh,"fm  1");
+    y += XXh+PXh/3;
+    CBX_CreateAutoOutput_Ext(&mwin,&g->mmbox,p,x,y,w,XXh,"mm  0");
     /* 4th column ------------------------------------------------- */
-    w  = 15*PXw;
-    x = (!vertical) ? 632 - w - PXw/2 : gWIDE - w - PXw/2;
-    y = 2;
-    CBX_CreateAutoOutput_Ext(&mwin,&g->csbox,p,x,y,w,XXh,"cursorStep=1.0");
+    w = (17*PXw)/2;
+    x = wINFO - w - PXw/3; 
+    y = g->gmbox.y;
+    CBX_CreateAutoOutput_Ext(&mwin,&g->csbox,p,x,y,w,XXh,"Stp=1.0");
+    w = (11*PXw)/2;
+    x = g->csbox.x - w - PXw/2;
+    sprintf(buf,"bx %2d",1+2*g->qltool->vrad);
+    CBX_CreateAutoOutput_Ext(&mwin,&g->bxbox,p,x,y,w,XXh,buf);
     /* graphs ----------------------------------------------------- */
-    x = 1;
-    y = imax(4+g->qltool->lHIGH,2+6*(1+XXh+PXh/3));
-    w = (!vertical) ? (632-x-1*PXw)/2 : (gWIDE-x-1*PXw)/2;
+    x = 2;
+    y = g->tcbox.y + g->qltool->lHIGH+3;
+    w = (wINFO-x-1*PXw)/2;
     h = pHIGH;
     d = w/2;
     g->g_tc = graph_create(&mwin,g->win,fontname,"dx",x,y,w,h,1,d); //xxx tc
     graph_scale(g->g_tc,0,10000,0);
-    x = (!vertical) ? 632 -w - PXw/2 : gWIDE -w - PXw/2;
+    x = wINFO -w - PXw/3;
     g->g_fw = graph_create(&mwin,g->win,fontname,"dy",x,y,w,h,1,d); //xxx fw
     graph_scale(g->g_fw,0.0,2.0,0);
     y += h + 3;
     x = 1;
     g->g_az = graph_create(&mwin,g->win,fontname,"AZ",x,y,w,h,1,d);
     graph_scale(g->g_az,-1.0,1.0,1);
-    x = (!vertical) ? 632 -w - PXw/2 : gWIDE -w - PXw/2;
+    x = wINFO -w - PXw/3;
     g->g_el = graph_create(&mwin,g->win,fontname,"EL",x,y,w,h,1,d);
     graph_scale(g->g_el,-1.0,1.0,1);
     /* exposure controls ------------------------------------------ */
-    if (vertical) y = g->qltool->iy + g->qltool->iHIGH + 4;
-    else          y = y + pHIGH + 4;
+    y = y + pHIGH + 4;
     sprintf(buf,"%.2f",g->status.exptime);
     CBX_CreateAutoOutput_Ext(&mwin,&g->tfbox,g->win,1+2*PXw,y,9*PXw/2,XXh,buf);
     CBX_CreateAutoOutput_Ext(&mwin,&g->avbox,g->win,
@@ -671,12 +636,13 @@ int main(int argc,char **argv)
     sprintf(buf,"%d",g->sendNumber-1); 
     CBX_CreateAutoOutput_Ext(&mwin,&g->sqbox,g->win,
                              g->dtbox.x+g->dtbox.w+1*PXw,  y,5*PXw,XXh,buf);
-    CBX_CreateAutoOutput_Ext(&mwin,&g->fpbox,g->win,
-                             g->sqbox.x+g->sqbox.w+5*PXw,  y,5*PXw,XXh,"0");
-    CBX_CreateAutoOutput_Ext(&mwin,&g->fdbox,g->win,
-                             g->fpbox.x+g->fpbox.w+3*PXw/2,y,5*PXw,XXh,"0");
+    w = 5*PXw;
     CBX_CreateAutoOutput_Ext(&mwin,&g->fgbox,g->win,
-                             g->fdbox.x+g->fdbox.w+3*PXw/2,y,5*PXw,XXh,"0");
+                             wINFO-w-PXw/3              ,y,w,XXh,"0");
+    CBX_CreateAutoOutput_Ext(&mwin,&g->fdbox,g->win,
+                             g->fgbox.x-g->fgbox.w-1*PXw,y,w,XXh,"0");
+    CBX_CreateAutoOutput_Ext(&mwin,&g->fpbox,g->win,
+                             g->fdbox.x-g->fdbox.w-1*PXw,y,w,XXh,"0");
     y += XXh+PXh/3;
     w  = g->fpbox.x-2*PXw-1;                          /* v0313 */
     CBX_CreateAutoOutput_Ext(&mwin,&g->cmbox,g->win,1,y,w,XXh,"_");
@@ -685,9 +651,9 @@ int main(int argc,char **argv)
     CBX_CreateAutoOutput_Ext(&mwin,&g->cpbox,g->win,  /* v0313 */
                              g->fgbox.x,y,g->fgbox.w,XXh,"");
     x  = 1;
-    w  = g->fgbox.x-1+5*PXw;
     y += XXh+PXh/3;
-    n_msg = (gHIGH-y-3)/XXh;
+    w  = g->fpbox.x+g->fpbox.w-x;
+    n_msg = (eHIGH-y-3)/XXh;
     g->msbox = (EditWindow*)malloc(n_msg*sizeof(EditWindow));
     g->led   = (Led*)malloc(n_msg*sizeof(Led));
     d = PXw+6;
@@ -706,10 +672,11 @@ int main(int argc,char **argv)
   } /* endfor(n_guiders) */
   done = False;
 
-  sprintf(paString,"PA = %.1f %cELEV %cROTE (%c)",angle,  /* v0315 */
-         (elsign > 0) ? '+' : (elsign < 0) ? '-' : '0',  
-         (rosign > 0) ? '+' : (rosign < 0) ? '-' : '0',
-         (parity > 0) ? '+' : '-');        /* v0351 */
+  sprintf(paString,"PA = %.1f %cELEV %cROTE (%c)",  /* v0315 */
+         sGuider.angle,
+         (sGuider.elsign > 0) ? '+' : (sGuider.elsign < 0) ? '-' : '0',  
+         (sGuider.rosign > 0) ? '+' : (sGuider.rosign < 0) ? '-' : '0',
+         (sGuider.parity > 0) ? '+' : '-');   /* v0351 */
   message(guiders[0],paString,MSS_INFO);   /* v0311 */
 
   /* -------------------------------------------------------------- */
@@ -774,7 +741,9 @@ int main(int argc,char **argv)
       printf("%s: Un/Map Notify\n",__FILE__);
 #endif
       break;
-    case EnterNotify:                  /* enter window */
+    case EnterNotify:                  /* enter window todo remove ?*/
+      printf("focusGuider=%p\n",focusGuider); //xxx
+#if 0 //xxxyyy
       if (event.xany.window == mwin.win) {
         if (focusGuider) {
           //CBX_WindowBorder_Ext(mwin.disp,focusGuider->win,app->black);
@@ -782,11 +751,12 @@ int main(int argc,char **argv)
           focusGuider = NULL; 
         }
       } else {
+#endif
         for (i=0; i<n_guiders; i++) {
           Guider *g = guiders[i];
           if (event.xany.window == g->win) {
             if (g != focusGuider) {
-             if (focusGuider) {        /* green border ?Shec */
+             if (focusGuider) {        /* green border ?Shec todo what is this */
               // CBX_WindowBorder_Ext(mwin.disp,focusGuider->win,app->black);
               CBX_WindowBorder_Ext(mwin.disp,focusGuider->cmbox.win,app->black);
              }
@@ -797,7 +767,7 @@ int main(int argc,char **argv)
             break;
           }
         }
-      }
+      //xxx }
       break;
     case DestroyNotify:                /* WM closed window */
 #if (DEBUG > 0)
@@ -824,6 +794,7 @@ int main(int argc,char **argv)
       /* ignore */
       break;
     case KeyPress:                     /* keyboard events */
+#if 0 //xxxyyy
       if (event.xkey.window == mwin.win) {
 #ifdef SIM_ONLY                        /*  */
         if (CBX_GetKey(&event) == 'Q') {
@@ -831,6 +802,7 @@ int main(int argc,char **argv)
         }
 #endif
       } else {
+#endif
         for (i=0; i<n_guiders; i++) {
           Guider *g = guiders[i];
           if (event.xkey.window == g->win) { 
@@ -844,7 +816,7 @@ int main(int argc,char **argv)
             if (handle_key(g,&event)) break;
           } 
         }
-      }
+      //xxx }
       break;
     case ButtonPress:                  /* mouse button pressed */
       if (event.xbutton.button == 1) { /* left button */
@@ -941,17 +913,17 @@ static void redraw_compass(Guider* g)
   XClearWindow(mwin.disp,g->win);
   CBX_Unlock();
 
-  x = g->gmbox.x + r;
+  x = g->gdbox.x+g->gdbox.w/2;
   y = g->dybox.y - PXh/3;
-  north = parity*(-fabs(g->pa) + para);     /* N/E */
-  if (parity > 0) east  = north + ((g->pa > 0) ? 90.0 : -90.0);
-  else            east  = north + ((g->pa < 0) ? 90.0 : -90.0);
+  north = g->parity*(-fabs(g->pa) + para);     /* N/E */
+  if (g->parity > 0) east  = north + ((g->pa > 0) ? 90.0 : -90.0);
+  else               east  = north + ((g->pa < 0) ? 90.0 : -90.0);
   draw_compass(g,x,y,r,north,east,app->green); 
 
-  x += 2*r + PXw;
-  north = -fabs(g->pa)*parity;              /* az,el */
-  if (parity > 0) east  = north + ((g->pa < 0) ? 90.0 : -90.0);
-  else            east  = north + ((g->pa > 0) ? 90.0 : -90.0);
+  x = g->gmbox.x+g->gmbox.w/2;
+  north = -fabs(g->pa) * g->parity;           /* az,el */
+  if (g->parity > 0) east  = north + ((g->pa < 0) ? 90.0 : -90.0);
+  else               east  = north + ((g->pa > 0) ? 90.0 : -90.0);
   // bug-fix      east  = north + ((g->pa < 0) ? 90.0 : -90.0); // v0352
   draw_compass(g,x,y,r,north,east,app->red); 
 
@@ -991,7 +963,7 @@ static void redraw_gwin(Guider *g)
   if (g->pamode) XSetForeground(disp,gc,app->black);
 #endif
   CBX_Unlock();
-  sprintf(g->csbox.text,"cursorStep=%.1f",g->qltool->cursor_step);
+  sprintf(g->csbox.text,"Stp=%.1f",g->qltool->cursor_step); //xxx
   CBX_UpdateEditWindow(&g->csbox);
 }
 
@@ -2065,18 +2037,18 @@ static void* run_cycle(void* param)
         update_fps(&g->fgbox,fps);
         if (fwhm > 0) {                /* we have a valid measurement */
         if (g->gmode != GMODE_SV) {
-          sprintf(g->tcbox.text,"tc %7.0f",flux);
+          sprintf(g->tcbox.text,"tc %5.0f",flux); // todo /100.0
           CBX_UpdateEditWindow(&g->tcbox);
-          sprintf(g->mxbox.text,"mx %7.0f",ppix);
+          sprintf(g->mxbox.text,"mx %5.0f",ppix);
           CBX_UpdateEditWindow(&g->mxbox);
-          sprintf(g->bkbox.text,"bk %7.0f",back);
+          sprintf(g->bkbox.text,"bk %5.0f",back);
           CBX_UpdateEditWindow(&g->bkbox);
-          sprintf(g->fwbox.text,"fw %7.2f",fwhm);
+          sprintf(g->fwbox.text,"fw %5.2f",fwhm);
           CBX_UpdateEditWindow(&g->fwbox);
         } 
-          sprintf(g->dxbox.text,"dx %7.2f",dx);
+          sprintf(g->dxbox.text,"dx %5.1f",dx); // %7.2f NEW v0400
           CBX_UpdateEditWindow(&g->dxbox);
-          sprintf(g->dybox.text,"dy %7.2f",dy);
+          sprintf(g->dybox.text,"dy %5.1f",dy);
           CBX_UpdateEditWindow(&g->dybox);
         if (g->gmode != GMODE_SV) {
           graph_redraw(g->g_tc);
@@ -2337,10 +2309,10 @@ static int set_pa(Guider* g,double f,int fromTCS) /* position angle */
 #endif
 
   if (fromTCS) { float el,pa,re=0.0f;
-    if (rosign) err = telio_geo(NULL,NULL,&re ,NULL,&el,&pa); 
-    else        err = telio_geo(NULL,NULL,NULL,NULL,&el,&pa);
+    if (g->rosign) err = telio_geo(NULL,NULL,&re ,NULL,&el,&pa); 
+    else           err = telio_geo(NULL,NULL,NULL,NULL,&el,&pa);
     if (!err) {              /*  am , ra , re , az , el, pa */
-      f = angle + elsign*el + rosign*re;  /* v0311 */
+      f = g->angle + g->elsign*el + g->rosign*re;  /* v0311 */
       elev = el;                       /* telescope elevation */
       para = pa;                       /* parallactic angle */
     }
@@ -2395,7 +2367,7 @@ static void set_mm(Guider* g,int m)
   if (g->msmode != m) {
     message(g,"invalid mouse mode",MSS_WARN);
   }
-  sprintf(g->mmbox.text,"mm %4d",g->msmode);
+  sprintf(g->mmbox.text,"mm %2d",g->msmode);
   CBX_UpdateEditWindow(&g->mmbox);
 }
 
@@ -2411,7 +2383,7 @@ static void set_fm(Guider* g,int m)    /* v0329 */
   if (g->fmode != m) { 
     message(g,"invalid function mode",MSS_WARN);
   }
-  sprintf(g->fmbox.text,"fm %4d",g->fmode);
+  sprintf(g->fmbox.text,"fm %2d",g->fmode);
   CBX_UpdateEditWindow(&g->fmbox);
 }
 
@@ -2444,8 +2416,8 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
 {
   g->gmode = imax(1,imin(3,m));
   if (c) g->gmpar = (c == 'p') ? 'p' : 't';
-  if (g->gmode == 3) sprintf(g->gmbox.text,"gm %3d%c",g->gmode,g->gmpar);
-  else               sprintf(g->gmbox.text,"gm %4d",g->gmode);
+  if (g->gmode == 3) sprintf(g->gmbox.text,"gm %1d%c",g->gmode,g->gmpar);
+  else               sprintf(g->gmbox.text,"gm %2d",g->gmode);
   CBX_UpdateEditWindow(&g->gmbox);
   g->qltool->gmode = g->gmode;
 }

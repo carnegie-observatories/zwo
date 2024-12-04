@@ -33,7 +33,6 @@
 /* X-DEFINEs ------------------------------------------------------ */
 
 extern int PXh;
-extern int vertical;
 extern int gWIDE,pHIGH;
 extern int showMagPix;
 
@@ -119,7 +118,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   char    buf[128];
   Display *disp;
   QlTool  *qlt;
-#if (DEBUG > 1)
+#if (DEBUG > 0) //xxx1
   fprintf(stderr,"%s(%p,%s,%d,%d,%d,%d,%d)\n",PREFUN,
           mw,fontname,x0,y0,dimx,dimy,baseI);
 #endif
@@ -186,8 +185,8 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->picture0 = (void*)malloc(bdepth*(qlt->iWIDE*qlt->iHIGH));
 
-  qlt->lWIDE = 9*16;                   /* NOTE: 71 legacy pixels */
-  qlt->lHIGH = 9*16;
+  qlt->lWIDE = 8*16;                   /* NEW v0401 */
+  qlt->lHIGH = 8*16;
   qlt->lupe0 = (void*)malloc(bdepth*qlt->lWIDE*qlt->lHIGH);
 
   CBX_Lock(0);
@@ -213,6 +212,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   qlt->zero = 0;  
   qlt->pct = 25;                       /* {0..99 } */
   qlt->bkg = 16;                       /* {1..63} */
+  qlt->val = 0; 
 
 #ifdef ENG_MODE
   qlt->lmag = 2;
@@ -232,25 +232,23 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   /* create control/magnifier-window elements --------------------- */
 
   CBX_Lock(0);
-  qlt->lwin = XCreateSimpleWindow(qlt->disp,qlt->parent,x0,y0,
+  qlt->lwin = XCreateSimpleWindow(qlt->disp,qlt->parent,2 ,y0,
                                      qlt->lWIDE,qlt->lHIGH,
                                      1,app->black,app->lgrey);
   XMapRaised(qlt->disp,qlt->lwin);
   CBX_Unlock();
   CBX_SelectInput_Ext(qlt->disp,qlt->lwin,ExposureMask);
 
-  y = y0+1;
-  w = 15*PXw;
-  x = (!vertical) ? 632 - w - PXw/2 : gWIDE - w - PXw/2;
-  for (i=0; i<QLT_NCURSORS; i++) {     /* Note: 3+XXh in zwogcam.c */
-    y += 3+XXh+PXh/3;                  /* below "cursorStep" */
+  y = y0;
+  w = (29*PXw)/2;
+  x = x0 - w - PXw/3;
+  for (i=0; i<QLT_NCURSORS; i++) {
+    y += XXh+PXh/3;                    /* below "cursorStep" */
     CBX_CreateAutoOutput_Ext(mw,&qlt->cubox[i],parent,x,y,w,XXh," 0 0 0");
   }
 
-  if (vertical) qlt->ix = x0 + (gWIDE-qlt->iWIDE)/2;
-  else          qlt->ix = x + w + 4;
-  if (vertical) qlt->iy = imax(3+y0+qlt->lHIGH,1+y0+6*(1+XXh+PXh/3))+2*(pHIGH+2)+2;
-  else          qlt->iy = 2;
+  qlt->ix = x0+2;
+  qlt->iy = 2;
 
   CBX_Lock(0);
   qlt->iwin = XCreateSimpleWindow(qlt->disp,qlt->parent,
@@ -262,8 +260,8 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   CBX_SelectInput_Ext(qlt->disp,qlt->iwin,ExposureMask | ButtonPressMask);
 
   w = 10*PXw;
-  x = (!vertical) ? qlt->ix - w - PXw/2 : gWIDE - w - PXw/2;
-  y = (!vertical) ? 252+pHIGH+4 : qlt->iy + qlt->iHIGH + 4;
+  x = qlt->ix - w - PXw/2;
+  y = 310+pHIGH+4;         //xxxyyy todo global offset ?
   sprintf(buf,"pct  %5d",qlt->pct);
   CBX_CreateAutoOutput_Ext(mw,&qlt->pctbox,parent,x,y,w,XXh,buf);
   y += XXh+PXh/3;

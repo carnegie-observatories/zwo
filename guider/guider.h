@@ -34,17 +34,15 @@ typedef struct guider_tag {
   int           pamode,esmode,msmode;
   float         stored_tf1,stored_tf3; /* v0329 */
   int           stored_send,stored_av,stored_mode;
-  int           offx,offy;
   char          lastCommand[256];
   char          command_msg[128];      /* v0333 */
-  double        parity; // todo others (eg. angle,rosign,elsign)
   /* GUI */
   Window      win;
   QlTool      *qltool;
   GraphWindow *g_az,*g_el,*g_tc,*g_fw;
   EditWindow  tfbox;                   /* exposure time */
   EditWindow  dtbox;                   /* exposure->send countdown v0343 */
-  Menu        gdmenu;                  /* guider options menu */
+  Menu        gdmenu;       /* guider options menu todo --> opmenu */
   EditWindow  fpbox,fdbox,fgbox;       /* frames per second */
   EditWindow  gdbox,tcbox,mxbox,bkbox,fwbox,dxbox,dybox;
   EditWindow  snbox,pxbox,bxbox,pabox,avbox;
@@ -58,10 +56,12 @@ typedef struct guider_tag {
   EditWindow  smbox,gnbox;             /* v0322 */
   /* ZWO */
   ZwoStruct   *server;
+  int         offx,offy;
   /* Guiding */
   int         shmode,q_flag;
   u_int       sendNumber;
   float       px;                      /* eff. pixscale (incl. binning) */
+  double      angle,elsign,rosign,parity;
   double      pa,azerp,elerp,sens,azg,elg;
   pthread_mutex_t mutex;
   volatile int update_flag;
