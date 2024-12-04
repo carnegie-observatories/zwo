@@ -46,8 +46,6 @@ enum lookup_tables {LUT_GREY, LUT_INV, LUT_RAIN, LUT_BBDY};
 
 enum scaling_modes { SCALE_CUTS,SCALE_MED,SCALE_MIMA,SCALE_SPAN };
 
-enum guider_modes_enum { GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV }; // TODO duplicate 
-
 /* INCLUDEs ------------------------------------------------------- */
 
 #define _REENTRANT                     /* multi-threaded */
@@ -1012,7 +1010,7 @@ static void do_lupe24(QlTool* qlt)
     int x2 = xc + qlt->vrad*lmag;
     int y1 = yc - qlt->vrad*lmag;
     int y2 = yc + qlt->vrad*lmag;
-    if (qlt->gmode >= GMODE_SV) {      /* guide-cross */
+    if (qlt->gmode >= GM_SV3) {        /* guide-cross */
       draw_cross(lupe,lgrey,qlt->lWIDE,qlt->lHIGH,xc,yc,
                  2*qlt->vrad*lmag,2*qlt->vrad*lmag);
     } else {                           /* guide-box */
@@ -1210,17 +1208,10 @@ static void create_image(QlTool* qlt,int min,int dyn,void* p0)
     yc = (int)my_round(qlt->cury[i]/qlt->MulY,0);
     if (i == QLT_BOX) {
       if (qlt->guiding) color = yellow;
-#if 0 /* Shec: magnifier (not box) v0054 */
-      int x1 = xc - qlt->vrad/qlt->MulX; 
-      int x2 = xc + qlt->vrad/qlt->MulX;
-      int y1 = yc - qlt->vrad/qlt->MulY;
-      int y2 = yc + qlt->vrad/qlt->MulY;
-#else
       int x1 = xc - qlt->lWIDE/(2*qlt->lmag*(int)qlt->MulX); 
       int x2 = xc + qlt->lWIDE/(2*qlt->lmag*(int)qlt->MulX);
       int y1 = yc - qlt->lHIGH/(2*qlt->lmag*(int)qlt->MulY);
       int y2 = yc + qlt->lHIGH/(2*qlt->lmag*(int)qlt->MulY);
-#endif
       draw_rect((u_int*)p0,color,qlt->iWIDE,qlt->iHIGH,x1,x2,y1,y2);
     } else {  
       draw_cross((u_int*)p0,color,qlt->iWIDE,qlt->iHIGH,xc,yc,20,20);

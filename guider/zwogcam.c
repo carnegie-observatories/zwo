@@ -326,7 +326,8 @@ int main(int argc,char **argv)
         break;
       case 'm':                        /* optical mode */
         if (optarg[0] == 'p') {        /* PFS slitviewer v0345 */
-          baseD=1200; baseB=2; baseI=600; pHIGH = 117;  // todo baseD=1000
+          baseD=1200; baseB=2; baseI=600; pHIGH = 117;  // todo 'm1' ?Shec
+          baseD=1000; baseB=2; baseI=500; pHIGH = 82;
           sGuider.angle  = -128.0; 
           sGuider.elsign = -1.0;
           sGuider.rosign =  0.0;
@@ -585,10 +586,10 @@ int main(int argc,char **argv)
     y += h + 3;
     x = 1;
     g->g_az = graph_create(&mwin,g->win,fontname,"AZ",x,y,w,h,1,d);
-    graph_scale(g->g_az,-1.0,1.0,1);
+    graph_scale(g->g_az,-1.0,1.0,0x01);
     x = wINFO -w - PXw/3;
     g->g_el = graph_create(&mwin,g->win,fontname,"EL",x,y,w,h,1,d);
-    graph_scale(g->g_el,-1.0,1.0,1);
+    graph_scale(g->g_el,-1.0,1.0,0x01);
     /* exposure controls ------------------------------------------ */
     y = y + pHIGH + 4;
     if (vertical) y+= baseI+2;
@@ -611,7 +612,7 @@ int main(int argc,char **argv)
     y += XXh+PXh/3;
     w  = g->fpbox.x-2*PXw-1;                          /* v0313 */
     CBX_CreateAutoOutput_Ext(&mwin,&g->cmbox,g->win,1,y,w,XXh,"_");
-    CBX_WindowBorder_Ext(mwin.disp,g->cmbox.win,app->green); // ?Shec
+    CBX_WindowBorder_Ext(mwin.disp,g->cmbox.win,app->green);
     CBX_CreateAutoOutput_Ext(&mwin,&g->tmbox,g->win,
                              g->fdbox.x,y,g->fgbox.w,XXh,"");
     CBX_CreateAutoOutput_Ext(&mwin,&g->cpbox,g->win,  /* v0313 */
@@ -646,7 +647,7 @@ int main(int argc,char **argv)
                               g->status.dimx);
     g->qltool->gmode = g->gmode;
 #ifndef ENG_MODE
-    if (g->gmode >= GMODE_SV) {
+    if (g->gmode >= GM_SV3) {
       g->qltool->lmag = 2;  /* v0354,v0409 */
       qltool_scale(g->qltool,"pct","60","");   /* NEW v0410 todo just PFS ?Shec */
       qltool_scale(g->qltool,"bkg","24","");
@@ -1320,7 +1321,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     zwo_close(g->server);
     g->init_flag = 0;
   } else
-  if (!strcasecmp(cmd,"es")) {         /* toggle extended guiding ?Shec */
+  if (!strcasecmp(cmd,"es")) {         /* toggle extended guiding ?Povilas */
     g->esmode = (g->esmode) ? 0 : 1;
   } else
   if (!strcasecmp(cmd,"exit")) {       /* exit program */
@@ -1408,9 +1409,6 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   } else
   if (!strcasecmp(cmd,"fm")) {         /* function mode v0329 */
     if (n >= 2) set_fm(g,atoi(par1));
-  } else
-  if (!strcasecmp(cmd,"mc")) {         /* simulate mouse click ?Shec */
-    err = E_NOTIMP;
   } else
   if (!strcasecmp(cmd,"mm")) {         /* mouse mode */
     set_mm(g,atoi(par1));
@@ -1544,7 +1542,11 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     CBX_UpdateEditWindow(&g->smbox);
   } else
   if (!strncasecmp(cmd,"sw",2)) {      /* NEW v0408 */
+#ifdef ENG_MODE
+    if (*par1) g->slitW = imax(0,atoi(par1));
+#else
     if (*par1) g->slitW = imax(1,atoi(par1));
+#endif
     else       sprintf(msgstr,"%d",g->slitW);
   } else 
   if (!strncasecmp(cmd,"start",4)) {   /* start exposure loop */
@@ -1589,13 +1591,16 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     extern double sim_peak,sim_sig2;
     if (!strncasecmp(par1,"star",2)) sim_star = atoi(par2);
     else
-    if (!strncasecmp(par1,"slit",2)) sim_slit = atoi(par2);
+    if (!strncasecmp(par1,"slit",2)) sim_slit = atoi(par2); /* NOT width */
     else
     if (!strncasecmp(par1,"peak",1)) sim_peak = atof(par2);
     else
-    if (!strncasecmp(par1,"fwhm",1)) {
-      sim_sig2 = atof(par2);
-      sim_sig2 = 2.0*pow(sim_sig2/(g->px*2.35482),2.0);
+    if (!strncasecmp(par1,"flux",2)) sim_peak = atof(par2)/(sim_sig2*M_PI);
+    else
+    if (!strncasecmp(par1,"fwhm",2)) {
+      double s2 = fmax(0.01,2.0*pow(atof(par2)/(g->px*2.35482),2.0));
+      sim_peak *= sim_sig2/s2;
+      sim_sig2 = s2;
     } else 
     if (!strcasecmp(par1,"x")) {
       if      (par2[0] == '+') sim_cx += 1;
@@ -1958,7 +1963,7 @@ static void* run_cycle(void* param)
       } else {                         /* no new frame */
         dt = (int)floor(tNow-tFrame);  /* time since last frame */
         if (dt > nodata) {
-          message(g,"no data",MSS_WARN);
+          message(g,"no data",MSS_WARN); // todo print reason 
           nodata *= 1.5;               /* slow down warnings */
         }
       }
@@ -1975,31 +1980,26 @@ static void* run_cycle(void* param)
         pthread_mutex_unlock(&g->mutex);
         update_fps(&g->fgbox,fps);
         if (fwhm > 0) {                /* we have a valid measurement */
-          if (g->gmode != GMODE_SV) {  /* {1,4} */
+          if (g->gmode != GM_SV3) {    /* {1,4} */
             if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); // v0402
             else            sprintf(g->tcbox.text,"tc %5.0f",flux);
             CBX_UpdateEditWindow(&g->tcbox);
-            sprintf(g->mxbox.text,"mx %5.0f",ppix); // todo red>16000 ?Shec 
-            if ((ppix > 16000) && (!g->mx_flag)) { /* NEW v0411 */
-              g->mxbox.fg = app->red; g->mx_flag = 1;
-            } else 
-            if ((ppix < 16000) && ( g->mx_flag)) { 
-              g->mxbox.fg = app->black; g->mx_flag = 0;
-            }
+            sprintf(g->mxbox.text,"mx %5.0f",ppix);
+            g->mxbox.fg = (ppix > 15000) ? app->red : app->black; /* v0411 ?Shec */
             CBX_UpdateEditWindow(&g->mxbox);
             sprintf(g->bkbox.text,"bk %5.0f",back); 
             CBX_UpdateEditWindow(&g->bkbox);
             sprintf(g->fwbox.text,"fw %5.2f",fwhm);
             CBX_UpdateEditWindow(&g->fwbox);
           } 
-          sprintf(g->dxbox.text,"dx %5.1f",dx); /* v0400 */
+          if (g->gmode == GM_SV3) sprintf(g->dxbox.text,"rx %5.2f",dx); // v0414
+          else                    sprintf(g->dxbox.text,"dx %5.1f",dx);
           CBX_UpdateEditWindow(&g->dxbox);
-          sprintf(g->dybox.text,"dy %5.1f",dy);
+          if (g->gmode == GM_SV3) sprintf(g->dybox.text,"ry %5.2f",dy);
+          else                    sprintf(g->dybox.text,"dy %5.1f",dy);
           CBX_UpdateEditWindow(&g->dybox);
-          if (g->gmode != GMODE_SV) {
-            graph_redraw(g->g_tc);
-            graph_redraw(g->g_fw);
-          }
+          graph_redraw(g->g_tc);
+          graph_redraw(g->g_fw);
           graph_redraw(g->g_az);
           graph_redraw(g->g_el);
         } /* endif(fwhm) */
@@ -2297,16 +2297,16 @@ static void set_sens(Guider* g,double f)
 static void set_mm(Guider* g,int m)
 {
  switch (g->gmode) {
-  case GMODE_PR: case GMODE_SH:          /* PR,SH guiders */
+  case GM_PR: case GM_SH:              /* PR,SH guiders */
     switch (m) {
-    case 1: case  2: case 3:             /* allowed mouse modes */
+    case 1: case  2: case 3:           /* allowed mouse modes */
       g->msmode = m;
       break;
     }
     break;
-  case GMODE_SV: case GMODE_SV4:         /* SV guider */
+  case GM_SV3: case GM_SV4:            /* SV guider */
     switch (m) {
-    case 1: case -2: case 3:             /* allowed mouse modes */
+    case 1: case -2: case 3:           /* allowed mouse modes */
       g->msmode = m;
       break;
     }
@@ -2368,6 +2368,27 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
   else               sprintf(g->gmbox.text,"gm %2d",g->gmode);
   CBX_UpdateEditWindow(&g->gmbox);
   g->qltool->gmode = g->gmode;
+
+  switch (g->gmode) {                  /* NEW v0414 */
+  case GMODE_PR:
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
+    strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
+    strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
+    break;
+  case GMODE_SV:                       /* [ratio] */
+    strcpy(g->g_tc->name,"rx"); graph_scale(g->g_tc,-0.5,0.5,0x03);
+    strcpy(g->g_fw->name,"ry"); graph_scale(g->g_fw,-0.5,0.5,0x03);
+    strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
+    strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
+    break;
+  case GMODE_SV4:  /* [arcsec] before rotation and derivative */
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
+    strcpy(g->g_az->name,"X");  graph_scale(g->g_az,-1.0,1.0,0x03);
+    strcpy(g->g_el->name,"Y");  graph_scale(g->g_el,-1.0,1.0,0x03);
+    break;
+  }
 }
 
 /* ---------------------------------------------------------------- */

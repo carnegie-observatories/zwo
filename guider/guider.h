@@ -18,7 +18,7 @@
 void* run_guider(void* param);
 
 enum guider_modes_enum { 
-  GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV,GMODE_SV4
+  GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV,GMODE_SV4 // todo replace GM_
 };
 
 /* ---------------------------------------------------------------- */
@@ -60,7 +60,7 @@ typedef struct guider_tag {
   ZwoStruct   *server;
   int         offx,offy;
   /* Guiding */
-  int         shmode,q_flag,mx_flag;
+  int         shmode,q_flag;
   u_int       sendNumber;
   float       px;                      /* eff. pixscale (incl. binning) */
   double      angle,elsign,rosign,parity;

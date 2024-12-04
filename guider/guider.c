@@ -41,9 +41,6 @@ static void run_guider4(void*);
 
 /* ---------------------------------------------------------------- */
 
-
-/* ---------------------------------------------------------------- */
-
 void* run_guider(void* param)
 {
   int    err,edsOpen=0,tcsOpen=0;
@@ -57,33 +54,6 @@ void* run_guider(void* param)
   strcpy(g->mxbox.text,"mx"); CBX_UpdateEditWindow(&g->mxbox);
   strcpy(g->bkbox.text,"bk"); CBX_UpdateEditWindow(&g->bkbox);
   strcpy(g->fwbox.text,"fw"); CBX_UpdateEditWindow(&g->fwbox);
-
-  switch (g->gmode) {                  /* plot title/scaling v0404 */
-  case GMODE_PR: default:
-    g->g_tc->eighth = g->g_fw->eighth = 0;
-    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
-    strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0); 
-    g->g_az->quarter = g->g_el->quarter = 0;
-    strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0); 
-    strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0); 
-    break;
-  case GMODE_SV:  // todo ratio
-    g->g_tc->eighth = g->g_fw->eighth = 1;
-    strcpy(g->g_tc->name,"rx"); graph_scale(g->g_tc,-0.5,0.5,0); 
-    strcpy(g->g_fw->name,"ry"); graph_scale(g->g_fw,-0.5,0.5,0); 
-    g->g_az->quarter = g->g_el->quarter = 0;
-    strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0); 
-    strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0); 
-    break;
-  case GMODE_SV4: // todo  [arcsec] before rotation and derivative
-    g->g_tc->eighth = g->g_fw->eighth = 0;
-    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
-    strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0); 
-    g->g_az->quarter = g->g_el->quarter = 1; // todo ?Shec
-    strcpy(g->g_az->name,"X");  graph_scale(g->g_az,-1.0,1.0,0); 
-    strcpy(g->g_el->name,"Y");  graph_scale(g->g_el,-1.0,1.0,0); 
-    break;
-  }
 
   err = telio_open(2);                 /* v0310 */
   if (err) {
@@ -212,7 +182,7 @@ static void run_guider1(void* param)
                back,cx,cy,peak,fwhm,flux);
 #endif
 #ifdef ENG_MODE
-        if ((fwhm > 5.0) || (fwhm < 0.1)) g->q_flag = 2;  /* sanity check v0337 */
+        if ((fwhm > 5.0) || (fwhm < 0.1)) g->q_flag = 2;  /* v0337 */
 #else
         if ((fwhm > 5.0) || (fwhm < 0.2)) g->q_flag = 2;  /* sanity check */
 #endif
@@ -237,7 +207,7 @@ static void run_guider1(void* param)
         g->dx = (cx-gx); 
         g->dy = (cy-gy);
         if (qltool->guiding < 0) graph_scale(g->g_tc,0,1.333*flux,0);
-        graph_add1(g->g_tc,flux,0);    // todo how often ?Shec ?Povilas
+        graph_add1(g->g_tc,flux,0);
         graph_add1(g->g_fw,fwhm,0);
         rotate(g->px*g->dx,g->px*g->dy,g->pa,g->parity,&azerr,&elerr);
         graph_add1(g->g_az,azerr,0);
@@ -285,7 +255,7 @@ static void run_guider1(void* param)
 static void run_guider3(void* param)          /* v0350 */
 {
   double t1,t2,last;
-  double dx=0,dy=0,azerr,elerr,flux;
+  double rx=0,ry=0,dx,dy,azerr,elerr,flux;
   int    ix,iy;
   u_int  seqNumber=0,counter=0;
   Guider *g = (Guider*)param;
@@ -300,28 +270,26 @@ static void run_guider3(void* param)          /* v0350 */
       seqNumber = frame->seqNumber;
       ix = (int)my_round(qltool->curx[QLT_BOX],0);
       iy = (int)my_round(qltool->cury[QLT_BOX],0);
-      get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&dx,&dy,&flux); //xxx todo rx,ry
+      get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&rx,&ry,&flux);
       zwo_frame_release(server,frame);
       t2 = walltime(0);
       pthread_mutex_lock(&g->mutex);
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
-      g->dx = dx;                      /* use as criterion if we */
-      g->dy = dy;                      /* should send a correction */
-#if 1 // xxx temporary plot todo ? remove ?
-      graph_add1(g->g_tc,dx,1); 
-      graph_add1(g->g_fw,dy,1);
-#endif
-      dx = ((dx > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
-      dy = ((dy > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
+      g->dx = rx;                      /* use as criterion if we */
+      g->dy = ry;                      /* should send a correction */
+      graph_add1(g->g_tc,rx,0); 
+      graph_add1(g->g_fw,ry,0);
+      dx = (rx > 0) ? 0.1 : -0.1;      /* [arcsec] */
+      dy = (ry > 0) ? 0.1 : -0.1;      /* [arcsec] */
       counter++;                       /* only every 'av' frames or 5 seconds */
       qltool->guiding = abs(qltool->guiding);  
       if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) { 
-        rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
+        rotate(dx,dy,g->pa,g->parity,&azerr,&elerr);
         graph_add1(g->g_az,azerr,0);
         graph_add1(g->g_el,elerr,0);
         counter = 0; last = walltime(0);
-        if ((fabs(g->dx) > 0.1) || (fabs(g->dy) > 0.05)) { /* v0355 */
+        if ((fabs(rx) > 0.1) || (fabs(ry) > 0.05)) { /* v0355 */
           g->azg = g->sens * azerr;
           g->elg = g->sens * elerr;
           if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
@@ -399,16 +367,17 @@ static void run_guider4(void* param)          /* v0404 */
       g->q_flag = fit_profile4(pbuf,n,fit,3000);
       back = fit[0]/(2*vrad+1);
       cy   = fit[1];
-      // double flx = sqrt(2.0*M_PI)*fit[2]*fit[3]; /* use (L+R)*scale */
       fwhm = SQRLN22*fit[3]*g->px;   /* FWHM [arcsec] */
-      if ((flux < n) || (fwhm < 0.1)) g->q_flag = 2; /* safety net */
+      printf("flux=%.0f (%d)\n",flux,n*n);
+      if ((fwhm > 5.0) || (fwhm < 0.1)) g->q_flag = 2; /* sanity check */
+      if ((fabs(cy-gy) > vrad) || (flux < 2*n*n))  g->q_flag = 2;
 #if (DEBUG > 1)
       printf("back=%.0f, dy=%.1f, peak=%.1f, fwhm=%.3f, flx=%.0f\n",
              back,cy,fit[2],fwhm,flx);
 #endif
       drx = calc_quad(vrad,g->slitW,fit[3],1.0,NULL); /* quadrant ratio */
       dx = rx/drx;
-      (void)calc_quad(vrad,g->slitW,fit[3],0,&scale); /* scale factor */
+      (void)calc_quad(vrad,g->slitW,fit[3],dx,&scale); /* scale factor */
       flux *= scale;                   /* NEW v0413 */
 #if (DEBUG > 1)
       printf("rx=%f, drx=%f, dx=%f, sf=%f\n",rx,drx,dx,scale);
@@ -416,7 +385,7 @@ static void run_guider4(void* param)          /* v0404 */
       zwo_frame_release(server,frame);
       pthread_mutex_lock(&g->mutex);
       t2 = walltime(0);
-      g->fps = 0.8*g->fps + 0.2/(t2-t1);
+      g->fps = 0.8*g->fps + 0.2/(t2-t1); // todo how can this be >1/tf ?
       t1 = t2;
       if (g->q_flag < 2) {             /* ok fit */
         g->dx = dx;                    /* [pixels] from ratio NEW v0408 */
@@ -425,10 +394,10 @@ static void run_guider4(void* param)          /* v0404 */
         g->ppix = ppix;
         g->back = back;
         g->fwhm = fwhm;
-        if (qltool->guiding < 0) graph_scale(g->g_tc,0,1.333*flux,0x07); //yyyzzz
+        if (qltool->guiding < 0) graph_scale(g->g_tc,0,1.333*flux,0x00);
         graph_add1(g->g_tc,flux,0); 
         graph_add1(g->g_fw,fwhm,0);
-        graph_add1(g->g_az,g->dx*g->px,0); /* [arcsec] */
+        graph_add1(g->g_az,g->dx*g->px,0); /* graph shows [arcsec] */
         graph_add1(g->g_el,g->dy*g->px,0);
         ddy = (qltool->guiding < 0) ? 0.0 : g->dy-ody; /* derivative */
         ody = g->dy;                     /* old 'dy' [pixels] */
@@ -437,11 +406,11 @@ static void run_guider4(void* param)          /* v0404 */
         odx = g->dx;                     /* old 'dx' [pixels] */
         dx = g->dx + (server->rolling+1.0)*ddx; /* [pixels] */
         qltool->guiding = abs(qltool->guiding);  
-        if ((fabs(dx*g->px) > 0.05) || (fabs(dy*g->px) > 0.05)) { 
+        if ((fabs(dx*g->px) > 0.05) || (fabs(dy*g->px) > 0.05)) { /* [arcsec] */
           // printf("dx=%.2f dy=%.2f\n",dx,dy); 
           rotate(dx*g->px,dy*g->px,g->pa,g->parity,&azerr,&elerr);
           // printf("az=%.2f el=%.2f\n",azerr,elerr); 
- //xxxyyy todo  eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
+ // todo ?Povilas eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
           double fdge = (g->q_flag == 0) ? 0.35 : 0.2;
           g->azg = fdge * g->sens * azerr;
           g->elg = fdge * g->sens * elerr;

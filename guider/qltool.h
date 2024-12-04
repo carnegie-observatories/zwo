@@ -10,6 +10,8 @@
 #define QLT_NCURSORS    5
 #define QLT_BOX         (QLT_NCURSORS-1)
 
+enum guider_modes { GM_PR=1,GM_SH,GM_SV3,GM_SV4 };
+
 /* ---------------------------------------------------------------- */
 
 #include <pthread.h>
