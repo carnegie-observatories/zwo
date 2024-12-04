@@ -234,7 +234,8 @@ static char* eds_801(char* buf,int gn,float fw,int gm,float dx,float dy,int cn)
     case 2: case 4: gf = 2; break;
     case 3: case 5: gf = 3; break;
   }
-  sprintf(msg,"801; %.2f%d %.1f %.1f %d ",fw,gf,dx,dy,cn); /* v0341 */
+  /* v0427 update format to be compliant except for cn normally %5d */ 
+  sprintf(msg,"801;%5.2f%d%5.1f%5.1f%6d ",fw,gf,dx,dy,cn); /* v0341 */
 
   return eds_wrap(buf,gn,msg);
 }

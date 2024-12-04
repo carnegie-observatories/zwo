@@ -20,7 +20,7 @@
 /* DEFINEs -------------------------------------------------------- */
 
 #ifndef DEBUG
-#define DEBUG           1              /* debug level */
+#define DEBUG           2              /* debug level */
 #endif
 
 #define GUIDER_HOST     "localhost"
@@ -103,7 +103,8 @@ static int tcs_command(const char* command)
   int  err;
   char cmd[128],buf[128];
 #if (DEBUG > 1)
-  fprintf(stderr,"%s(%s)\n",PREFUN,command);
+  //  fprintf(stderr,"%s(%s)\n",PREFUN,command);
+  tdebug(PREFUN,command);
 #endif
  
   err = telio_open(TELIO_TIMEOUT); if (err) return err;
@@ -133,6 +134,7 @@ static int tcs_request(const char* command,char* answer)
   char cmd[128],buf[128];
 #if (DEBUG > 1)
   fprintf(stderr,"%s(%s,%p)\n",PREFUN,command,answer);
+  tdebug(PREFUN,command);
 #endif
  
   err = telio_open(TELIO_TIMEOUT); if (err) return err;

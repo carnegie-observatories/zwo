@@ -268,10 +268,11 @@ static void run_guider1(void* param)
         g->elerp = elerr;
         qltool->guiding = abs(qltool->guiding);
         counter++; doit=1;
-        if (server->rolling && (walltime(0) < next_eds)) {
-          if (counter % server->rolling) doit = 0;
-        }
-        if (doit) {                    /* send EDS-801 v0336 */
+	//	if (server->rolling && (walltime(0) < next_eds)) {
+	//          if (counter % server->rolling) doit = 0;
+	//}
+	//	if (doit) {                    /* send EDS-801 v0336 */
+	if (walltime(0) >= next_eds) {
           next_eds = walltime(0) + 1.0; /* v0347 */
           eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
         }
@@ -491,6 +492,7 @@ static void tcs_error(Guider *g,int err)  /* v0417 */
   if (err) { char buf[128]; 
     sprintf(buf,"sending correction to TCSIS failed, err=%d",err);
     fprintf(stderr,"%s\n",buf);
+    tdebug(__func__,buf);
     message(g,buf,MSS_ERROR);
     telio_close(); tcsOpen=0;
     msleep(350); 
@@ -504,6 +506,7 @@ static int tcs_recon(Guider *g)        /* v0417 */
   char buf[128];
 #if (DEBUG > 0)
   fprintf(stderr,"%s(%p)\n",__func__,g);
+  tdebug(__func__,g);
 #endif
 
   int err = telio_open(2);

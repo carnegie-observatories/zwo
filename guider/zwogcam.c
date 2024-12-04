@@ -1292,11 +1292,13 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     my_shutdown(True);
   } else
   if (!strcasecmp(cmd,"fone")) {       /* F1 */
-    if (g->fmode == 1) {               /* fm1 */
-      g->qltool->guiding = 0;
-      if (g->gid) { pthread_join(g->gid,NULL); g->gid = 0; }
-      sprintf(g->gdbox.text,"gd  off"); CBX_UpdateEditWindow(&g->gdbox);
-    } else
+    /* F2 F4 & F5 are not blocked by fmode 2 and so should be turned off with F1
+       F4 and F5 move the box which could be a problem for SH? block? */
+    //    if (g->fmode == 1) {               /* fm1 */
+    g->qltool->guiding = 0;
+    if (g->gid) { pthread_join(g->gid,NULL); g->gid = 0; }
+    sprintf(g->gdbox.text,"gd  off"); CBX_UpdateEditWindow(&g->gdbox);
+    //    } else
     if (g->fmode == 2) {               /* fm2 v0329 */
       if (g->stored_mode == 3) {       /* v0330 */
         g->stored_tf3 = g->server->expTime; /* store 'F3' values */
