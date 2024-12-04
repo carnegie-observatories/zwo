@@ -142,7 +142,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->guiding = 0;
   qlt->gmode = 0;
-  qlt->vrad = 15;   // todo 20 for PFS slitviewer
+  qlt->vrad = 20;                      /* NEW v0410 todo 15 for PR ?Povilas */
   qlt->smoothing = 0;
 
   qlt->enoise = 1.5;
@@ -186,7 +186,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->picture0 = (void*)malloc(bdepth*(qlt->iWIDE*qlt->iHIGH));
 
-  qlt->lWIDE = w2;                   /* 128 NEW v0401 v402 */
+  qlt->lWIDE = w2;                   /* v0402 */
   qlt->lHIGH = w2;
   qlt->lupe0 = (void*)malloc(bdepth*qlt->lWIDE*qlt->lHIGH);
 
@@ -550,7 +550,7 @@ int qltool_handle_key(QlTool* qlt,XKeyEvent* event)
 
 void qltool_scale(QlTool* qlt,const char* sc,const char* p1,const char* p2)
 {
-#if (DEBUG > 0)
+#if (DEBUG > 1)
   fprintf(stderr,"%s(%s,%s,%s)\n",PREFUN,sc,p1,p2);
 #endif
 
@@ -1012,7 +1012,7 @@ static void do_lupe24(QlTool* qlt)
     int x2 = xc + qlt->vrad*lmag;
     int y1 = yc - qlt->vrad*lmag;
     int y2 = yc + qlt->vrad*lmag;
-    if (qlt->gmode >= GMODE_SV) {      /* guide-cross v0348 NEW v0405 */
+    if (qlt->gmode >= GMODE_SV) {      /* guide-cross */
       draw_cross(lupe,lgrey,qlt->lWIDE,qlt->lHIGH,xc,yc,
                  2*qlt->vrad*lmag,2*qlt->vrad*lmag);
     } else {                           /* guide-box */

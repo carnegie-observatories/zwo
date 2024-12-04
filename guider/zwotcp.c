@@ -444,7 +444,7 @@ static void* run_cycle(void* param)
               if ((x==sim_cx+1) && (y==sim_cy))   udata[p] = 0x1f00; 
               if ((x==sim_cx)   && (y==sim_cy+1)) udata[p] = 0x1f00;
 #endif
-#if 0 // TESTING -- gauss
+#if 0 // TESTING -- gauss 
               if ((x>=sim_cx-20) && (x<=sim_cx+20)) { 
                 if (abs(x-self->aoiW/2) < sim_slit) continue; /* blank out slit */
                 if ((y>=sim_cy-20) && (y<=sim_cy+20)) { 

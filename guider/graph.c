@@ -76,7 +76,7 @@ GraphWindow* graph_create(MainWindow* mw,Window parent,const char* fn,
   CBX_Lock(0);
 #ifdef HAS_FRAME // 1 pixel frame
   g->win = XCreateSimpleWindow(g->disp,parent,x,y,w,h,1,app->black,app->lgrey);
-#else // 0 pixel frame NEW v0402
+#else // 0 pixel frame v0402
   g->win = XCreateSimpleWindow(g->disp,parent,x,y,w,h,0,app->black,app->grey);
 #endif
   XMapRaised(g->disp,g->win);
@@ -162,7 +162,7 @@ void graph_redraw(GraphWindow* g)
 
 #ifdef HOR_LABEL  // horizontal label
   XDrawString(disp,win,gc,1,(y0+y1)/2+PXh/3,g->name,strlen(g->name));
-#else  // vertical NEW v0401
+#else  // vertical v0401
   y = (y0+y1)/2 - (PXh*strlen(g->name))/2 + 2*PXh/3;
   for (i=0; i<strlen(g->name); i++) { 
     XDrawString(disp,win,gc,1,y+i*PXh,g->name+i,1);

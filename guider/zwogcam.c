@@ -114,7 +114,7 @@
 #define DBE_PREFIX      "prefix"    
 #define DEF_PREFIX      "gdr"
 
-#define GM_MAX          4              /* NEW v0404 */
+#define GM_MAX          4              /* v0404 */
 
 #define DEF_HELP "http://instrumentation.obs.carnegiescience.edu/Software/ZWO"
 #if defined(MACOSX)
@@ -190,7 +190,7 @@ static Menu       fimenu;              /* file dropdown menu */
 static Menu       opmenu;              /* options dropdown menu */
 static EditWindow utbox,rtbox;
 
-static Guider sGuider;                 /* singleton NEW v0.400 */
+static Guider sGuider;                 /* singleton v0400 */
 static Guider *guiders[1];             /* historical */
 static int n_guiders=0;                /* historical */
 
@@ -201,8 +201,8 @@ static float  elev=90,para=0;
 
 static int   baseD=1800,baseB=2,baseI=600;  /* default=ZWO todo 500 */
 static int   eWIDE,eHIGH,pHIGH=117;
-static int   wINFO;                    /* NEW v0401 */
-static int   lSIZE=128;                /* NEW v0402 */
+static int   wINFO;                    /* v0401 */
+static int   lSIZE=128;                /* v0402 */
 static float pscale=0.02535f;  /* measured 20230113 Andor:6.5um, ZWO:2.32um */
 
 static const Bool require_control_key=True; // IDEA allow False
@@ -287,7 +287,7 @@ int main(int argc,char **argv)
   pthread_mutex_init(&scanMutex,NULL);
   pthread_mutex_init(&mesgMutex,NULL);
 
-  sGuider.gnum = 1;
+  sGuider.gnum = 1;                    /* PR */
   sGuider.gmpar = 'p';
   sGuider.angle = -120.0;
   sGuider.elsign = -1.0;
@@ -325,7 +325,7 @@ int main(int argc,char **argv)
         sGuider.parity = atof(optarg);
         break;
       case 'm':                        /* optical mode */
-        if (optarg[0] == 'p') {        /* PFS v0345 */
+        if (optarg[0] == 'p') {        /* PFS slitviewer v0345 */
           baseD=1200; baseB=2; baseI=600; pHIGH = 117; 
           sGuider.angle  = -128.0; 
           sGuider.elsign = -1.0;
@@ -333,7 +333,8 @@ int main(int argc,char **argv)
           sGuider.parity = -1.0;       /* v0351 */
           sGuider.offx=-10; sGuider.offy=85; /* v0355 */
           sGuider.gnum = 3;   
-          sGuider.gmode = 4;  sGuider.gmpar = 't';
+          sGuider.gmode = 4;  sGuider.gmpar = 't';  /* todo ?Shec */
+          pscale = 0.0265;             /* Shec NEW v0410 todo for all instruments? */
         } else 
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
@@ -517,12 +518,12 @@ int main(int argc,char **argv)
 
   for (i=0; i<n_guiders; i++) {        /* guider controls */
     Guider *g = guiders[i];
-    g->win = mwin.win;                 /* one guider window NEW v0400 */
+    g->win = mwin.win;                 /* one guider window v0400 */
     /* 1st column ------------------------------------------------- */
     Window p = g->win;                 /* parent */
     x = lSIZE+6;
     y = 1+XXh+XXh/3-1;
-    w  = (17*PXw)/2;                   /* NEW v0400 */
+    w  = (17*PXw)/2;                   /* v0400 */
     CBX_CreateAutoOutput_Ext(&mwin,&g->tcbox,p,x,y,w,XXh,"tc 0");
     y += XXh+PXh/3;
     CBX_CreateAutoOutput_Ext(&mwin,&g->mxbox,p,x,y,w,XXh,"mx 0");
@@ -656,8 +657,13 @@ int main(int argc,char **argv)
                               g->smbox.x,g->msbox[0].y,g->smbox.w, 
                               g->status.dimx);
     g->qltool->gmode = g->gmode;
-    if (g->gmode >= GMODE_SV) g->qltool->lmag = 2;  /* v0354,v0409 */
-    sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad);
+    if (g->gmode >= GMODE_SV) { // todo gnum==3 ? 
+      g->qltool->lmag = 2;  /* v0354,v0409 */
+      qltool_scale(g->qltool,"pct","60","");   /* NEW v0410 todo just PFS ? */
+      qltool_scale(g->qltool,"bkg","24","");
+      qltool_scale(g->qltool,"spa","5000","");
+    }
+    sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad); // todo bx=31 for PR?Povilas
   } /* endfor(n_guiders) */
   done = False;
 
@@ -922,7 +928,7 @@ static void redraw_gwin(Guider *g)
 
 static void redraw_text(void)
 {
-#if 0 // not used
+#if 0 // not used 
   Display *disp=mwin.disp;
   Window  win=mwin.win;
   GC      gc=mwin.gfs.gc;
@@ -1437,7 +1443,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     }
   } else
   if (!strcasecmp(cmd,"sh")) {         /* Shack-Hartman mode */
-    if (n > 1) g->shmode = atoi(par1); // todo what does this do?
+    if (n > 1) g->shmode = atoi(par1); // TODO what does this do?
      else      err = E_MISSPAR;        /* missing parameter */
   } else
   if (!strcasecmp(cmd,"sky") || !strcasecmp(cmd,"sub")) {
@@ -1570,7 +1576,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   } else                               /* shutdown server */
   if (!strncasecmp(cmd,"shutdown",4) || !strncasecmp(cmd,"poweroff",5)) {
     if (g->loop_running) do_stop(g,3000);
-    err = zwo_server(g->server,cmd,buf);
+    err = zwo_server(g->server,cmd,buf); // shutdown TODO test at SBS */
   } else                               /* shutdown server */
   if (!strncasecmp(cmd,"gain",4))  {   /* todo default offsets ?Povilas */
     int gain=-1,offs=-1;
@@ -1685,7 +1691,11 @@ static void* run_setup(void* param)
 #ifdef ENG_MODE
     err = zwo_gain(g->server,-1,-1);   /* read back current gain */
 #else
-    handle_command(g,"gain hi",1);     /* set default gain v0323 */
+    if (g->gmode < GMODE_SV) { 
+      handle_command(g,"gain hi",1);   /* set default gain v0323 */
+    } else {
+      handle_command(g,"gain lo",1);   /* set default gain NEW v0410 */
+    }
 #endif
     sprintf(g->gnbox.text,"gain %5d",g->server->gain);
     CBX_UpdateEditWindow(&g->gnbox);
@@ -1976,7 +1986,7 @@ static void* run_cycle(void* param)
         update_fps(&g->fgbox,fps);
         if (fwhm > 0) {                /* we have a valid measurement */
           if (g->gmode != GMODE_SV) {
-            if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); /* NEW v0402 */
+            if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); /* v0402 */
             else            sprintf(g->tcbox.text,"tc %5.0f",flux);
             CBX_UpdateEditWindow(&g->tcbox);
             sprintf(g->mxbox.text,"mx %5.0f",ppix);
@@ -1986,7 +1996,7 @@ static void* run_cycle(void* param)
             sprintf(g->fwbox.text,"fw %5.2f",fwhm);
             CBX_UpdateEditWindow(&g->fwbox);
           } 
-          sprintf(g->dxbox.text,"dx %5.1f",dx); /* NEW v0400 */
+          sprintf(g->dxbox.text,"dx %5.1f",dx); /* v0400 */
           CBX_UpdateEditWindow(&g->dxbox);
           sprintf(g->dybox.text,"dy %5.1f",dy);
           CBX_UpdateEditWindow(&g->dybox);
