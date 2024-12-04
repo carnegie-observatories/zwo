@@ -252,6 +252,7 @@ static void    make_mask         (Guider*,const char*);
 static void    load_mask         (Guider*);
 
 static int     check_datapath    (char*,int);
+static int     cursor_blocked    (Guider*,int,int); /* v0421 */
 static void    my_shutdown       (Bool);
 static int     read_inifile      (Guider*,int*,const char*);
 
@@ -452,7 +453,6 @@ int main(int argc,char **argv)
     g->pa = 0.0;
     g->shmode = (g->gmode == GM_SH) ? 1 : 0;
     g->pamode = 1;                     /* v0066 */
-    g->esmode = 0;
     g->msmode = 1;
     g->sendNumber = 1;                 /* v0313 */
     strcpy(g->send_host,telio_host);
@@ -749,12 +749,8 @@ int main(int argc,char **argv)
     case KeyPress:                     /* keyboard events */
       for (i=0; i<n_guiders; i++) {
         Guider *g = guiders[i];
-        if (event.xkey.window == g->win) { int b=0;
-          if ((g->gmode == GM_SV5) && (g->qltool->guiding)) {
-            /* do not allow to move cursor4 and 5 (box) */
-            if (g->qltool->cursor_mode == QLT_BOX  ) b=1;
-            if (g->qltool->cursor_mode == QLT_BOX-1) b=1;
-          }
+        if (event.xkey.window == g->win) { 
+          int b = cursor_blocked(g,g->qltool->cursor_mode,0);
           if (qltool_handle_key(g->qltool,(XKeyEvent*)&event,b)) {
             if (b) {                   /* no cursor4/5 v0417 */
               printf("cursor motion blocked while guiding in gm5\n");
@@ -850,6 +846,7 @@ static void redraw_compass(Guider* g)
 {
   int    x,y,r=XXh;
   double east;
+  extern double sim_north;
 #if (DEBUG > 1)
   fprintf(stderr,"%s(%p): pa=%.1f, para=%.1f\n",PREFUN,g,g->pa,para);
 #endif
@@ -861,7 +858,7 @@ static void redraw_compass(Guider* g)
 
   x = g->gdbox.x+g->gdbox.w/2;
   y = g->dybox.y - PXh/4;
-  g->north = g->parity*(-fabs(g->pa) + para);     /* N/E */
+  g->north = sim_north = g->parity*(-fabs(g->pa) + para);  /* N/E */
   if (g->parity > 0) east  = g->north + ((g->pa > 0) ? 90.0 : -90.0);
   else               east  = g->north + ((g->pa < 0) ? 90.0 : -90.0);
   draw_compass(g,x,y,r,g->north,east,app->green); 
@@ -870,7 +867,6 @@ static void redraw_compass(Guider* g)
   double north = -fabs(g->pa) * g->parity;        /* az,el */
   if (g->parity > 0) east  = north + ((g->pa < 0) ? 90.0 : -90.0);
   else               east  = north + ((g->pa > 0) ? 90.0 : -90.0);
-  // bug-fix      east  = north + ((g->pa < 0) ? 90.0 : -90.0); // v0352
   draw_compass(g,x,y,r,north,east,app->red); 
 
   redraw_gwin(g);
@@ -1299,13 +1295,10 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad); // bug-fix v0408
     CBX_UpdateEditWindow(&g->bxbox);
   } else
-  if (!strcasecmp(cmd,"close")) {      /* TESTING */
+  if (!strcasecmp(cmd,"close")) {      /* TESTING -- recover using "reset" */
     if (g->loop_running) do_stop(g,5000);
     zwo_close(g->server);
     g->init_flag = 0;
-  } else
-  if (!strcasecmp(cmd,"es")) {         /* toggle extended guiding TODO ?Povilas */
-    g->esmode = (g->esmode) ? 0 : 1;
   } else
   if (!strcasecmp(cmd,"exit")) {       /* exit program */
     my_shutdown(True);
@@ -1424,7 +1417,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     }
   } else
   if (!strcasecmp(cmd,"sh")) {         /* Shack-Hartman mode */
-    if (n > 1) g->shmode = atoi(par1); // TODO what does this do?
+    if (n > 1) g->shmode = atoi(par1); /* just a flag in the FITS header */
      else      err = E_MISSPAR;        /* missing parameter */
   } else
   if (!strcasecmp(cmd,"sn")) {         /* guider sensitivity */
@@ -1461,16 +1454,20 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     }
     redraw_gwin(g);
   } else 
-  if (!strcasecmp(cmd,"xys")) {        /* set cursor TODO gm5 */
+  if (!strcasecmp(cmd,"xys")) {        /* set cursor gm5 */
     if (n > 3) {
       int j = imax(0,imin(QLT_NCURSORS-1,atoi(par1)-1));
-      g->qltool->curx[j] = (float)atof(par2);
-      g->qltool->cury[j] = (float)atof(par3);
-      g->qltool->cursor_mode = j;      /* make active */
+      if (!cursor_blocked(g,j,1)) {    /* v0421 */
+        g->qltool->curx[j] = (float)atof(par2);
+        g->qltool->cury[j] = (float)atof(par3);
+        g->qltool->cursor_mode = j;    /* make active */
+      }
     } else 
     if (n > 2) {
-      g->qltool->curx[g->qltool->cursor_mode] = (float)atof(par1);
-      g->qltool->cury[g->qltool->cursor_mode] = (float)atof(par2);
+      if (!cursor_blocked(g,g->qltool->cursor_mode,1)) {
+        g->qltool->curx[g->qltool->cursor_mode] = (float)atof(par1);
+        g->qltool->cury[g->qltool->cursor_mode] = (float)atof(par2);
+      }
     } else err = E_MISSPAR;
     if (!err) {
       redraw_gwin(g);
@@ -1480,16 +1477,20 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       eds_send82i(g->gnum,1+g->qltool->cursor_mode,x,y); /* v0347 */
     }
   } else
-  if (!strcasecmp(cmd,"xyr")) {        /* move cursor 1-5 TODO gm5 */
+  if (!strcasecmp(cmd,"xyr")) {        /* move cursor 1-5 */
     if (n > 3) {
       int j = imax(0,imin(QLT_NCURSORS-1,atoi(par1)-1));
-      g->qltool->curx[j] += (float)atof(par2);
-      g->qltool->cury[j] += (float)atof(par3);
-      g->qltool->cursor_mode = j;      /* make active */
+      if (!cursor_blocked(g,j,1)) {    /* v0421 */
+        g->qltool->curx[j] += (float)atof(par2);
+        g->qltool->cury[j] += (float)atof(par3);
+        g->qltool->cursor_mode = j;    /* make active */
+      }
     } else 
     if (n > 2) { 
-      g->qltool->curx[g->qltool->cursor_mode] += (float)atof(par1);
-      g->qltool->cury[g->qltool->cursor_mode] += (float)atof(par2);
+      if (!cursor_blocked(g,g->qltool->cursor_mode,1)) {
+        g->qltool->curx[g->qltool->cursor_mode] += (float)atof(par1);
+        g->qltool->cury[g->qltool->cursor_mode] += (float)atof(par2);
+      }
     } else err = E_MISSPAR;
     if (!err) {
       redraw_gwin(g);
@@ -2529,6 +2530,21 @@ static int check_datapath(char* path,int interactive)
   if (*path) disk_next = 0;
 
   return (*path) ? 1 : 0;
+}
+
+/* ---------------------------------------------------------------- */
+
+static int cursor_blocked(Guider *g,int mode,int prnt)
+{
+  int b=0;
+
+  if ((g->gmode == GM_SV5) && (g->qltool->guiding)) {
+    /* do not allow to move cursor4 and 5 (box) */
+    if (mode == QLT_BOX  ) b=1;
+    if (mode == QLT_BOX-1) b=1;
+    if (b && prnt) printf("cursor motion blocked while guiding in gm5\n");
+  }
+  return b;
 }
 
 /* ---------------------------------------------------------------- */

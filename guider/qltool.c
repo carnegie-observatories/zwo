@@ -159,7 +159,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->cursor_mode = QLT_BOX;          /* "lupe" */
   qlt->cursor_step = 1.0f;
-#if 0 // TESTING 
+#if 0 // TESTING
   for (i=0; i<QLT_NCURSORS; i++) {  
     switch (i) {
       case QLT_BOX-1: qlt->curx[i] = qlt->cury[i] = dim/2; break;

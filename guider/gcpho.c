@@ -20,8 +20,6 @@
 #define TIME_TEST  0
 
 /* ---------------------------------------------------------------- */
-/* TODO explain strategy */
-/* ---------------------------------------------------------------- */
 
 /* Note: 'static' and 'inline' make code slower */
 
@@ -219,7 +217,7 @@ int fit_profile4(Pixel* x,int n,double* a,int itmax)
     for (i=0,sumdc=0; i<ndeg; i++) sumdc += fabs(dc[i]);
     if (sumdc > 0) {
       for (i=0; i<ndeg; i++) {         /* apply weighted change */
-        a[i] -= 2.0*da[i]*(dc[i]/sumdc);  /* TODO avoid a[i]<0 */
+        a[i] -= 2.0*da[i]*(dc[i]/sumdc);
       }
     }
     chi = get_chi1(x,n,a);

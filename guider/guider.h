@@ -25,7 +25,7 @@ typedef struct guider_tag {
   volatile Bool stop_flag;
   volatile int  write_flag,send_flag,init_flag;
   pthread_t     gid;
-  int           pamode,esmode,msmode;
+  int           pamode,msmode;
   float         stored_tf1,stored_tf3; /* v0329 */
   int           stored_send,stored_av,stored_mode;
   char          lastCommand[256];

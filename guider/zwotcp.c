@@ -31,11 +31,14 @@
 #define PREFUN          __func__
 #endif
 
+#define SQR(x)         ((x)*(x))
+
 int    sim_star=1,sim_slit=4;          /* v0406 slitWidth=7 */
 int    sim_cx,sim_cy;                  /* v0408 */
 int    sim_cx2,sim_cy2;                /* v0416 */
 double sim_peak=250.0;
 double sim_sig2=0.70*18.9*18.9/2.35482;
+double sim_north=0.0,sim_angle=225.0,sim_radius=636.396;   /* NEW v0421 */
 
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
@@ -55,7 +58,7 @@ ZwoStruct* zwo_create(const char* host,int port)
   self->modelName[0] = '\0';
   self->serialNumber[0] = '\0';
   self->tempSensor = 0.0f;
-  self->tempSetpoint = 2.0f; // TODO default temperature?
+  self->tempSetpoint = 2.0f;
   self->coolerPercent = 0; 
   self->aoiW = self->aoiH = 0;
   self->expTime = 0.5f;
@@ -416,6 +419,11 @@ static void* run_cycle(void* param)
 #if (DEBUG > 1)
         int debug_sum=0;
 #endif
+#if 0 // TESTING
+        if ((sim_north != 0) && (sim_angle == 225)) sim_angle -= sim_north;
+        sim_cx2 = sim_cx+sim_radius*cos((sim_angle+sim_north)/RADS);
+        sim_cy2 = sim_cy+sim_radius*sin((sim_angle+sim_north)/RADS);
+#endif
         if (self->mask) { int x,y,dx,dy;      /* v0320 */
           // double c1 = walltime(0);
           char* mask = self->mask;
@@ -448,7 +456,7 @@ static void* run_cycle(void* param)
 #endif
               /* flux = 2*PI*peak*sig*sig */
               /* flux = 1.133*peak*fw*fw */
-#if 0 // TESTING -- gauss with slit
+#if 0 // TESTING -- gauss with slit 
               static const int ww=30;
               if ((x>=sim_cx-ww) && (x<=sim_cx+ww)) { 
                 if (abs(x-self->aoiW/2) < sim_slit) continue; /* blank out slit */
@@ -463,7 +471,7 @@ static void* run_cycle(void* param)
                 }
               }
 #endif
-#if 0 // TESTING -- gauss without slit
+#if 0 // TESTING -- gauss without slit 
               static const int w2=30;
               if ((x>=sim_cx2-w2) && (x<=sim_cx2+w2)) { 
                 if ((y>=sim_cy2-w2) && (y<=sim_cy2+w2)) { 
@@ -620,8 +628,6 @@ int zwo_cycle_stop(ZwoStruct *self)
 
   pthread_mutex_lock(&self->ioLock);
   zwo_request(self,"stop",buf,5);
-  // zwo_request(self,"status",buf,5); // TODO?
-  // self->seqNumber = stringVal(buf,4);
   pthread_mutex_unlock(&self->ioLock);
 
   for (i=0; i<ZWO_NBUFS; i++) {

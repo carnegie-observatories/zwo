@@ -159,9 +159,9 @@ static void run_guider1(void* param)
             double y = qltool->cury[QLT_BOX] - qltool->cury[QLT_BOX-1];
             n0 = g->north;             /* NEW v0419 */
             r0 = qltool->arc_radius = sqrt(x*x+y*y);   /* [pixel] */
-            a0 = atan2(y,x); while (a0 < 0) { a0 += 2.0*M_PI; } 
-            qltool->arc_angle = a0 * (180.0/M_PI);  
-            // printf("r=%f, a=%f, p=%f\n",r0,qltool->arc_angle,n0);  
+            a0 = atan2(y,x); while (a0 < 0) { a0 += 2.0*M_PI; } /* [radians] */
+            qltool->arc_angle = a0 * RADS;   /* [degrees] */
+            // printf("r=%f, a=%f, p=%f\n",r0,qltool->arc_angle,n0); 
             a0 = (qltool->arc_angle + g->parit2*g->parity*n0); // todo sign=parit2
             gm5_locked = 1;
           }
@@ -169,12 +169,14 @@ static void run_guider1(void* param)
           if (g->north != n0) {        /* position angle changed */
             n0 = g->north;
             // printf("r=%f, a=%f, p=%f\n",r0,a0,n0);
-            double x = qltool->curx[QLT_BOX-1];
+            double x = qltool->curx[QLT_BOX-1];  /* cursor4: center */
             double y = qltool->cury[QLT_BOX-1];
-            double a = (a0-(g->parit2*g->parity*n0))*(M_PI/180.0); // todo sign=parit2
-  // todo?  qltool->arc_angle = a*(180.0/M_PI); printf("a=%f\n",qltool->arc_angle);
+            double a = (a0-(g->parit2*g->parity*n0))/RADS; // todo sign=parit2
+            // todo? qltool->arc_angle = a*RADS; printf("a=%f\n",qltool->arc_angle);
             qltool->curx[QLT_BOX] = gx = x + r0*cos(a);
             qltool->cury[QLT_BOX] = gy = y + r0*sin(a);
+            ix = my_round(gx,0);       /* NEW v0421 */
+            iy = my_round(gy,0);
             qltool_redraw(g->qltool,False);
             redraw_gwin(g);
           }
