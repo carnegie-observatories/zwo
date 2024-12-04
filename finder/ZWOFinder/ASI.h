@@ -19,8 +19,6 @@ enum asi_error_enum {
   E_asi_devInvalid,
   E_asi_devNotFound,
   E_asi_devNotOpen,
-  E_asi_modeInvalid,
-  E_asi_roiSet,
   E_asi_tempRead,
   E_asi_readout,
   E_asi_last

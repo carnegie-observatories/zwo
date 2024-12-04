@@ -113,7 +113,7 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
 #endif
     } else {
       ASIGetCameraProperty(&info,i);
-#if (DEBUG > 0) //xxx1
+#if (DEBUG > 1)
       printf("%d: %s, ID=%d\n",i,info.Name,info.CameraID);
       printf("pixelSize=%f\n",info.PixelSize);
 #if 0
@@ -152,8 +152,6 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
     case E_asi_devInvalid: string = @"ZWO/ASI: invalid device"; break;
     case E_asi_devNotFound: string = @"ZWO/ASI: device not found"; break;
     case E_asi_devNotOpen: string = @"ZWO/ASI: device open failed"; break;
-    case E_asi_roiSet: string = @"ZWO/ASI: setting ROI failed"; break;
-    case E_asi_modeInvalid: string = @"ZWO/ASI: invalid mode"; break;
     case E_asi_tempRead: string = @"ZWO/ASI: reading temperature sensor failed"; break;
     case E_asi_readout: string = @"ZWO/ASI: no data from camera"; break;
     // no Super to call
@@ -623,9 +621,9 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
   fprintf(stderr,"%s:%p: exptime=%f\n",PREFUN,self,_exptime);
 #endif
 
-  size_t size = _w * _h * (_bpp / 8);
-  imgData = (u_char*)realloc(imgData,size);
   int npix = _w * _h;
+  size_t size = npix * (_bpp / 8);
+  imgData = (u_char*)realloc(imgData,size);
 
 #ifdef SIM_ONLY
   NSDate *simDate = [NSDate date];
@@ -692,27 +690,7 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
     if (ret == ASI_SUCCESS) {
       err = 0;
       if (_bpp == 16) {                // 16-bit data
-        if (_bitDepth != 16) { int shift=0;
-          if (strstr(modelName,"ASI294")) { // variable shift NEW b0040
-            assert(self.bitDepth == 12);
-            if      (_bin == 1) shift = 4;  // 12-bit ADC
-            else if (_bin == 2) shift = 2;  // 14-bit ADC
-          } else 
-          if (_bitDepth == 12) {
-            shift = 4;
-          } else
-          if (_bitDepth == 14) {
-            shift = 2;
-          }
-          printf("name=%s, shift=%d\n",modelName,shift); //xxx
-          u_short *p = (u_short*)imgData; // shift pixels
-          if (shift == 4) {
-            for (int i=0; i<npix; i++,p++) { *p = (*p >> 4); } // assert((*p & 0x000f) == 0)
-          } else
-          if (shift == 2) {
-            for (int i=0; i<npix; i++,p++) { *p = (*p >> 2); } // assert((*p & 0x0003) == 0)
-          }
-        }
+        if (_bitDepth != 16) [self shiftImageData];
       } else
       if (_bpp == 24) {                // swap BGR<->RGB b0030
         u_char *p=(u_char*)imgData,*q=(u_char*)imgData+2,h;
@@ -723,7 +701,7 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
     // NSDate *date = [NSDate date];
     ASIStopExposure(handle); 
     // printf("after STOP (%1f)\n",YsecSince(date)); // 32sec-->30, 12sec-->50
-    err = -1; // TODO proper error code
+    err = E_asi_readout; 
   }
 
   return err;
@@ -734,6 +712,32 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
 - (u_short*)imageData
 {
   return (u_short*)imgData;
+}
+
+/* --- */
+
+- (void)shiftImageData                 // NEW b0041
+{
+  int shift=0,npix=_w*_h;
+
+  if (strstr(modelName,"ASI294")) {    // variable shift NEW b0040
+    assert(self.bitDepth == 12);
+    if      (_bin == 1) shift = 4;     // 12-bit ADC
+    else if (_bin == 2) shift = 2;     // 14-bit ADC
+  } else
+  if (_bitDepth == 12) {
+    shift = 4;
+  } else
+  if (_bitDepth == 14) {
+    shift = 2;
+  }
+  u_short *p = (u_short*)imgData;      // shift pixels
+  if (shift == 4) {
+    for (int i=0; i<npix; i++,p++) { *p = (*p >> 4); } // assert((*p & 0x000f) == 0)
+  } else
+  if (shift == 2) {
+    for (int i=0; i<npix; i++,p++) { *p = (*p >> 2); } // assert((*p & 0x0003) == 0)
+  }
 }
 
 /* ---------------------------------------------------------------- */
@@ -773,11 +777,11 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
 - (int)getVideo:(float)timeout
 {
   int ret=ASI_SUCCESS;
-  int npix=_w*_h;
 
   do {
     @synchronized(self) {
 #ifdef SIM_ONLY
+      int npix=_w*_h;
       u_char *p = (u_char*)imgData;
       double x,off=(double)_offset,sig=8.0+(double)_gain*100.0/256.0;
       for (int i=0; i<npix; i++) {
@@ -810,27 +814,7 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
   if (ret == ASI_SUCCESS) {
 #ifndef SIM_ONLY                          // NOT simulator
     if (_bpp == 16) {
-      if (_bitDepth != 16) { int shift=0; // b0035
-        if (strstr(modelName,"ASI294")) { // variable shift NEW b0040
-          assert(self.bitDepth == 12);
-          if      (_bin == 1) shift = 4;  // 12-bit ADC
-          else if (_bin == 2) shift = 2;  // 14-bit ADC
-        } else
-        if (_bitDepth == 12) {
-          shift = 4;
-        } else
-        if (_bitDepth == 14) {
-          shift = 2;
-        }
-        printf("name=%s, shift=%d\n",modelName,shift); //xxx
-        u_short *p = (u_short*)imgData; // shift pixels
-        if (shift == 4) {
-          for (int i=0; i<npix; i++,p++) { *p = (*p >> 4); } // assert((*p & 0x000f) == 0)
-        } else
-        if (shift == 2) {
-          for (int i=0; i<npix; i++,p++) { *p = (*p >> 2); } // assert((*p & 0x0003) == 0)
-        }
-      } // endif(bit depth != 16)
+      if (_bitDepth != 16) [self shiftImageData];
     } // endif(bits per  pixel == 16)
 #endif
     double f = exp(-3.0*fmax(_exptime,YsecSince(_date)));

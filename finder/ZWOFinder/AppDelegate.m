@@ -16,6 +16,8 @@
 #import "EFW.h"
 #import "ZWO.h"
 
+#include "ASICamera2.h"
+
 /* ---------------------------------------------------------------- */
 
 #define DEBUG           1
@@ -72,7 +74,6 @@ static char* get_ut_timestr(char* string,time_t ut)
   u_short       scale_min,scale_max;
 }
 
-// #include "ASICamera2.h"
 
 /* ---------------------------------------------------------------- */
 #pragma mark "Application Delegate"
@@ -160,7 +161,7 @@ static char* get_ut_timestr(char* string,time_t ut)
   ret = ASIStopExposure(handle); printf("ret=%d (stop)\n",ret);
 //  ret = ASISetControlValue(handle,ASI_TARGET_TEMP,0,ASI_FALSE); printf("ret=%d (target)\n",ret);
 //  ret = ASISetControlValue(handle,ASI_COOLER_ON,1,ASI_FALSE); printf("ret=%d (cooler)\n",ret);
-#if 1 // exposure
+#if 0 // exposure
   dispatch_async(GLOBAL_QUEUE,^(void) { int ret,et=100000;
     ret = ASISetControlValue(handle,ASI_EXPOSURE,et,ASI_FALSE);
 #if 0 // wait for cooler
@@ -198,7 +199,7 @@ static char* get_ut_timestr(char* string,time_t ut)
         }
         printf("bit=%d\n",bitDepth);
         for (int i=0; i<npix; i++,p++) {
-          if ((i % 2000) == 0) printf("%04x ",*p); printf("\n");
+          if (((i % 2220) == 0) || (*p & 0x000f)) printf("%04x ",*p);
           if (bitDepth == 12) {
             assert((*p & 0x000f) == 0);
             v = (double)(*p >> 4);
@@ -216,7 +217,7 @@ static char* get_ut_timestr(char* string,time_t ut)
         }
         double ave = s1/sn;
         double sig = sqrt(s2/sn-ave*ave);
-        printf("%.1f %.2f (%.0f,%.0f) %.0f\n",ave,sig,vmin,vmax,sn);
+        printf("\n%.1f %.2f (%.0f,%.0f) %.0f\n",ave,sig,vmin,vmax,sn);
       } else {
         if (YsecSince(date) > 60) { // stop
           date = [NSDate date];
@@ -277,6 +278,9 @@ static char* get_ut_timestr(char* string,time_t ut)
                  NSUserName(),use_shared,get_ut_timestr(buf,0)];
   [main_logger append:[s UTF8String]];
   [main_logger setAutoChange:YES];
+  
+  sprintf(buf,"ASI-SDK-Version= %s",ASIGetSDKVersion());
+  [main_logger append:buf];
 
 #ifdef NDEBUG
 // ?Povilas [edit_scale setHidden:YES];
@@ -530,8 +534,6 @@ static char* get_ut_timestr(char* string,time_t ut)
 }
 
 /* ---------------------------------------------------------------- */
-
-// todo default video=12/16 when is "remote/TCPIP" mode (zwoserver uses 16bits only)
 
 - (void)writeFitsFile
 {

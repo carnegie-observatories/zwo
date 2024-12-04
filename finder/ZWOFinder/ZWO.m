@@ -27,6 +27,17 @@
 /* ---------------------------------------------------------------- */
 //34567890123456789012345678901234567890
 
++ (NSString*)errorString:(int)err      // NEW b0041
+{
+  NSString *string=nil;
+  
+  switch (err) {
+    case E_zwo_error: string = @"ZWO: error"; break;
+    case E_zwo_transfer: string = @"ZWO: transfer from server error"; break;
+    default: string = [super errorString:err]; break;
+  }
+  return string;
+}
 
 /* ---------------------------------------------------------------- */
 #pragma mark "Instance"
@@ -311,7 +322,7 @@
       if (r <= 0) break;
       n += r; p += r; if (n >= size) break;
     }
-    if (n < size) err = -2; // TODO proper error code
+    if (n < size) err = E_zwo_transfer;
     // float dt=YsecSince(date); printf("%.1f MB/s (%.3f)\n",((float)size/1.0e6)/dt,dt);
     // Raspberry: 11.8 MB/s
     // Rock64:    99.5 MB/s
@@ -361,7 +372,7 @@
       if (r <= 0) break;
       n += r; p += r; if (n >= size) break;
     }
-    if (n < size) err = -2; // TODO proper error code
+    if (n < size) err = E_zwo_transfer;
     // float dt=YsecSince(date); printf("%.1f MB/s (%.3f)\n",((float)size/1.0e6)/dt,dt);
     // Raspberry: 11.6 MB/s
     // Rock64: 70-90.0 MB/s

@@ -12,6 +12,14 @@
 
 /* ---------------------------------------------------------------- */
 
+enum zwo_error_enum {
+  E_zwo_error=E_tcpip_error+100,
+  E_zwo_transfer,
+  E_zwo_last
+};
+
+/* ---------------------------------------------------------------- */
+
 @interface ZWO : TCPIP_Connection
 {
 }
