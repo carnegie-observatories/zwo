@@ -15,10 +15,6 @@
 
 /* ---------------------------------------------------------------- */
 
-void* run_guider(void* param);
-
-/* ---------------------------------------------------------------- */
-
 typedef struct guider_tag {
   int           gnum,gmode;            /* v0313 */
   char          gmpar;                 /* v0354 */
@@ -59,7 +55,8 @@ typedef struct guider_tag {
   int         shmode,q_flag;
   u_int       sendNumber;
   float       px;                      /* eff. pixscale (incl. binning) */
-  double      angle,elsign,rosign,parity,parit2; //xxx
+  double      angle,elsign,rosign,parity;
+  double      parit2; // todo remove 'parit2' NEW 0417
   double      pa,azerp,elerp,sens,azg,elg;
   pthread_mutex_t mutex;
   volatile int update_flag;
@@ -72,6 +69,12 @@ typedef struct guider_tag {
   int         pct,bkg,span;       /* default scaling */
   char        host[128],gain[32];
 } Guider;
+
+/* --- */
+
+extern void* run_guider(void* param);  /* --> guider.c */
+
+extern void  redraw_gwin(Guider*);     /* --> zwogcam.c */
 
 /* ---------------------------------------------------------------- */
 

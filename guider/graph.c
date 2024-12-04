@@ -89,7 +89,7 @@ GraphWindow* graph_create(MainWindow* mw,Window parent,const char* fn,
 
 /* ---------------------------------------------------------------- */
 
-void graph_scale(GraphWindow* g,float vmin,float vmax,u_int flag) /* NEW v0413 */
+void graph_scale(GraphWindow* g,float vmin,float vmax,u_int flag) /* v0413 */
 {
   pthread_mutex_lock(&g->lock);
   g->vmin = vmin;

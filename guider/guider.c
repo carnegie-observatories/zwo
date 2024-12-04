@@ -35,8 +35,6 @@
 
 /* ---------------------------------------------------------------- */
 
-extern void redraw_gwin(Guider*);
-
 static void run_guider1(void*);
 static void run_guider3(void*);
 static void run_guider4(void*);
@@ -69,7 +67,7 @@ void* run_guider(void* param)
   } 
   tcsOpen = (err) ? 0 : 1;
 
-  if (!err) {                          /* NEW v0417 */
+  if (!err) {                          /* TCSIS connection ok NEW v0417 */
     if (g->gmode == GM_PR) {           /* gm1 TODO others? */
       if (err) {
         sprintf(buf,"connection to EDS failed (err=%d)",err);
@@ -154,26 +152,26 @@ static void run_guider1(void* param)
       assert(npix); assert(pbuf);
       if (g->gmode == GM_SV5) {        /* gm5 mode NEW v0416 */
         if (qltool->guiding < 0) gm5_locked = 0;
-        printf("gm5=%d, guiding=%d\n",gm5_locked,qltool->guiding); //xxx
         if (!gm5_locked) {             /* store distance and angle */
           if (qltool->guiding > 0) {   /* 2nd iteration (stable) */
-            double x = qltool->curx[QLT_BOX]-qltool->curx[QLT_BOX-1];
-            double y = qltool->cury[QLT_BOX]-qltool->cury[QLT_BOX-1];
+            double x = qltool->curx[QLT_BOX] - qltool->curx[QLT_BOX-1];
+            double y = qltool->cury[QLT_BOX] - qltool->cury[QLT_BOX-1];
             p0 = g->pa; 
-            r0 = sqrt(x*x+y*y);
-            a0 = atan2(y,x); while (a0 < 0) { a0 += 2.0*M_PI; } a0 *= 180.0/M_PI;
-            // todo draw arc 
-            a0 = a0 + g->parit2*g->parity*p0;
-            printf("r=%f, a=%f, p=%f\n",r0,a0,p0); //xxx
+            r0 = qltool->arc_radius = sqrt(x*x+y*y);   /* [pixel] */
+            a0 = atan2(y,x); while (a0 < 0) { a0 += 2.0*M_PI; } 
+            qltool->arc_angle = a0 * (180.0/M_PI);  
+            // printf("r=%f, a=%f, p=%f\n",r0,qltool->arc_angle,p0); 
+            a0 = (qltool->arc_angle + g->parit2*g->parity*p0); // todo sign
             gm5_locked = 1;
           }
         } else {                       /* we have a lock in gm5 */
           if (g->pa != p0) {           /* 'pa' changed */
             p0 = g->pa;
-            printf("r=%f, a=%f, p=%f\n",r0,a0,p0); //xxx
+            // printf("r=%f, a=%f, p=%f\n",r0,a0,p0); 
             double x = qltool->curx[QLT_BOX-1];
             double y = qltool->cury[QLT_BOX-1];
-            double a = (a0-(g->parit2*g->parity*p0))*(M_PI/180.0);
+            double a = (a0-(g->parit2*g->parity*p0))*(M_PI/180.0); // todo sign
+  // todo?  qltool->arc_angle = a*(180.0/M_PI); printf("a=%f\n",qltool->arc_angle);
             qltool->curx[QLT_BOX] = gx = x + r0*cos(a);
             qltool->cury[QLT_BOX] = gy = y + r0*sin(a);
             qltool_redraw(g->qltool,False);
@@ -291,6 +289,8 @@ static void run_guider1(void* param)
 #endif
     } // endif(frame)
   } // endwhile(loop-doing && guiding)
+
+  qltool->arc_radius = 0;
 
   free((void*)pbuf);
 }
@@ -437,7 +437,6 @@ static void run_guider4(void* param)          /* v0404 */
       if (g->q_flag < 2) {             /* ok fit */
         g->dx = dx;                    /* [pixels] from ratio v0408 */
         g->dy = cy-gy;                 /* [pixels] from fit */
-        //xxx todo timer
         g->flux = flux;
         g->ppix = ppix;
         g->back = back;
@@ -517,7 +516,6 @@ static int tcs_recon(Guider *g)        /* NEW v0417 */
   return err;
 }
 
-/* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */

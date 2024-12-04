@@ -448,7 +448,7 @@ static void* run_cycle(void* param)
 #endif
               /* flux = 2*PI*peak*sig*sig */
               /* flux = 1.133*peak*fw*fw */
-#if 1 // TESTING -- gauss with slit xxx
+#if 0 // TESTING -- gauss with slit
               static const int ww=30;
               if ((x>=sim_cx-ww) && (x<=sim_cx+ww)) { 
                 if (abs(x-self->aoiW/2) < sim_slit) continue; /* blank out slit */
@@ -463,7 +463,7 @@ static void* run_cycle(void* param)
                 }
               }
 #endif
-#if 1 // TESTING -- gauss without slit xxx
+#if 0 // TESTING -- gauss without slit
               static const int w2=30;
               if ((x>=sim_cx2-w2) && (x<=sim_cx2+w2)) { 
                 if ((y>=sim_cy2-w2) && (y<=sim_cy2+w2)) { 

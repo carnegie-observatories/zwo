@@ -216,7 +216,6 @@ static int   vertical=0;
 /* function prototype(s) ------------------------------------------ */
 
 static void    redraw_text       (void);
-       void    redraw_gwin       (Guider*);  // todo extern guider.h
 static void    redraw_compass    (Guider*);
 
 static void    update_ut         (void);
@@ -272,22 +271,6 @@ int main(int argc,char **argv)
 
   /* here comes the code ------------------------------------------ */ 
 
-#if 0 //xxx
-  { double x,y,r=1.0,p1,p2;
-    for (p1=0.0; p1<=2.0*M_PI; p1+=0.5) {
-      x = r*cos(p1);
-      y = r*sin(p1);
-      p2 = atan2(y,x); while (p2 < 0) p2 += 2.0*M_PI;
-      printf("p1=%f p2=%f\n",p1,p2);
-    }
-    p2 = atan2( 0, 1); while (p2 < 0) p2 += 2.0*M_PI; printf("%f\n",p2);
-    p2 = atan2( 1, 0); while (p2 < 0) p2 += 2.0*M_PI; printf("%f\n",p2);
-    p2 = atan2( 0,-1); while (p2 < 0) p2 += 2.0*M_PI; printf("%f\n",p2);
-    p2 = atan2(-1, 0); while (p2 < 0) p2 += 2.0*M_PI; printf("%f\n",p2);
-  }
-  exit(0);
-#endif
-
   startup_time = cor_time(0);
 
   strcpy(xserver,genv2("DISPLAY",""));
@@ -302,21 +285,21 @@ int main(int argc,char **argv)
   pthread_mutex_init(&mesgMutex,NULL);
 
   sGuider.gnum = 1;                    /* PR */
-  sGuider.gmode = 5;    // xxx0
-  sGuider.gmpar = 't';                 /* default 'p' ?Shec */
-  sGuider.angle = -120.0;
+  sGuider.gmode = 0; 
+  sGuider.gmpar = 't';
+  sGuider.angle = -120.0;              /* PFS:-128, MIKE:-119 */
   sGuider.elsign = -1.0;
   sGuider.rosign =  0.0;
-  sGuider.parity =  1.0;
-  sGuider.parit2 =  1.0;              /* xxx NEW v0417 */
-  sGuider.offx = sGuider.offy = 0;
-  sGuider.slitW = 6;
-  sGuider.px = 0.051;                  /* 2*0.02535 - measured 20230113 */
+  sGuider.parity =  -1.0;
+  sGuider.parit2 =  1.0;
+  sGuider.offx = sGuider.offy = 0;     /* PFS:-10+85, MIKE:+45+230 */
+  sGuider.slitW = 6;                   /* PFS:6, MIKE:13 */
+  sGuider.px = 0.051;                  /* PFS:53, MIKE:54 */
   sGuider.lmag = sGuider.bx = 0;
   sGuider.pct = sGuider.bkg = sGuider.span = 0;
   strcpy(sGuider.host,"localhost");
   sGuider.rPort = 0;
-  sGuider.sens = 0.5f;                 /* NEW v0417 */
+  sGuider.sens = 0.5f;                 /* v0417 */
 #ifdef ENG_MODE
   strcpy(sGuider.gain,"");
 #else
@@ -356,7 +339,8 @@ int main(int argc,char **argv)
         sGuider.parity = (atof(optarg) < 0) ? -1.0 : 1.0;
         break;
       case 'm':                        /* optical mode */
-        if (optarg[0] == 'p') {        /* PFS slitviewer v0345 todo remove */
+#if 0 // todo remove
+        if (optarg[0] == 'p') {        /* PFS slitviewer NEW remove */
           baseD=1000; baseB=2; baseI=500; pHIGH = 82; 
           sGuider.angle  = -128.0;
           sGuider.elsign = -1.0;
@@ -373,6 +357,7 @@ int main(int argc,char **argv)
           sGuider.span = 5000;
           strcpy(sGuider.gain,"lo");
         } else 
+#endif
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
         } else
@@ -387,6 +372,8 @@ int main(int argc,char **argv)
         } else 
         if (optarg[0] == 'f') {        /* full */
           baseD=2400; baseB=2; baseI=600; pHIGH = 117;
+        } else {
+          fprintf(stderr,"unknown '-m' parameter '%s'\n",optarg); 
         }
         break;
       case 'o':                        /* offset v0348 */
@@ -680,7 +667,7 @@ int main(int argc,char **argv)
     if (g->pct  > 0) { sprintf(buf,"%d",g->pct); qltool_scale(g->qltool,"pct",buf,""); }
     if (g->bkg  > 0) { sprintf(buf,"%d",g->bkg); qltool_scale(g->qltool,"bkg",buf,""); }
     if (g->span > 0) { sprintf(buf,"%d",g->span); qltool_scale(g->qltool,"spa",buf,""); }
-    if (g->bx > 0) { sprintf(buf,"bx %d",g->bx); handle_command(g,buf,0); }
+    if (g->bx   > 0) { sprintf(buf,"bx %d",g->bx); handle_command(g,buf,0); }
     else sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad);
   } /* endfor(n_guiders) */
   done = False;
@@ -788,8 +775,8 @@ int main(int argc,char **argv)
             if (g->qltool->cursor_mode == QLT_BOX-1) b=1;
           }
           if (qltool_handle_key(g->qltool,(XKeyEvent*)&event,b)) {
-            if (b) {                   /* no cursor4/5 NEW v0417 */
-              printf("cursor motion blocked while guiding\n");
+            if (b) {                   /* no cursor4/5 v0417 */
+              printf("cursor motion blocked while guiding in gm5\n");
             } else {
               int c = g->qltool->cursor_mode;
               float x = g->qltool->curx[c];
@@ -1414,12 +1401,12 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     } else err = E_NOTACQ;
   } else
   if (!strcasecmp(cmd,"fnin")) {       /* F9 remove SH v0329/v0331 */
-    sprintf(buf,"gpfld%d",g->gmode);
+    sprintf(buf,"gpfld%d",g->gnum);    /* bug-fix v0418 */
     err = telio_command(buf);
     if (err) err = E_TELIO;
   } else
   if (!strcasecmp(cmd,"ften")) {       /* F10 insert SH v0329/v0331 */
-    sprintf(buf,"gpsha%d",g->gmode);
+    sprintf(buf,"gpsha%d",g->gnum);    /* bug-fix v0418 */
     err = telio_command(buf);
     if (err) err = E_TELIO;
   } else
@@ -1442,7 +1429,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   if (!strcasecmp(cmd,"mm")) {         /* mouse mode */
     set_mm(g,atoi(par1));
   } else
-  if (!strncasecmp(cmd,"parity",3)) {  /* xxx NEW v0417 */
+  if (!strncasecmp(cmd,"parity",3)) {  /* todo remove NEW v0417 */
     if (*par1) g->parit2 = (atof(par1) < 0) ? -1.0 : +1.0;
     sprintf(msgstr,"%+.0f",g->parit2);
   } else

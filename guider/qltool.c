@@ -140,7 +140,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->guiding = 0;
   qlt->gmode = 0;
-  qlt->vrad = 20;                      /* NEW v0416 */
+  qlt->vrad = 20;                      /* was 15 v0416 */
   qlt->smoothing = 0;
 
   qlt->enoise = 1.5;
@@ -159,7 +159,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
 
   qlt->cursor_mode = QLT_BOX;          /* "lupe" */
   qlt->cursor_step = 1.0f;
-#if 1 // TESTING xxx
+#if 0 // TESTING 
   for (i=0; i<QLT_NCURSORS; i++) {  
     switch (i) {
       case QLT_BOX-1: qlt->curx[i] = qlt->cury[i] = dim/2; break;
@@ -912,15 +912,18 @@ static void fill_pixels(QlTool* qlt,int ncols,int lt)
 
 /* ---------------------------------------------------------------- */
 
-static void draw_arc(u_int *p,u_int c,int iw,int ih, //xxxyyy
-                     int xc,int yc,int r)
+static void draw_arc(u_int *p,u_int c,int iw,int ih, /* NEW v0418 */
+                     int xc,int yc,int r,double a1,double a2)
 {
   int x,y;
   double a;
-  for (a=0; a<M_PI; a+=0.01) {
-    x = xc+(int)my_round(cos(a)*r,0);
+
+  if (r <= 0) return;
+
+  for (a=a1; a<=a2; a+=180.0/r) {
+    x = xc + (int)my_round(cos(a*M_PI/180.0)*r,0);
     if ((x < 0) || (x >= iw)) continue;
-    y = yc+(int)my_round(sin(a)*r,0);
+    y = yc + (int)my_round(sin(a*M_PI/180.0)*r,0);
     if ((y < 0) || (y >= ih)) continue;
     p[x+y*iw] = c; 
   }
@@ -1250,13 +1253,15 @@ static void create_image(QlTool* qlt,int min,int dyn,void* p0)
       draw_cross((u_int*)p0,color,qlt->iWIDE,qlt->iHIGH,xc,yc,20,20);
     }
   }
-#if 1 //xxxyyy
-  if (qlt->guiding && (qlt->gmode == GM_SV5)) {
-    xc = (int)my_round(qlt->curx[3]/qlt->MulX,0);
-    yc = (int)my_round(qlt->cury[3]/qlt->MulY,0);
-    draw_arc(p0,yellow,qlt->iWIDE,qlt->iHIGH,xc,yc,100);
+  if ((qlt->guiding > 0) && (qlt->gmode == GM_SV5) && (qlt->arc_radius)) {
+    xc = (int)my_round(qlt->curx[3]/qlt->MulX,0); /* cursor4 is */
+    yc = (int)my_round(qlt->cury[3]/qlt->MulY,0); /* center of arc */
+    assert(qlt->MulX == qlt->MulY);
+    double r  = qlt->arc_radius/qlt->MulX;
+    double a1 = qlt->arc_angle - 30.0; 
+    double a2 = qlt->arc_angle + 30.0;
+    draw_arc(p0,yellow,qlt->iWIDE,qlt->iHIGH,xc,yc,r,a1,a2); /* NEW v0418 */
   }
-#endif
 
   if (qlt->flip_x) do_flip_x(qlt,p0);
   if (qlt->flip_y) do_flip_y(qlt,p0);  
