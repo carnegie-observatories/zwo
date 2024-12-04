@@ -339,25 +339,6 @@ int main(int argc,char **argv)
         sGuider.parity = (atof(optarg) < 0) ? -1.0 : 1.0;
         break;
       case 'm':                        /* optical mode */
-#if 0 // todo remove
-        if (optarg[0] == 'p') {        /* PFS slitviewer NEW remove */
-          baseD=1000; baseB=2; baseI=500; pHIGH = 82; 
-          sGuider.angle  = -128.0;
-          sGuider.elsign = -1.0;
-          sGuider.rosign =  0.0;
-          sGuider.parity = -1.0;       /* v0351 */
-          sGuider.offx=-10; sGuider.offy=85; /* v0355 */
-          sGuider.gnum = 3;   
-          sGuider.gmode = 4;  sGuider.gmpar = 't'; 
-          sGuider.px = 0.053;          /* v0410 */
-          sGuider.bx = 41;
-          sGuider.lmag = 2;
-          sGuider.pct = 60;
-          sGuider.bkg = 24;
-          sGuider.span = 5000;
-          strcpy(sGuider.gain,"lo");
-        } else 
-#endif
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
         } else
@@ -983,6 +964,8 @@ static void update_ut(void)
   if (ut_now >= pa_last+pa_interval) { int i; Guider *g;
     for (i=0; i<n_guiders; i++) { 
       g = guiders[i];
+      int wait = (g->gmode == GM_SV5) ? 5 : 30; /* if not guiding v0420 */
+      if ((!g->qltool->guiding) && (ut_now-pa_last < wait)) continue;
       if (g->pamode) {
         thread_detach(run_tele,NULL);
         pa_last = ut_now;
@@ -1292,7 +1275,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
 
   if (!strcasecmp(cmd,"apa")) {        /* toggle camera position angle */
     if (*par1) {
-      g->pamode = 1; pa_interval = imax(5,imin(120,atoi(par1)));
+      g->pamode = 1; pa_interval = imax(2,imin(120,atoi(par1))); /* '2' NEW v0420 */
     } else {
       g->pamode = (g->pamode) ? 0 : 1;
     }
@@ -1321,7 +1304,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     zwo_close(g->server);
     g->init_flag = 0;
   } else
-  if (!strcasecmp(cmd,"es")) {         /* toggle extended guiding ?Povilas */
+  if (!strcasecmp(cmd,"es")) {         /* toggle extended guiding TODO ?Povilas */
     g->esmode = (g->esmode) ? 0 : 1;
   } else
   if (!strcasecmp(cmd,"exit")) {       /* exit program */
@@ -1413,7 +1396,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   if (!strcasecmp(cmd,"mm")) {         /* mouse mode */
     set_mm(g,atoi(par1));
   } else
-  if (!strncasecmp(cmd,"parity",3)) {  /* todo remove NEW v0417 */
+  if (!strncasecmp(cmd,"parity",3)) {  /* todo remove v0417 */
     if (*par1) {
       if (g->qltool->guiding) {
         message(g,"cannot change 'parity' while guiding",MSS_WARN);
@@ -2271,7 +2254,7 @@ static int set_pa(Guider* g,double f,int fromTCS) /* position angle */
   if (fromTCS) { float el,pa,re=0.0f;
     if (g->rosign) err = telio_geo(NULL,NULL,&re ,NULL,&el,&pa); 
     else           err = telio_geo(NULL,NULL,NULL,NULL,&el,&pa);
-    if (!err) {              /*  am , ra , re , az , el, pa */
+    if (!err) {                 /*  am , ra , re , az , el, pa */
       f = g->angle + g->elsign*el + g->rosign*re;  /* v0311 */
       elev = el;                       /* telescope elevation */
       para = pa;                       /* parallactic angle */
@@ -2376,7 +2359,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
 {
   g->gmode = imax(1,imin(GM_MAX,m));
   if (c) g->gmpar = (c == 'p') ? 'p' : 't';
-  switch (g->gmode) {                  /* NEW v0416 */
+  switch (g->gmode) {                  /* v0416 */
   case GM_SV3: case GM_SV4:            /* has 'gmpar' */
     sprintf(g->gmbox.text,"gm %1d%c",g->gmode,g->gmpar);
     break;
@@ -2388,7 +2371,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
   g->qltool->gmode = g->gmode;
 
   switch (g->gmode) {                  /* v0414 */
-  case GM_PR: case GM_SV5:             /* SV5 NEW v0416 */
+  case GM_PR: case GM_SV5:             /* SV5 v0416 */
     strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
@@ -2610,7 +2593,7 @@ static int read_inifile(Guider *g,int* m,const char* name) /* v0415 */
       else if (!strcmp(key,"span")) g->span = atoi(val);
       else if (!strcmp(key,"bx")) g->bx = atoi(val);
       else if (!strcmp(key,"sw")) g->slitW = atoi(val); 
-      else if (!strcmp(key,"sn")) g->sens = fmin(4.0,fmax(0.1,atof(val))); // NEW
+      else if (!strcmp(key,"sn")) g->sens = fmin(4.0,fmax(0.1,atof(val)));
       else n--;
 
     }

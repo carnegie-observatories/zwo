@@ -1043,7 +1043,7 @@ static void do_lupe24(QlTool* qlt)
     int x2 = xc + qlt->vrad*lmag;
     int y1 = yc - qlt->vrad*lmag;
     int y2 = yc + qlt->vrad*lmag;
-    switch (qlt->gmode) {              /* NEW v0416 */
+    switch (qlt->gmode) {              /* v0416 */
     case GM_SV3: case GM_SV4:          /* guide-cross */
       draw_cross(lupe,lgrey,qlt->lWIDE,qlt->lHIGH,xc,yc,
                  2*qlt->vrad*lmag,2*qlt->vrad*lmag);
@@ -1257,7 +1257,7 @@ static void create_image(QlTool* qlt,int min,int dyn,void* p0)
     double r  = qlt->arc_radius/qlt->MulX;
     double a1 = qlt->arc_angle - 30.0; 
     double a2 = qlt->arc_angle + 30.0;
-    draw_arc(p0,yellow,qlt->iWIDE,qlt->iHIGH,xc,yc,r,a1,a2); /* NEW v0418 */
+    draw_arc(p0,yellow,qlt->iWIDE,qlt->iHIGH,xc,yc,r,a1,a2); /* v0418 */
   }
 
   if (qlt->flip_x) do_flip_x(qlt,p0);

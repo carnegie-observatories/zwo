@@ -33,7 +33,7 @@
 
 int    sim_star=1,sim_slit=4;          /* v0406 slitWidth=7 */
 int    sim_cx,sim_cy;                  /* v0408 */
-int    sim_cx2,sim_cy2;                /* NEW v0416 */
+int    sim_cx2,sim_cy2;                /* v0416 */
 double sim_peak=250.0;
 double sim_sig2=0.70*18.9*18.9/2.35482;
 

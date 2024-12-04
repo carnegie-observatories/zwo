@@ -68,7 +68,7 @@ void* run_guider(void* param)
   tcsOpen = (err) ? 0 : 1;
 
   if (!err) {                          /* TCSIS connection ok NEW v0417 */
-    if (g->gmode == GM_PR) {           /* gm1 TODO others? */
+    if (g->gmode == GM_PR) {           /* gm1 */
       if (err) {
         sprintf(buf,"connection to EDS failed (err=%d)",err);
         message(g,buf,MSS_ERROR);
@@ -111,7 +111,7 @@ static void run_guider1(void* param)
   double cx,cy,gx,gy,fwhm=0,back,flux,peak;
   double fit[6];
   double next_eds=0;
-  double r0=1,a0=0,p0=0;               /* gm5 stuff NEW v0416 */
+  double r0=1,a0=0,n0=0;               /* gm5 stuff v0416 */
   int    gm5_locked=0;
   int    ix,iy,ppix=0,vrad=0,npix=0,doit=1;
   u_int  seqNumber=0,counter=0;
@@ -153,24 +153,25 @@ static void run_guider1(void* param)
       if (g->gmode == GM_SV5) {        /* gm5 mode NEW v0416 */
         if (qltool->guiding < 0) gm5_locked = 0;
         if (!gm5_locked) {             /* store distance and angle */
+          msleep(500);                 /* delay for telescope update v0420 */
           if (qltool->guiding > 0) {   /* 2nd iteration (stable) */
             double x = qltool->curx[QLT_BOX] - qltool->curx[QLT_BOX-1];
             double y = qltool->cury[QLT_BOX] - qltool->cury[QLT_BOX-1];
-            p0 = g->north;             /* NEW v0419 */
+            n0 = g->north;             /* NEW v0419 */
             r0 = qltool->arc_radius = sqrt(x*x+y*y);   /* [pixel] */
             a0 = atan2(y,x); while (a0 < 0) { a0 += 2.0*M_PI; } 
             qltool->arc_angle = a0 * (180.0/M_PI);  
-            // printf("r=%f, a=%f, p=%f\n",r0,qltool->arc_angle,p0); 
-            a0 = (qltool->arc_angle + g->parit2*g->parity*p0); // todo sign=parit2
+            // printf("r=%f, a=%f, p=%f\n",r0,qltool->arc_angle,n0);  
+            a0 = (qltool->arc_angle + g->parit2*g->parity*n0); // todo sign=parit2
             gm5_locked = 1;
           }
         } else {                       /* we have a lock in gm5 */
-          if (g->north != p0) {        /* position angle changed */
-            p0 = g->north;
-            // printf("r=%f, a=%f, p=%f\n",r0,a0,p0);
+          if (g->north != n0) {        /* position angle changed */
+            n0 = g->north;
+            // printf("r=%f, a=%f, p=%f\n",r0,a0,n0);
             double x = qltool->curx[QLT_BOX-1];
             double y = qltool->cury[QLT_BOX-1];
-            double a = (a0-(g->parit2*g->parity*p0))*(M_PI/180.0); // todo sign=parit2
+            double a = (a0-(g->parit2*g->parity*n0))*(M_PI/180.0); // todo sign=parit2
   // todo?  qltool->arc_angle = a*(180.0/M_PI); printf("a=%f\n",qltool->arc_angle);
             qltool->curx[QLT_BOX] = gx = x + r0*cos(a);
             qltool->cury[QLT_BOX] = gy = y + r0*sin(a);
