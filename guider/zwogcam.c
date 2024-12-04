@@ -56,6 +56,8 @@
  * v0.415  2024-02-20  configuration files
  * v0.418  2024-03-07  guide mode 'gm5'
  *
+ * v0.425  2024-10-18  update compass with flipx and flipy
+ *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
  *
@@ -427,7 +429,7 @@ int main(int argc,char **argv)
     g->server = zwo_create(g->host,SERVER_PORT);
     g->gid = 0;                        /* guiding thread ID */
     g->qltool = NULL;
-    g->loop_running = g->house_running = g->tcpip_running = False;
+    g->loop_running = g->house_running = False; 
     g->stop_flag = False;
     g->init_flag = g->send_flag = g->write_flag = 0;
     pthread_mutex_init(&g->mutex,NULL);
@@ -811,11 +813,11 @@ static void draw_compass(Guider* g,int x,int y,int r,double north,double east,
   XDrawArc(disp,win,gc,x-r,y-r,2*r,2*r,0,23040);
   XSetLineAttributes(disp,gc,2,LineSolid,CapRound,JoinRound);
   XSetForeground(disp,gc,color);
-  x2 = x + (int)floor(r*sin(north/RADS)+0.5);
-  y2 = y - (int)floor(r*cos(north/RADS)+0.5);
+  x2 = x + ((g->qltool->flip_x) ? -1 : 1)*(int)floor(r*sin(north/RADS)+0.5);
+  y2 = y - ((g->qltool->flip_y) ? -1 : 1)*(int)floor(r*cos(north/RADS)+0.5);
   XDrawLine(disp,win,gc,x,y,x2,y2);
-  x2 = x + (int)floor(0.5*r*sin(east/RADS)+0.5);
-  y2 = y - (int)floor(0.5*r*cos(east/RADS)+0.5);
+  x2 = x + ((g->qltool->flip_x) ? -1 : 1)*(int)floor(0.5*r*sin(east/RADS)+0.5);
+  y2 = y - ((g->qltool->flip_y) ? -1 : 1)*(int)floor(0.5*r*cos(east/RADS)+0.5);
   XDrawLine(disp,win,gc,x,y,x2,y2);
   XSetLineAttributes(disp,gc,1,LineSolid,CapRound,JoinRound);
   XSetForeground(disp,gc,app->black);
@@ -827,7 +829,7 @@ static void draw_compass(Guider* g,int x,int y,int r,double north,double east,
 static void redraw_compass(Guider* g)
 {
   int    x,y,r=XXh;
-  double east;
+  double east,az,el;
   extern double sim_north;
 #if (DEBUG > 1)
   fprintf(stderr,"%s(%p): pa=%.1f, para=%.1f\n",PREFUN,g,g->pa,para);
@@ -841,15 +843,13 @@ static void redraw_compass(Guider* g)
   x = g->gdbox.x+g->gdbox.w/2;
   y = g->dybox.y - PXh/4;
   g->north = sim_north = g->parity*(-fabs(g->pa) + para);  /* N/E */
-  if (g->parity > 0) east  = g->north + ((g->pa > 0) ? 90.0 : -90.0);
-  else               east  = g->north + ((g->pa < 0) ? 90.0 : -90.0);
+  east= g->north - g->parity*90.0;
   draw_compass(g,x,y,r,g->north,east,app->green); 
 
   x = g->gmbox.x+g->gmbox.w/2;
-  double north = -fabs(g->pa) * g->parity;        /* az,el */
-  if (g->parity > 0) east  = north + ((g->pa < 0) ? 90.0 : -90.0);
-  else               east  = north + ((g->pa > 0) ? 90.0 : -90.0);
-  draw_compass(g,x,y,r,north,east,app->red); 
+  el = g->parity *(-fabs(g->pa));         /* az,el */
+  az = el + g->parity*90.0;
+  draw_compass(g,x,y,r,el,az,app->red); 
 
   redraw_gwin(g);
 }
@@ -1020,11 +1020,13 @@ static void cb_options(void* param)
     g->qltool->flip_x = 1-g->qltool->flip_x;
     opmenu.entry[OPT_FLIP_X].flag = (g->qltool->flip_x) ? CBX_CHECKED : 0;
     qltool_redraw(g->qltool,False);
+    redraw_compass(g);
     break;
   case OPT_FLIP_Y:
     g->qltool->flip_y = 1-g->qltool->flip_y;
     opmenu.entry[OPT_FLIP_Y].flag = (g->qltool->flip_y) ? CBX_CHECKED : 0;
     qltool_redraw(g->qltool,False);
+    redraw_compass(g);
     break;
   }
   CBX_ClearAutoQueue(&mwin);
@@ -1102,8 +1104,12 @@ static int handle_msmode(void* param,XEvent* event)
       if (!err) { double dx,dy,da,de;
         qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
-        err = telio_gpaer(3,-da,-de);
-        if (!err && (g->msmode < 0)) err = telio_aeg(da,de);
+        if (g->msmode > 0) {
+	  err = telio_gpaer(g->gnum,-da,-de);
+	} else {
+	  err = telio_gpaer(3,-da,-de);
+	  if (!err)  err = telio_aeg(da,de);
+	}
       }
       telio_close();
     }
@@ -1277,7 +1283,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad); // bug-fix v0408
     CBX_UpdateEditWindow(&g->bxbox);
   } else
-  if (!strcasecmp(cmd,"close")) {      /* to recover use "reset" */
+  if (!strcasecmp(cmd,"close")) {      /* TESTING -- recover using "reset" */
     if (g->loop_running) do_stop(g,5000);
     zwo_close(g->server);
     g->init_flag = 0;
@@ -1517,32 +1523,6 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     if (*par1) g->slitW = imax(1,atoi(par1));
 #endif
     else       sprintf(msgstr,"%d",g->slitW);
-  } else
-  if (!strncasecmp(cmd,"offgo",5)) {   /* Shec special command NEW v0424 */
-#if 1  // todo 
-    message(g,"not yet implemented",MSS_INFO);
-#else
-    printf("n=%d\n",n);  //xxxyyy
-    if (n < 3) { 
-      err = E_MISSPAR;
-    } else {
-      float dx = atof(par1);
-      float dy = atof(par2);
-      handle_command(g,"fone",1);  /* todo show command ? */
-      // todo coordinated offset
-      // todo turn off/on SH guiding? -- needs to go through TCSIS
-      // todo telio_open / send commands directly ?
-      // err = telio_open(2);
-      // telio_move(dx,dy);
-      // telio_guider_probe(-dx,-dy,0,1); // todo PR ? "gprdr2 %.2f %.2f"
-      // telio_mstat() todo wait for probe/telescope todo timeout ?
-      // telio_close
-      handle_command(g,"mm 1",1);
-      handle_command(g,"gm 5",1);
-      message(g,"select offset guide star ... ",MSS_INFO);
-      message(g,"... then press <F5>",MSS_INFO);
-    }
-#endif
   } else 
   if (!strncasecmp(cmd,"start",4)) {   /* start exposure loop */
     int r = do_start(g,0);
@@ -1759,9 +1739,7 @@ static void* run_init(void* param)
     }
   }
   if (!err) {
-    if (!g->tcpip_running) {           /* NEW v0424 */
-      thread_detach(run_tcpip,(void*)g);
-    }
+    thread_detach(run_tcpip,(void*)g); /* v0332 */
   }
   g->init_flag = (err) ? 0 : 1;
 
@@ -2273,8 +2251,8 @@ static int set_pa(Guider* g,double f,int fromTCS) /* position angle */
   }
   if (f == 0.0) f = 360.0;
   while (f >  360.0) f -= 360.0;
-  while (f < -360.0) f += 360.0;
-  g->pa = f;
+  while (f <    0.0) f += 360.0;
+  g->pa = g->parity*f;
   sprintf(g->pabox.text,"pa %4.0f",my_round(g->pa,0));
 #ifndef PA_BOX
   g->pabox.fg = (g->pamode) ? app->green : app->black;
@@ -2724,7 +2702,6 @@ static void* run_tcpip(void* param)
   sprintf(buf,"TCPIP-Server listening (%s,%d)",g->name,port);
   message(g,buf,MSS_FLUSH);
 
-  g->tcpip_running = True;
   while (!done) {
     msgsock = TCPIP_ServerAccept(sock,&ip);
     sprintf(buf,"connection accepted from %u.%u.%u.%u",
@@ -2747,7 +2724,6 @@ static void* run_tcpip(void* param)
     } while (rval > 0);                /* loop while there's something */
     (void)close(msgsock);
   } /* while(!done) */
-  g->tcpip_running = False;
 
   (void)close(sock);
 #if (DEBUG > 0)

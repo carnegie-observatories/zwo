@@ -1255,14 +1255,11 @@ void rotate(double xi,double yi,double pa,double pr,double* az,double* el)
   double sinpa = sin(radpa);
   double cospa = cos(radpa);
   assert(radpa != 0);                  /* Magellan uses +360 */
-  assert(fabs(pr) == 1.0);             /* parity v0353 flips 'x' */
-  if (pa < 0) {                        /* rotate into AZ,EL coodinates */
-    *az = +(pr*xi * cospa) -(yi * sinpa);
-    *el = -(pr*xi * sinpa) -(yi * cospa);
-  } else {
-    *az = -(pr*xi * cospa) -(yi * sinpa);
-    *el = +(pr*xi * sinpa) -(yi * cospa);
-  }
+  assert(fabs(pr) == 1.0);      /* parity v0353 flips 'x' remove v0424*/
+                                /* rotate into AZ,EL coodinates */
+  *az = +(pr*xi * cospa) -(yi * sinpa);
+  *el = -(pr*xi * sinpa) -(yi * cospa);
+
 }
 
 /* ---------------------------------------------------------------- */

@@ -14,14 +14,21 @@ BINDIR	= ../bin
 # LINUX 64-bit -- Release
 #CC	= gcc -m64
 #CFLAGS	= -DLINUX -DNDEBUG -Wall -I../../CXT
-#LIBS	= -lm -lpthread # -latcore
+#LIBS	= -lm -lpthread -latcore
 #LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
 
-# LINUX 64-bit -- Debug / TESTING
-CC	= gcc -m64
-CFLAGS	= -DLINUX -Wall -I../../CXT # -DENG_MODE
-LIBS	= -lm -lpthread # -latcore
-LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
+# LINUX 64-bit -- Debug
+CC	= gcc -m64 -fcommon 
+CFLAGS	= -DLINUX -Wall -I../../CXT
+#LIBS	= -lm -lpthread -latcore
+LIBS	= -lm -lpthread
+LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt
+
+# LINUX 64-bit -- SIMULATOR
+#CC	= gcc -m64
+#CFLAGS	= -DLINUX -DSIM_ONLY -Wall -I../../CXT
+#LIBS	= -lm -lpthread 
+#LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
 
 # MacOS 64-bit -- engineering mode
 #CC	= /usr/bin/gcc -arch x86_64
@@ -57,7 +64,7 @@ install: all
 
 zwogcam: gcamzwo 
 	ln -s gcamzwo zwogcam
-	
+
 gcamzwo: $(Ogui)
 	$(CC) -o gcamzwo $(Ogui) $(LIBS) $(LIBX)
 	@echo gcamzwo done
