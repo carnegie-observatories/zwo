@@ -175,7 +175,7 @@ static void run_guider1(void* param)
             // todo? qltool->arc_angle = a*RADS; printf("a=%f\n",qltool->arc_angle);
             qltool->curx[QLT_BOX] = gx = x + r0*cos(a);
             qltool->cury[QLT_BOX] = gy = y + r0*sin(a);
-            ix = my_round(gx,0);       /* NEW v0421 */
+            ix = my_round(gx,0);       /* v0421 */
             iy = my_round(gy,0);
             qltool_redraw(g->qltool,False);
             redraw_gwin(g);

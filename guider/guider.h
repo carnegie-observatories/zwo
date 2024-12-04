@@ -22,6 +22,7 @@ typedef struct guider_tag {
   char          name[32];
   FITSpars      status;
   volatile Bool loop_running,house_running;
+  volatile Bool tcpip_running;
   volatile Bool stop_flag;
   volatile int  write_flag,send_flag,init_flag;
   pthread_t     gid;

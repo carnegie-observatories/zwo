@@ -265,7 +265,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   XMapRaised(qlt->disp,qlt->iwin);
   CBX_Unlock();
   CBX_SelectInput_Ext(qlt->disp,qlt->iwin,ExposureMask | ButtonPressMask );
-  CBX_SetCursor_Ext(qlt->disp,qlt->iwin,XC_tcross);  /* NEW v0422 */
+  CBX_SetCursor_Ext(qlt->disp,qlt->iwin,XC_tcross);  /* v0422 */
 
   y = y4;
   sprintf(buf,"pct  %5d",qlt->pct);
