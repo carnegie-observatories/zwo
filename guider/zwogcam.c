@@ -1985,11 +1985,17 @@ static void* run_cycle(void* param)
         pthread_mutex_unlock(&g->mutex);
         update_fps(&g->fgbox,fps);
         if (fwhm > 0) {                /* we have a valid measurement */
-          if (g->gmode != GMODE_SV) {
-            if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); /* v0402 */
+          if (g->gmode != GMODE_SV) {  /* {1,4} */
+            if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); // v0402
             else            sprintf(g->tcbox.text,"tc %5.0f",flux);
             CBX_UpdateEditWindow(&g->tcbox);
-            sprintf(g->mxbox.text,"mx %5.0f",ppix);
+            sprintf(g->mxbox.text,"mx %5.0f",ppix); // todo red>16000 ?Shec 
+            if ((ppix > 16000) && (!g->mx_flag)) { /* NEW v0411 */
+              g->mxbox.fg = app->red; g->mx_flag = 1;
+            } else 
+            if ((ppix < 16000) && ( g->mx_flag)) { 
+              g->mxbox.fg = app->black; g->mx_flag = 0;
+            }
             CBX_UpdateEditWindow(&g->mxbox);
             sprintf(g->bkbox.text,"bk %5.0f",back); 
             CBX_UpdateEditWindow(&g->bkbox);

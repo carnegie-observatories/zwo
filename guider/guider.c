@@ -55,7 +55,7 @@ void* run_guider(void* param)
   strcpy(g->bkbox.text,"bk"); CBX_UpdateEditWindow(&g->bkbox);
   strcpy(g->fwbox.text,"fw"); CBX_UpdateEditWindow(&g->fwbox);
 
-  switch (g->gmode) {                  /* plot title/scaling NEW v0404 */
+  switch (g->gmode) {                  /* plot title/scaling v0404 */
   case GMODE_PR: default:
     g->g_tc->eighth = g->g_fw->eighth = 0;
     strcpy(g->g_tc->name,"tc"); graph_scale(g->g_tc,0,10000,0); 
@@ -327,7 +327,7 @@ static void run_guider3(void* param)          /* v0350 */
 
 /* ---------------------------------------------------------------- */
 
-static void run_guider4(void* param)          /* NEW v0404 */
+static void run_guider4(void* param)          /* v0404 */
 {
   double t1,t2;
   double fit[4];
@@ -384,17 +384,17 @@ static void run_guider4(void* param)          /* NEW v0404 */
       fit[1] = cy;
       fit[2] = pk2 - fit[0];
       fit[3] = fwhm/(SQRLN22*g->px); /* sigma [pixels] */
-      g->q_flag = fit_profile4(pbuf,n,fit,3000); 
+      g->q_flag = fit_profile4(pbuf,n,fit,3000);
       back = fit[0]/(2*vrad+1);
       cy   = fit[1];
       flux = sqrt(2.0*M_PI)*fit[2]*fit[3];
       fwhm = SQRLN22*fit[3]*g->px;   /* FWHM [arcsec] */
-      if ((flux < n) || (fwhm < 0.2)) g->q_flag = 2; 
+      if ((flux < n) || (fwhm < 0.1)) g->q_flag = 2; 
 #if (DEBUG > 1)
       printf("back=%.0f, dy=%.1f, peak=%.1f, fwhm=%.3f, flux=%.0f\n",
              back,cy,fit[2],fwhm,flux);
 #endif
-      drx = calc_quad(vrad,1+(g->slitW/2),fit[3],1);
+      drx = calc_quad(vrad,1+(g->slitW/2),fit[3],1); /* quadrant ratio */
       dx = rx/drx;
 #if (DEBUG > 1)
       printf("rx=%f, drx=%f, dx=%f\n",rx,drx,dx);
@@ -405,7 +405,7 @@ static void run_guider4(void* param)          /* NEW v0404 */
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
       if (g->q_flag < 2) {             /* ok fit */
-        g->dx = dx;                      /* [pixels] from fit NEW v0408 */
+        g->dx = dx;                      /* [pixels] from ratio NEW v0408 */
         g->dy = cy-gy;                   /* [pixels] from fit */
         g->flux = flux;
         g->ppix = ppix;

@@ -187,7 +187,9 @@ int fit_profile4(Pixel* x,int n,double* a,int itmax)
 
   for (i=0; i<ndeg; i++) dcold[i] = 0.0;
   chi = chiold = get_chi1(x,n,a);
-  //show_a(a,ndeg); printf(" chi=%f\n",chi); 
+#if (DEBUG > 0) //xxx1
+  show_a(a,ndeg); printf(" chi=%.1e\n",chi); 
+#endif
 
   for (it=1; it<=itmax; it++) {
     for (i=0; i<ndeg; i++) {
@@ -205,7 +207,7 @@ int fit_profile4(Pixel* x,int n,double* a,int itmax)
           if (da[i] < alim[i]) conv++;
         }
       } else 
-      if (dc[i]*dcold[i] < 0) {                  /* change of sign */
+      if (dc[i]*dcold[i] < 0) {        /* change of sign */
         if (da[i] >= alim[i]) {
           da[i] *= 0.3;  // printf("TURN(%d)\n",i);
           if (da[i] < alim[i]) conv++;
@@ -217,7 +219,7 @@ int fit_profile4(Pixel* x,int n,double* a,int itmax)
     for (i=0,sumdc=0; i<ndeg; i++) sumdc += fabs(dc[i]);
     if (sumdc > 0) {
       for (i=0; i<ndeg; i++) {         /* apply weighted change */
-        a[i] -= 2.0*da[i]*(dc[i]/sumdc);
+        a[i] -= 2.0*da[i]*(dc[i]/sumdc);  /* TODO avoid a[i]<0 */
       }
     }
     chi = get_chi1(x,n,a);
@@ -225,8 +227,8 @@ int fit_profile4(Pixel* x,int n,double* a,int itmax)
     chiold = chi;
     if (conv == ndeg) break;
   }
-#if (DEBUG > 1)
-  show_a(a,ndeg); printf(" it=%d chiold=%.1f conv=%d (%d)\n",it,chi,conv,itmax);
+#if (DEBUG > 0) //xxx1
+  show_a(a,ndeg); printf(" old=%.1e it=%d conv=%d (%d)\n",chi,it,conv,itmax);
 #endif
 #if (TIME_TEST > 0)
   double t2 = walltime(0)-t1;

@@ -34,7 +34,7 @@
 int    sim_star=1,sim_slit=4;          /* NEW v0406 slitWidth=7 */
 int    sim_cx,sim_cy;                  /* NEW v0408 */
 double sim_peak=250.0;
-double sim_sig2=0.70*19.6*19.6/2.35482;
+double sim_sig2=0.70*18.9*18.9/2.35482;
 
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
@@ -444,10 +444,11 @@ static void* run_cycle(void* param)
               if ((x==sim_cx+1) && (y==sim_cy))   udata[p] = 0x1f00; 
               if ((x==sim_cx)   && (y==sim_cy+1)) udata[p] = 0x1f00;
 #endif
-#if 0 // TESTING -- gauss 
-              if ((x>=sim_cx-20) && (x<=sim_cx+20)) { 
+#if 1 // TESTING -- gauss xxx
+              static const int ww=30;
+              if ((x>=sim_cx-ww) && (x<=sim_cx+ww)) { 
                 if (abs(x-self->aoiW/2) < sim_slit) continue; /* blank out slit */
-                if ((y>=sim_cy-20) && (y<=sim_cy+20)) { 
+                if ((y>=sim_cy-ww) && (y<=sim_cy+ww)) { 
                   double r2 = ((x-sim_cx)*(x-sim_cx)+(y-sim_cy)*(y-sim_cy));
                   /* flux = 2*PI*peak*sig*sig */
                   /* flux = 1.133*peak*fw*fw */
@@ -455,6 +456,7 @@ static void* run_cycle(void* param)
 #if (DEBUG > 1)
                   debug_sum += f;
 #endif
+                  if (f > 0x3b00) f = 0x3b00; // NEW v0411
                   udata[p] += (f << 2);
                 }
               }

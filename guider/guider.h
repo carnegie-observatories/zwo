@@ -60,7 +60,7 @@ typedef struct guider_tag {
   ZwoStruct   *server;
   int         offx,offy;
   /* Guiding */
-  int         shmode,q_flag;
+  int         shmode,q_flag,mx_flag;
   u_int       sendNumber;
   float       px;                      /* eff. pixscale (incl. binning) */
   double      angle,elsign,rosign,parity;
