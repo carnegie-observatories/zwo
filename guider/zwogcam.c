@@ -326,7 +326,7 @@ int main(int argc,char **argv)
         break;
       case 'm':                        /* optical mode */
         if (optarg[0] == 'p') {        /* PFS slitviewer v0345 */
-          baseD=1200; baseB=2; baseI=600; pHIGH = 117; 
+          baseD=1200; baseB=2; baseI=600; pHIGH = 117;  // todo baseD=1000
           sGuider.angle  = -128.0; 
           sGuider.elsign = -1.0;
           sGuider.rosign =  0.0;

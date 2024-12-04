@@ -27,7 +27,7 @@ typedef struct {
 GraphWindow* graph_create(MainWindow*,Window,const char*,const char*,
                           int,int,int,int,int,int);
 int  graph_event (GraphWindow*,XEvent*);
-void graph_scale (GraphWindow*,float,float,int);
+void graph_scale (GraphWindow*,float,float,u_int);
 void graph_redraw(GraphWindow*);
 void graph_add   (GraphWindow*,int,double,int);
 void graph_add1  (GraphWindow*,double,int);

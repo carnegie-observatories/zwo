@@ -89,12 +89,14 @@ GraphWindow* graph_create(MainWindow* mw,Window parent,const char* fn,
 
 /* ---------------------------------------------------------------- */
 
-void graph_scale(GraphWindow* g,float vmin,float vmax,int half)
+void graph_scale(GraphWindow* g,float vmin,float vmax,u_int flag) //xxxyyy
 {
   pthread_mutex_lock(&g->lock);
   g->vmin = vmin;
   g->vmax = vmax;
-  g->half = half;                      /* show dashed line at 0.5 */
+  g->half = (flag & 0x01) ? 1 : 0;     /* show dashed line at 0.5 */
+  g->quarter = (flag & 0x02) ? 1 : 0;  /* show dashed line at 1/4 */
+  g->eighth = (flag & 0x04) ? 1 : 0;   /* show dashed line at 1/8 */
   pthread_mutex_unlock(&g->lock);
   graph_redraw(g);
 }

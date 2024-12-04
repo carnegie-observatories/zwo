@@ -285,7 +285,7 @@ static void run_guider1(void* param)
 static void run_guider3(void* param)          /* v0350 */
 {
   double t1,t2,last;
-  double dx=0,dy=0,azerr,elerr;
+  double dx=0,dy=0,azerr,elerr,flux;
   int    ix,iy;
   u_int  seqNumber=0,counter=0;
   Guider *g = (Guider*)param;
@@ -300,7 +300,7 @@ static void run_guider3(void* param)          /* v0350 */
       seqNumber = frame->seqNumber;
       ix = (int)my_round(qltool->curx[QLT_BOX],0);
       iy = (int)my_round(qltool->cury[QLT_BOX],0);
-      get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&dx,&dy);
+      get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&dx,&dy,&flux); //xxx todo rx,ry
       zwo_frame_release(server,frame);
       t2 = walltime(0);
       pthread_mutex_lock(&g->mutex);
@@ -344,7 +344,7 @@ static void run_guider4(void* param)          /* v0404 */
   double t1,t2;
   double fit[4];
   double dx=0,dy=0,rx,ry,ody=0,ddy,odx=0,ddx,drx,gx,gy,azerr,elerr;
-  double back,fwhm=0,flux,cy=0;
+  double back,fwhm=0,flux,cy=0,scale;
   int    ix,iy,vrad=0,ppix,v;
   u_int  seqNumber=0;
   Guider *g = (Guider*)param;
@@ -386,10 +386,9 @@ static void run_guider4(void* param)          /* v0404 */
         n++;
       } 
       assert(n <= npix);
-      //xxxyyy need measured L R
-      back = get_quads(frame->data,frame->w,frame->h,ix,iy,vrad,&rx,&ry);
+      back = get_quads(frame->data,frame->w,frame->h,ix,iy,vrad,&rx,&ry,&flux);
 #if (DEBUG > 1)
-      printf("\nb=%.0f rx=%.3f p=%.0f,%.0f,%.0f\n",back,rx,pk1,pk2,pk3);
+      printf("\nb=%.0f rx=%.3f flux=%.0f p=%.0f,%.0f,%.0f\n",back,rx,flux,pk1,pk2,pk3);
 #endif
       if ((fwhm <= 0) || (g->q_flag > 1)) fwhm = 0.7;  /* default [arcsec] */
       if ((cy <= 0) || (g->q_flag > 1)) cy = iy;
@@ -400,17 +399,19 @@ static void run_guider4(void* param)          /* v0404 */
       g->q_flag = fit_profile4(pbuf,n,fit,3000);
       back = fit[0]/(2*vrad+1);
       cy   = fit[1];
-      flux = sqrt(2.0*M_PI)*fit[2]*fit[3]; // todo
+      // double flx = sqrt(2.0*M_PI)*fit[2]*fit[3]; /* use (L+R)*scale */
       fwhm = SQRLN22*fit[3]*g->px;   /* FWHM [arcsec] */
       if ((flux < n) || (fwhm < 0.1)) g->q_flag = 2; /* safety net */
 #if (DEBUG > 1)
-      printf("back=%.0f, dy=%.1f, peak=%.1f, fwhm=%.3f, flux=%.0f\n",
-             back,cy,fit[2],fwhm,flux);
+      printf("back=%.0f, dy=%.1f, peak=%.1f, fwhm=%.3f, flx=%.0f\n",
+             back,cy,fit[2],fwhm,flx);
 #endif
-      drx = calc_quad(vrad,1+(g->slitW/2),fit[3],1); /* quadrant ratio */
+      drx = calc_quad(vrad,g->slitW,fit[3],1.0,NULL); /* quadrant ratio */
       dx = rx/drx;
+      (void)calc_quad(vrad,g->slitW,fit[3],0,&scale); /* scale factor */
+      flux *= scale;                   /* NEW v0413 */
 #if (DEBUG > 1)
-      printf("rx=%f, drx=%f, dx=%f\n",rx,drx,dx);
+      printf("rx=%f, drx=%f, dx=%f, sf=%f\n",rx,drx,dx,scale);
 #endif
       zwo_frame_release(server,frame);
       pthread_mutex_lock(&g->mutex);
@@ -418,13 +419,13 @@ static void run_guider4(void* param)          /* v0404 */
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
       if (g->q_flag < 2) {             /* ok fit */
-        g->dx = dx;                      /* [pixels] from ratio NEW v0408 */
-        g->dy = cy-gy;                   /* [pixels] from fit */
-        g->flux = flux; // todo scale xxx
+        g->dx = dx;                    /* [pixels] from ratio NEW v0408 */
+        g->dy = cy-gy;                 /* [pixels] from fit */
+        g->flux = flux;
         g->ppix = ppix;
         g->back = back;
         g->fwhm = fwhm;
-        if (qltool->guiding < 0) graph_scale(g->g_tc,0,1.333*flux,0);
+        if (qltool->guiding < 0) graph_scale(g->g_tc,0,1.333*flux,0x07); //yyyzzz
         graph_add1(g->g_tc,flux,0); 
         graph_add1(g->g_fw,fwhm,0);
         graph_add1(g->g_az,g->dx*g->px,0); /* [arcsec] */

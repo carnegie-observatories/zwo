@@ -1477,7 +1477,7 @@ double get_fwhm(u_short *data,int dimx,int dimy,int x0,int y0,int r,
 /* --- */
 
 double get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
-              double *rx,double* ry)
+              double *rx,double* ry,double *flux)
 {
   int    x,y;
   double xp=0,yp=0,xm=0,ym=0,v;
@@ -1485,10 +1485,12 @@ double get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
   if ((x0-r<0) || (x0+r>=dimx) || (y0-r<0) || (y0+r>=dimy)) return -1;
 
   double b = get_background(data,dimx,dimy,x0,y0,r,NULL);
+  *flux = 0.0;
   for (x=x0-r; x<=x0+r; x++) { 
     if (x == x0) continue;
     for (y=y0-r; y<=y0+r; y++) {   
       v = (double)data[x+y*dimx]-b; if (v < 0) continue;
+      *flux += v;                      /* L+R */
       if (x > x0) xp += v;
       else        xm += v;
       if (y > y0) yp += v;
@@ -1504,36 +1506,24 @@ double get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
 
 /* --- */
 
-double calc_quad(int vrad,int sw,double sig,int dx) /* NEW v0409 */
+double calc_quad(int vrad,int sw,double sig,double dx,double *sf) /* v0409 */
 {
-  int xx,yy,y2;
-  double xp=0,xm=0,sig2=2.0*sig*sig,f; 
+  int xx,yy;
+  double xp=0,xm=0,xc=0,sig2=2.0*sig*sig,y2,f; 
 
+  int swL = -sw/2;
+  int swR =  sw/2;
+  if (!(sw % 2)) swR -= 1; 
   for (yy=-vrad; yy<=vrad; yy++) { 
-    y2 = yy*yy;
-    for (xx=-vrad; xx<=-sw; xx++) {
-      xm += exp(-((xx-dx)*(xx-dx)+y2)/sig2);
-    }
-    for (xx=sw; xx<=vrad; xx++) { 
-      xp += exp(-((xx-dx)*(xx-dx)+y2)/sig2); 
-    }
-  }
-  double xb=0,xn=0,xc=0;  //xxxyyy todo
-  //dx = 0; //xxx we need dx=1
-  for (yy=-vrad; yy<=vrad; yy++) { 
-    y2 = yy*yy;
+    y2 = (double)(yy*yy);
     for (xx=-vrad; xx<=vrad; xx++) {
-      f = exp(-((xx-dx)*(xx-dx)+y2)/sig2);
-      if      (xx <= -sw) xn += f;
-      else if (xx >=  sw) xb += f;
-      else                xc += f;
+      f = exp(-(((double)xx-dx)*((double)xx-dx)+y2)/sig2);
+      if      (xx < swL) xm += f;
+      else if (xx > swR) xp += f;
+      else               xc += f;
     }
   }
-  assert(fabs(xb-xp) < 1.0e-6); 
-  assert(fabs(xm-xn) < 1.0e-6); 
-  double s1 = (xn+xb+xc)/(xn+xb);  //xxx dependence on 'dx' 
-  double s2 = (2.0*M_PI*1.0*sig*sig)/(xm+xp);
-  printf("scale= %f %f\n",s1,s2); //xxx
+  if (sf) *sf = (xm+xp+xc)/(xm+xp);    /* scale factor NEW v0413 */
 
   return (xp-xm)/(xp+xm);
 }
