@@ -35,6 +35,7 @@
 
 static void run_guider1(void*);
 static void run_guider3(void*);
+static void run_guider4(void*);
 
 /* ---------------------------------------------------------------- */
 
@@ -45,12 +46,30 @@ void* run_guider(void* param)
   Guider *g = (Guider*)param;
 
   g->fps = 1.0/g->status.exptime;
-  g->fwhm = 1;
+  g->fwhm = 1;                         /* just a flag here */
   g->q_flag = 0;
   strcpy(g->tcbox.text,"tc"); CBX_UpdateEditWindow(&g->tcbox); 
   strcpy(g->mxbox.text,"mx"); CBX_UpdateEditWindow(&g->mxbox);
   strcpy(g->bkbox.text,"bk"); CBX_UpdateEditWindow(&g->bkbox);
   strcpy(g->fwbox.text,"fw"); CBX_UpdateEditWindow(&g->fwbox);
+#if 1 //xxx
+  if (g->qltool->guiding > 0) sprintf(g->gdbox.text,"gd move");
+  else                        sprintf(g->gdbox.text,"gd calc");
+  CBX_UpdateEditWindow(&g->gdbox);
+#endif
+
+  switch (g->gmode) {                  /* plot title/scaling NEW v0404 */
+  case GMODE_PR: default:
+    g->g_tc->eighth = g->g_fw->eighth = 0;
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_tc,0,10000,0); 
+    strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0); 
+    break;
+  case GMODE_SV: case GMODE_SV4:  // todo temporary ? remove ?
+    g->g_tc->eighth = g->g_fw->eighth = 1;
+    strcpy(g->g_tc->name,"dx"); graph_scale(g->g_tc,-0.4,0.4,0); 
+    strcpy(g->g_fw->name,"dy"); graph_scale(g->g_fw,-0.2,0.2,0); 
+    break;
+  }
 
   err = telio_open(2);                 /* v0310 */
   if (err) {
@@ -67,11 +86,14 @@ void* run_guider(void* param)
   }
 
   switch (g->gmode) {
-  case 1:
+  case GMODE_PR:
     run_guider1(g);
     break;
-  case 3:
+  case GMODE_SV:
     run_guider3(g);
+    break;
+  case GMODE_SV4:
+    run_guider4(g);
     break;
   default:   // todo ?Povilas
     message(g,"invalid guider mode",MSS_WARN);
@@ -84,6 +106,7 @@ void* run_guider(void* param)
   if (tcsOpen) telio_close();
 
   sprintf(g->fgbox.text,"%d",0); CBX_UpdateEditWindow(&g->fgbox);
+  sprintf(g->gdbox.text,"gd  off"); CBX_UpdateEditWindow(&g->gdbox);
   printf("%s(%s) -- stopped)\n",PREFUN,g->name);
 
   return (void*)0;
@@ -91,7 +114,7 @@ void* run_guider(void* param)
 
 /* ---------------------------------------------------------------- */
 
-void run_guider1(void* param)
+static void run_guider1(void* param)
 {
   double t1,t2;
   double cx,cy,gx,gy,dx=0,dy=0,fwhm=0,back,flux,peak;
@@ -166,7 +189,7 @@ void run_guider1(void* param)
         fit[0] = back;
         fit[1] = cx;
         fit[2] = cy;
-       // not used fit[3] = flux;
+        // not used fit[3] = flux;
         fit[4] = fwhm/2.35482;         /* sigma [pixels] */
         fit[5] = peak;
         int itmax = 50+(int)(400.0*g->status.exptime);
@@ -255,26 +278,15 @@ void run_guider1(void* param)
 
 /* ---------------------------------------------------------------- */
 
-void run_guider3(void* param)          /* v0350 */
+static void run_guider3(void* param)          /* v0350 */
 {
   double t1,t2,last;
-  double gx,gy,dx=0,dy=0,azerr,elerr;
+  double dx=0,dy=0,azerr,elerr;
   int    ix,iy;
   u_int  seqNumber=0,counter=0;
   Guider *g = (Guider*)param;
   QlTool *qltool = g->qltool;
   ZwoStruct *server = g->server;
-
-#if 1 //xxx temporary plot
-  g->g_tc->eighth = g->g_fw->eighth = 1;
-  graph_scale(g->g_tc,-0.4,0.4,0);  // dx 
-  graph_scale(g->g_fw,-0.2,0.2,0);  // dy
-#endif
-
-  gx = my_round(qltool->curx[QLT_BOX],1);  /* 0.1 pixel resolution */
-  gy = my_round(qltool->cury[QLT_BOX],1);
-  ix = (int)my_round(gx,0);
-  iy = (int)my_round(gy,0);
 
   last = t1 = walltime(0);
   while (g->loop_running && qltool->guiding) {
@@ -282,17 +294,9 @@ void run_guider3(void* param)          /* v0350 */
     ZwoFrame *frame = zwo_frame4reading(server,seqNumber);
     if (frame) {
       seqNumber = frame->seqNumber;
-      assert(g->gmode == GMODE_SV);
+      ix = (int)my_round(qltool->curx[QLT_BOX],0);
+      iy = (int)my_round(qltool->cury[QLT_BOX],0);
       get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&dx,&dy);
-#if 1 // todo move up ?
-      double ggx = my_round(qltool->curx[QLT_BOX],1);
-      double ggy = my_round(qltool->cury[QLT_BOX],1);
-      if ((gx != ggx) || (gy != ggy)) {
-        gx = ggx; gy = ggy;
-        printf("telescope dragging (%f,%f) !!!!\n",gx,gy);
-        ix = (int)my_round(gx,0); iy = (int)my_round(gy,0);
-      }
-#endif
       zwo_frame_release(server,frame);
       t2 = walltime(0);
       pthread_mutex_lock(&g->mutex);
@@ -300,12 +304,12 @@ void run_guider3(void* param)          /* v0350 */
       t1 = t2;
       g->dx = dx;                      /* use as criterion if we */
       g->dy = dy;                      /* should send a correction */
-#if 1 // xxx temporary plot
+#if 1 // xxx temporary plot todo ? remove ?
       graph_add1(g->g_tc,dx,1); 
       graph_add1(g->g_fw,dy,1);
 #endif
-      dx = ((dx > 0) ? 0.1 : -0.1) / (g->px); // TODO remove 'px' here and 
-      dy = ((dy > 0) ? 0.1 : -0.1) / (g->px); // below at 'rotate'
+      dx = ((dx > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
+      dy = ((dy > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
       counter++;                       /* only every 'av' frames or 5 seconds */
       if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) { 
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
@@ -325,6 +329,90 @@ void run_guider3(void* param)          /* v0350 */
       }
       g->update_flag = True;           /* update GUI */
       pthread_mutex_unlock(&g->mutex);
+    } // endif(frame)
+  } // endwhile(loop-doing && guiding)
+}
+
+/* ---------------------------------------------------------------- */
+
+static void run_guider4(void* param)          /* NEW v0404 */
+{
+  //double t1,t2,last;
+  double dx=0,dy=0; // ,azerr,elerr;
+  int    ix,iy,vrad=0;
+  u_int  seqNumber=0; // ,counter=0;
+  Guider *g = (Guider*)param;
+  QlTool *qltool = g->qltool;
+  ZwoStruct *server = g->server;
+  Pixel *pbuf=NULL;
+
+  //last = t1 = walltime(0);
+  while (g->loop_running && qltool->guiding) {
+    msleep(20);
+    ZwoFrame *frame = zwo_frame4reading(server,seqNumber);
+    if (frame) { int i=0,x,y,xx,yy,npix; double v,s,peak=0;
+      seqNumber = frame->seqNumber;
+      ix = (int)my_round(qltool->curx[QLT_BOX],0);
+      iy = (int)my_round(qltool->cury[QLT_BOX],0);
+      if (vrad != qltool->vrad) { 
+        vrad = qltool->vrad;
+        npix = 1+2*vrad;
+        pbuf = (Pixel*)realloc(pbuf,npix*sizeof(Pixel));
+      }
+      for (yy=-vrad; yy<=vrad; yy++) {
+        y = iy + yy;
+        if (y < 0) continue;
+        if (y >= frame->h) break;
+        for (xx=-vrad,s=0; xx<=vrad; xx++) {  
+          x = ix+xx;
+          if (x < 0) continue;
+          if (x >= frame->w) break;
+          v = (double)frame->data[x+y*frame->w]; if (v > peak) peak = v;
+          s += v;
+        }
+        pbuf[i].y = y;
+        pbuf[i].z = s;
+        i++;
+      }  //xxxyyyzzz
+      assert(i >= npix);
+      npix = i;
+      for (i=0; i<npix; i++) printf("%f\n",pbuf[i].z);
+
+      get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&dx,&dy);
+      zwo_frame_release(server,frame);
+#if 0 //xxx
+      t2 = walltime(0);
+      pthread_mutex_lock(&g->mutex);
+      g->fps = 0.8*g->fps + 0.2/(t2-t1);
+      t1 = t2;
+      g->dx = dx;                      /* use as criterion if we */
+      g->dy = dy;                      /* should send a correction */
+#if 1 // xxx temporary plot todo ? remove ?
+      graph_add1(g->g_tc,dx,1); 
+      graph_add1(g->g_fw,dy,1);
+#endif
+      dx = ((dx > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
+      dy = ((dy > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
+      counter++;                       /* only every 'av' frames or 5 seconds */
+      if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) { 
+        rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
+        graph_add1(g->g_az,azerr,0);
+        graph_add1(g->g_el,elerr,0);
+        counter = 0; last = walltime(0);
+        if ((fabs(g->dx) > 0.1) || (fabs(g->dy) > 0.05)) { /* v0355 */
+          g->azg = g->sens * azerr;
+          g->elg = g->sens * elerr;
+          qltool->guiding = abs(qltool->guiding);  
+          if ((qltool->guiding == 3) || (qltool->guiding == 5)) {
+            assert(g->gmode == 3);
+            if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg);  /* v0354 */
+            telio_aeg(g->azg,g->elg);
+          }
+        }
+      }
+      g->update_flag = True;           /* update GUI */
+      pthread_mutex_unlock(&g->mutex);
+#endif
     } // endif(frame)
   } // endwhile(loop-doing && guiding)
 }

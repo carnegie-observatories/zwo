@@ -103,7 +103,7 @@
 
 /* DEFINEs -------------------------------------------------------- */
 
-#define PA_BOX   // todo ?Shec
+#define PA_BOX
 
 #define P_TITLE         "GcamZwo"
 
@@ -113,6 +113,8 @@
 #define FMT_RUN         "run%d"
 #define DBE_PREFIX      "prefix"    
 #define DEF_PREFIX      "gdr"
+
+#define GM_MAX          4              /* NEW v0404 */
 
 #define DEF_HELP "http://instrumentation.obs.carnegiescience.edu/Software/ZWO"
 #if defined(MACOSX)
@@ -189,9 +191,8 @@ static Menu       opmenu;              /* options dropdown menu */
 static EditWindow utbox,rtbox;
 
 static Guider sGuider;                 /* singleton NEW v0.400 */
-static Guider *guiders[1];
-static int n_guiders=0;
-static char gcamHost[128];
+static Guider *guiders[1];             /* historical */
+static int n_guiders=0;                /* historical */
 
 static time_t next_disk=0;
 static time_t startup_time;
@@ -200,7 +201,7 @@ static float  elev=90,para=0;
 
 static int   baseD=1800,baseB=2,baseI=600;  /* default=ZWO todo 500 */
 static int   eWIDE,eHIGH,pHIGH=117;
-static int   wINFO;                    // NEW v0401
+static int   wINFO;                    /* NEW v0401 */
 static int   lSIZE=128;                /* NEW v0402 */
 static float pscale=0.02535f;  /* measured 20230113 Andor:6.5um, ZWO:2.32um */
 
@@ -267,7 +268,7 @@ int main(int argc,char **argv)
   int        sleeptime=0,winpos=CBX_TOPLEFT;
   int        x,y,w,h,d,tmode=0,err;
   char       buffer[1024],buf[128];
-  char       xserver[256];
+  char       xserver[256],gcamHost[128];
   XEvent     event;
   XSizeHints hint;
 
@@ -574,7 +575,7 @@ int main(int argc,char **argv)
     w = (wINFO-x-1*PXw)/2;
     h = pHIGH;
     d = w/2;
-    if (g->gmode == GMODE_SV) {  // todo ? mode4 has tc and fw
+    if (g->gmode >= GMODE_SV) {
       g->g_tc = graph_create(&mwin,g->win,fontname,"dx",x,y,w,h,1,d);
       g->g_tc->eighth = 1;
       graph_scale(g->g_tc,-0.4,0.4,0);  
@@ -583,7 +584,7 @@ int main(int argc,char **argv)
       graph_scale(g->g_tc,0,10000,0);
     }
     x = wINFO -w - PXw/3;
-    if (g->gmode == GMODE_SV) {   // todo ?
+    if (g->gmode >= GMODE_SV) {
       g->g_fw = graph_create(&mwin,g->win,fontname,"dy",x,y,w,h,1,d);
       g->g_fw->eighth = 1;
       graph_scale(g->g_fw,-0.2,0.2,0); 
@@ -1143,8 +1144,7 @@ static int handle_msmode(void* param,XEvent* event)
       if (!err) { double dx,dy,da,de;
         qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
-        assert(GMODE_SV == 3);         /* 3: move PR&SH */
-        err = telio_gpaer(g->gmode,-da,-de);
+        err = telio_gpaer(3,-da,-de);
         if (!err && (g->msmode < 0)) err = telio_aeg(da,de);
       }
       telio_close();
@@ -1400,7 +1400,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   if (!strcasecmp(cmd,"gm")) {         /* v0313 */
     if (*par1) {                       /* set 'gm' v0326 */
       int m = atoi(par1);
-      if ((m < 1) || (m > 3)) {
+      if ((m < 1) || (m > GM_MAX)) {
         message(g,"invalid guider mode",MSS_WARN);
       } else
       if (g->qltool->guiding) {        /* not while guiding v0349 */
@@ -1931,7 +1931,7 @@ static void* run_cycle(void* param)
         dt = (int)floor(tNow-tFrame);  /* time since last frame */
         if (dt > nodata) {
           message(g,"no data",MSS_WARN);
-          nodata *= 1.5;
+          nodata *= 1.5;               /* slow down warnings */
         }
       }
       if (g->update_flag) {            /* update GUI from guider */
@@ -1947,25 +1947,25 @@ static void* run_cycle(void* param)
         pthread_mutex_unlock(&g->mutex);
         update_fps(&g->fgbox,fps);
         if (fwhm > 0) {                /* we have a valid measurement */
-        if (g->gmode != GMODE_SV) {
-          if (flux > 99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); /* NEW v0402 */
-          else              sprintf(g->tcbox.text,"tc %5.0f",flux);
-          CBX_UpdateEditWindow(&g->tcbox);
-          sprintf(g->mxbox.text,"mx %5.0f",ppix);
-          CBX_UpdateEditWindow(&g->mxbox);
-          sprintf(g->bkbox.text,"bk %5.0f",back);
-          CBX_UpdateEditWindow(&g->bkbox);
-          sprintf(g->fwbox.text,"fw %5.2f",fwhm);
-          CBX_UpdateEditWindow(&g->fwbox);
-        } 
-          sprintf(g->dxbox.text,"dx %5.1f",dx); // %7.2f NEW v0400
+          if (g->gmode != GMODE_SV) {
+            if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); /* NEW v0402 */
+            else            sprintf(g->tcbox.text,"tc %5.0f",flux);
+            CBX_UpdateEditWindow(&g->tcbox);
+            sprintf(g->mxbox.text,"mx %5.0f",ppix);
+            CBX_UpdateEditWindow(&g->mxbox);
+            sprintf(g->bkbox.text,"bk %5.0f",back);
+            CBX_UpdateEditWindow(&g->bkbox);
+            sprintf(g->fwbox.text,"fw %5.2f",fwhm);
+            CBX_UpdateEditWindow(&g->fwbox);
+          } 
+          sprintf(g->dxbox.text,"dx %5.1f",dx); /* NEW v0400 */
           CBX_UpdateEditWindow(&g->dxbox);
           sprintf(g->dybox.text,"dy %5.1f",dy);
           CBX_UpdateEditWindow(&g->dybox);
-        if (g->gmode != GMODE_SV) {
-          graph_redraw(g->g_tc);
-          graph_redraw(g->g_fw);
-        }
+          if (g->gmode != GMODE_SV) {
+            graph_redraw(g->g_tc);
+            graph_redraw(g->g_fw);
+          }
           graph_redraw(g->g_az);
           graph_redraw(g->g_el);
         } /* endif(fwhm) */
@@ -2026,7 +2026,7 @@ static void* run_display(void* param)
       update_fps(&g->fdbox,fps);
       t1 = t2;
     } // endif(frame)
-    slpt = (throttle) ? 0.6*slpt + 0.4*slpt*(fps/throttle) : 0.02; /* v0066 */
+    slpt = (throttle) ? 0.6*slpt + 0.4*slpt*(fps/throttle) : 0.02;
     tmax = (throttle) ? 1.0/throttle : 0.35;
     slpt = fmax(0.02,fmin(tmax,fmax(slpt,g->status.exptime/3.0)));
     // printf("slpt=%.3f\n",slpt);
@@ -2270,7 +2270,7 @@ static void set_mm(Guider* g,int m)
       break;
     }
     break;
-  case GMODE_SV:                         /* SV guider */
+  case GMODE_SV: case GMODE_SV4:         /* SV guider */
     switch (m) {
     case 1: case -2: case 3:             /* allowed mouse modes */
       g->msmode = m;
@@ -2328,7 +2328,7 @@ static void set_sf(Guider* g,int s)    /* v0343 */
 
 static void set_gm(Guider* g,int m,char c)  /* v0354 */
 {
-  g->gmode = imax(1,imin(3,m));
+  g->gmode = imax(1,imin(GM_MAX,m));
   if (c) g->gmpar = (c == 'p') ? 'p' : 't';
   if (g->gmode == 3) sprintf(g->gmbox.text,"gm %1d%c",g->gmode,g->gmpar);
   else               sprintf(g->gmbox.text,"gm %2d",g->gmode);

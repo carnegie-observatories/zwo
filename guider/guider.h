@@ -17,7 +17,9 @@
 
 void* run_guider(void* param);
 
-enum guider_modes_enum { GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV };
+enum guider_modes_enum { 
+  GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV,GMODE_SV4
+};
 
 /* ---------------------------------------------------------------- */
 
@@ -25,7 +27,7 @@ typedef struct guider_tag {
   int           gnum,gmode;            /* v0313 */
   char          gmpar;                 /* v0354 */
   int           fmode;                 /* v0329 */
-  char          name[32];  // todo unused ?
+  char          name[32];
   FITSpars      status;
   volatile Bool loop_running,house_running;
   volatile Bool stop_flag;

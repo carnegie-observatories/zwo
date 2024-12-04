@@ -46,7 +46,7 @@ enum lookup_tables {LUT_GREY, LUT_INV, LUT_RAIN, LUT_BBDY};
 
 enum scaling_modes { SCALE_CUTS,SCALE_MED,SCALE_MIMA,SCALE_SPAN };
 
-enum guider_modes_enum { GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV }; // TODO duplicate
+enum guider_modes_enum { GMODE_NONE,GMODE_PR,GMODE_SH,GMODE_SV }; // TODO duplicate xxxyyy
 
 /* INCLUDEs ------------------------------------------------------- */
 
@@ -1014,7 +1014,7 @@ static void do_lupe24(QlTool* qlt)
     int x2 = xc + qlt->vrad*lmag;
     int y1 = yc - qlt->vrad*lmag;
     int y2 = yc + qlt->vrad*lmag;
-    if (qlt->gmode == GMODE_SV) {      /* guide-cross v0348 */
+    if (qlt->gmode >= GMODE_SV) {      /* guide-cross v0348 xxxyyy */
       draw_cross(lupe,lgrey,qlt->lWIDE,qlt->lHIGH,xc,yc,
                  2*qlt->vrad*lmag,2*qlt->vrad*lmag);
     } else {                           /* guide-box */
@@ -1503,6 +1503,10 @@ int get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
 
   return 0;
 }
+
+/* ---------------------------------------------------------------- */
+
+//xxxyyy fit y
 
 
 /* ---------------------------------------------------------------- */
