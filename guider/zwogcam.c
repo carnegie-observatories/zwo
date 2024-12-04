@@ -170,9 +170,6 @@ typedef struct gcam_header_tag {
 
 Application *app;
 char logfile[512];
-int eWIDE,eHIGH,pHIGH=116;
-int wINFO;                             // NEW v0401
-int lSIZE=128;                         /* NEW v0402 */
 int showMagPix=0;                      /* v0323 NOTE: singleton */
 
 /* function prototype(s) */
@@ -202,6 +199,9 @@ static int    pa_interval=30;
 static float  elev=90,para=0;
 
 static int   baseD=1800,baseB=2,baseI=600;  /* default=ZWO todo 500 */
+static int   eWIDE,eHIGH,pHIGH=117;
+static int   wINFO;                    // NEW v0401
+static int   lSIZE=128;                /* NEW v0402 */
 static float pscale=0.02535f;  /* measured 20230113 Andor:6.5um, ZWO:2.32um */
 
 static const Bool require_control_key=True; // IDEA allow False
@@ -322,11 +322,8 @@ int main(int argc,char **argv)
         sGuider.parity = atof(optarg);
         break;
       case 'm':                        /* optical mode */
-        if (optarg[0] == 'z') {        /* ZWO (default) */
-          baseD=1800; baseB=2; baseI=600; pHIGH = 116; 
-        } else 
         if (optarg[0] == 'p') {        /* PFS v0345 */
-          baseD=1200; baseB=2; baseI=600; pHIGH = 116; 
+          baseD=1200; baseB=2; baseI=600; pHIGH = 117; 
           sGuider.angle  = -128.0; 
           sGuider.elsign = -1.0;
           sGuider.rosign =  0.0;
@@ -334,17 +331,20 @@ int main(int argc,char **argv)
           sGuider.offx=-10; sGuider.offy=85; /* v0355 */
           sGuider.gnum = 3;            /* == default 'gmode' */
         } else 
-        if (optarg[0] == '2') {
-          baseD=2048; baseB=2; baseI=512; pHIGH = 88;
-        } else
         if (optarg[0] == '1') {
-          baseD=2048; baseB=1; baseI=512; pHIGH = 88;
+          baseD=1000; baseB=2; baseI=500; pHIGH = 82;
         } else
         if (optarg[0] == '5') {
+          baseD=1512; baseB=2; baseI=504; pHIGH = 87; /* mod3 & mod8 */
+        } else
+        if (optarg[0] == '2') {
           baseD=2000; baseB=2; baseI=500; pHIGH = 82;
+        } else
+        if (optarg[0] == 'h') {        /* avoid mask confusion using */
+          baseD=2048; baseB=1; baseI=512; pHIGH = 88; /* geometry */
         } else 
         if (optarg[0] == 'f') {        /* full */
-          baseD=2400; baseB=2; baseI=600; pHIGH = 116;
+          baseD=2400; baseB=2; baseI=600; pHIGH = 117;
         }
         break;
       case 'o':                        /* offset v0348 */
@@ -377,7 +377,7 @@ int main(int argc,char **argv)
   wINFO = lSIZE+4+PXw/3+39*PXw;
   if (vertical) wINFO = imax(wINFO,baseI+6);
   eWIDE = wINFO + ((vertical) ? 2 : baseI+6);
-  eHIGH = baseI+6 + ((vertical) ? pHIGH+30*PXh+PXh/3 : 0); 
+  eHIGH = baseI+6 + ((vertical) ? pHIGH+30*PXh+3 : 0); 
 
   InitRandom(0,0,0);                   /* QlTool uses Random */
 

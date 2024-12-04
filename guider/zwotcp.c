@@ -438,11 +438,11 @@ static void* run_cycle(void* param)
               if ((x==901) && (y==900)) udata[p] = 0x1f00; 
               if ((x==900) && (y==901)) udata[p] = 0x1f00;
 #endif
-#if 1 // TESTING -- gauss xxx
+#if 0 // TESTING -- gauss
               int cx=self->aoiW/2,cy=self->aoiH/2; /* v0348 */
               double pk=500.0*self->expTime;
               if ((x>=cx-20) && (x<=cx+20)) { 
-                 if (fabs(x-cx) > 3) { /* blank out slit */
+                //if (fabs(x-cx) <= 3) continue; /* blank out slit */
                 if ((y>=cy-20) && (y<=cy+20)) { 
                   double r2 = ((x-cx)*(x-cx)+(y-cy)*(y-cy));
                   /* flux = 2*PI*peak*sig*sig */
@@ -452,7 +452,6 @@ static void* run_cycle(void* param)
                   debug_sum += f;
 #endif
                   udata[p] += (f << 2);
-                 }
                 }
               }
 #endif

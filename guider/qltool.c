@@ -33,7 +33,6 @@
 /* X-DEFINEs ------------------------------------------------------ */
 
 extern int PXh;
-extern int gWIDE,pHIGH;
 extern int showMagPix;
 
 #define PXw         (10+(PXh-14)/2)
