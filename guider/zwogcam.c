@@ -330,7 +330,7 @@ int main(int argc,char **argv)
           sGuider.rosign =  0.0;
           sGuider.parity = -1.0;      /* v0351 */
           sGuider.offx=-10; sGuider.offy=85; /* v0355 */
-          sGuider.gnum = 3;            /* == default 'gmode' */
+          sGuider.gnum = 4;            /* == default 'gmode' xxxyyy */
         } else 
         if (optarg[0] == '1') {
           baseD=1000; baseB=2; baseI=500; pHIGH = 82;
@@ -1951,9 +1951,9 @@ static void* run_cycle(void* param)
             if (flux>99999) sprintf(g->tcbox.text,"tc %4.0fk",flux/1000.0); /* NEW v0402 */
             else            sprintf(g->tcbox.text,"tc %5.0f",flux);
             CBX_UpdateEditWindow(&g->tcbox);
-            sprintf(g->mxbox.text,"mx %5.0f",ppix);
+            sprintf(g->mxbox.text,"mx %5.0f",ppix); //xxx depends on gmode
             CBX_UpdateEditWindow(&g->mxbox);
-            sprintf(g->bkbox.text,"bk %5.0f",back);
+            sprintf(g->bkbox.text,"bk %5.0f",back); //xxx depends 
             CBX_UpdateEditWindow(&g->bkbox);
             sprintf(g->fwbox.text,"fw %5.2f",fwhm);
             CBX_UpdateEditWindow(&g->fwbox);

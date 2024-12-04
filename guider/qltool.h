@@ -76,6 +76,7 @@ void    qltool_lut(QlTool*,const char*);
 void    qltool_scale(QlTool*,const char*,const char*,const char*);
 void    qltool_lmag(QlTool*,int);
 
+double get_background(u_short*,int,int,int,int,int,double*);
 double get_fwhm(u_short*,int,int,int,int,int,double,double,
                 double*,double*,double*,double*,double*);
 int    get_quads(u_short*,int,int,int,int,int,double*,double*);

@@ -103,7 +103,7 @@ static u_short circle             (int,double,double,int);
 static u_short linear             (int,double,double,int);
 static void    create_image       (QlTool*,int,int,void*);
 
-static double  get_background     (u_short*,int,int,int,int,int,double*);
+//     double  get_background     (u_short*,int,int,int,int,int,double*);
 static double  get_centroid       (u_short*,int,int,int,int,int,double,
                                            double*,double*);
 static void    update_cursor(QlTool*,int);
@@ -1506,12 +1506,7 @@ int get_quads(u_short* data,int dimx,int dimy,int x0,int y0,int r,
 
 /* ---------------------------------------------------------------- */
 
-//xxxyyy fit y
-
-
-/* ---------------------------------------------------------------- */
-
-static double get_background(u_short* data,int dimx,int dimy,int x0,int y0,
+double get_background(u_short* data,int dimx,int dimy,int x0,int y0,
                              int r,double* noise)
 {
   int     r2,n=0,x,y;

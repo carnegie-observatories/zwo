@@ -179,12 +179,12 @@ static void run_guider1(void* param)
             if (y < 0) continue;
             if (y >= frame->h) break;
             pbuf[i].x = x;
-            pbuf[i].y = y;
+            pbuf[i].y = y; //xxx todo use 2nd highest pixel -- cosmic
             v = frame->data[x+y*frame->w]; if (v > ppix) ppix = v;
             pbuf[i].z = (double)v;
             i++;
           }
-        }
+        } //zzz
         assert(i <= npix);
         fit[0] = back;
         fit[1] = cx;
@@ -192,9 +192,10 @@ static void run_guider1(void* param)
         // not used fit[3] = flux;
         fit[4] = fwhm/2.35482;         /* sigma [pixels] */
         fit[5] = peak;
-        int itmax = 50+(int)(400.0*g->status.exptime);
+        int itmax = 50+(int)(400.0*g->status.exptime); // todo fixed at 400
+        itmax = 400;
         int it = ccbphot(pbuf,i,fit,itmax);
-        // printf("it=%d (%d)\n",it,itmax); 
+        printf("it=%d (%d)\n",it,itmax);  //xxx
         g->q_flag = (it > itmax) ? 1 : 0;
         back = fit[0];
         dx   = fit[1];
@@ -337,69 +338,103 @@ static void run_guider3(void* param)          /* v0350 */
 
 static void run_guider4(void* param)          /* NEW v0404 */
 {
-  //double t1,t2,last;
-  double dx=0,dy=0; // ,azerr,elerr;
+  double t1,t2,last;
+  double fit[5];
+  double dx=0,dy=0,azerr,elerr;
+  double back,fwhm=0,flux,peak,cy=0;
   int    ix,iy,vrad=0;
-  u_int  seqNumber=0; // ,counter=0;
+  u_int  seqNumber=0,counter=0;
   Guider *g = (Guider*)param;
   QlTool *qltool = g->qltool;
   ZwoStruct *server = g->server;
   Pixel *pbuf=NULL;
 
-  //last = t1 = walltime(0);
+  last = t1 = walltime(0);
   while (g->loop_running && qltool->guiding) {
     msleep(20);
     ZwoFrame *frame = zwo_frame4reading(server,seqNumber);
-    if (frame) { int i=0,x,y,xx,yy,npix; double v,s,peak=0;
+    if (frame) { int i=0,x,y,xx,yy,npix; double s,pk1=0,pk2=0,pk3=0;
       seqNumber = frame->seqNumber;
-      ix = (int)my_round(qltool->curx[QLT_BOX],0);
+      ix = (int)my_round(qltool->curx[QLT_BOX],0); //xxxyyy gx,gy
       iy = (int)my_round(qltool->cury[QLT_BOX],0);
       if (vrad != qltool->vrad) { 
         vrad = qltool->vrad;
         npix = 1+2*vrad;
         pbuf = (Pixel*)realloc(pbuf,npix*sizeof(Pixel));
       }
-      for (yy=-vrad; yy<=vrad; yy++) {
+      for (yy=-vrad; yy<=vrad; yy++) { /* get profile along y-axis */
         y = iy + yy;
         if (y < 0) continue;
         if (y >= frame->h) break;
-        for (xx=-vrad,s=0; xx<=vrad; xx++) {  
+        for (xx=-vrad,s=0; xx<=vrad; xx++) {   /* add pixels along x-axis */
           x = ix+xx;
           if (x < 0) continue;
           if (x >= frame->w) break;
-          v = (double)frame->data[x+y*frame->w]; if (v > peak) peak = v;
-          s += v;
+          s += (double)frame->data[x+y*frame->w]; 
         }
         pbuf[i].y = y;
         pbuf[i].z = s;
+        if      (s > pk1) { pk3 = pk2; pk2 = pk1; pk1 = s; }  // xxx todo use @guider1
+        else if (s > pk2) { pk3 = pk2; pk2 = s; }
+        else if (s > pk3) { pk3 = s; }
         i++;
       }  //xxxyyyzzz
-      assert(i >= npix);
-      npix = i;
-      for (i=0; i<npix; i++) printf("%f\n",pbuf[i].z);
+      assert(i <= npix);
+      get_quads(frame->data,frame->w,frame->h,ix,iy,vrad,&dx,&dy); //xxx get back
+      back = (2*vrad+1)*get_background(frame->data,frame->w,frame->h,ix,iy,vrad,NULL);
+      printf("back=%.0f, peak=%.0f,%.0f,%.0f\n",back,pk1,pk2,pk3);
+      peak = pk2-back; // todo
+      if (fwhm <= 0) fwhm = 0.7/g->px;
+      else           fwhm /= g->px;
+      if (cy <= 0) cy = iy;
 
-      get_quads(frame->data,frame->w,frame->h,ix,iy,qltool->vrad,&dx,&dy);
+        assert(i <= npix);
+        fit[0] = back;
+        fit[1] = cy;
+        fit[2] = fwhm/2.35482;         /* sigma [pixels] */
+        fit[3] = peak; //xxx todo 
+        int itmax = 50+(int)(400.0*g->status.exptime); // todo fixed at 800
+        itmax = 20000;
+        int it = ccbprofile(pbuf,i,fit,itmax);
+        printf("it=%d (%d)\n",it,itmax);  //xxx todo q_flag
+        g->q_flag = (it > itmax) ? 1 : 0;
+        back = fit[0];
+        cy   = fit[1];
+        flux = fit[2];
+        fwhm = fit[3] * g->px;         /* FWHM [arcsec] */
+        peak = fit[4];
+#if (DEBUG > 0) //xxx1
+        printf("back=%.1f, dy=%.1f, peak=%.1f, fwhm=%.3f, flux=%.0f\n",
+               back,cy,peak,fwhm/g->px,flux);
+#endif
+
+
       zwo_frame_release(server,frame);
-#if 0 //xxx
       t2 = walltime(0);
       pthread_mutex_lock(&g->mutex);
       g->fps = 0.8*g->fps + 0.2/(t2-t1);
       t1 = t2;
       g->dx = dx;                      /* use as criterion if we */
-      g->dy = dy;                      /* should send a correction */
+      g->dy = cy-iy;                /* xxxyyy todo gy */
+      //xxx g->dx = (dx-gx);
+      //xxx g->dy = (dy-gy);
+      g->flux = flux;
+      // g->ppix = (double)peak; //xxx
+      //xxx g->back = back;
+      g->fwhm = fwhm;
 #if 1 // xxx temporary plot todo ? remove ?
-      graph_add1(g->g_tc,dx,1); 
-      graph_add1(g->g_fw,dy,1);
+      graph_add1(g->g_tc,g->dx,1); 
+      graph_add1(g->g_fw,g->dy,1);
 #endif
       dx = ((dx > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
-      dy = ((dy > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] */
+      dy = cy-iy; // ((dy > 0) ? 0.1 : -0.1) / (g->px); /* [arcsec] xxxyyy */
       counter++;                       /* only every 'av' frames or 5 seconds */
       if ((counter > server->rolling) && ((walltime(0)-last) >= 5.0)) { 
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&azerr,&elerr);
         graph_add1(g->g_az,azerr,0);
         graph_add1(g->g_el,elerr,0);
         counter = 0; last = walltime(0);
-        if ((fabs(g->dx) > 0.1) || (fabs(g->dy) > 0.05)) { /* v0355 */
+        if ((fabs(g->dx) > 0.1) || (fabs(g->dy) > 0.05)) { /* xxx remove use fudge */
           g->azg = g->sens * azerr;
           g->elg = g->sens * elerr;
           qltool->guiding = abs(qltool->guiding);  
@@ -412,7 +447,6 @@ static void run_guider4(void* param)          /* NEW v0404 */
       }
       g->update_flag = True;           /* update GUI */
       pthread_mutex_unlock(&g->mutex);
-#endif
     } // endif(frame)
   } // endwhile(loop-doing && guiding)
 }

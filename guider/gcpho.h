@@ -9,4 +9,5 @@ typedef struct {
 } Pixel;
 
 int  ccbphot(Pixel* x,int n,double* fit,int itmax);
+int  ccbprofile(Pixel* x,int n,double* fit,int itmax);
 
