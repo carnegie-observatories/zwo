@@ -1865,6 +1865,7 @@ static void update_status(FITSpars* st,Guider* g,ZwoFrame* f) /* v0317 */
   st->stop_int  = walltime(0);
   st->start_int = st->stop_int - st->exptime;
   st->temp_ccd = g->server->tempSensor;   /* v0313 */
+  st->gain = g->server->gain;
   st->shmode = g->shmode;                 /* v0316 */
   st->frame = g->sendNumber;              /* v0317 */
 

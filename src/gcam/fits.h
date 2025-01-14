@@ -62,7 +62,7 @@ typedef struct system_parameters_tag { // IDEA combine with Guider struct
   char   prefix[16];
   float  temp_ccd;
   char   origin[64];
-  char   gain[4];
+  int    gain;
   /* telescope stuff v0328*/
   double alpha,delta,equinox;
   float  telfocus,zd,airmass;

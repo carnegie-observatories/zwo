@@ -3,7 +3,7 @@ RUN mkdir /app
 RUN apt-get update
 
 # Install dependencies
-RUN apt-get install -y wget make gcc bzip2
+RUN apt-get install -y wget make gcc bzip2 telnet
 
 # Install CXT
 RUN apt-get install -y libx11-dev git
