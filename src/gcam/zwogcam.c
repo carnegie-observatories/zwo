@@ -466,6 +466,7 @@ int main(int argc,char **argv)
     st->ca = modulo(g->angle+180.0,0,360);  /* v0316 */
     st->camera = g->gnum;                /* v0317 */
     st->rotn = sGuider.rPort;            /* v0317 */
+    strcpy(st->gain, sGuider.gain);
     st->psize = 4.63f;                   /* [um] v0327 */
     strcpy(st->st_str,""); strcpy(st->ha_str,""); strcpy(st->tg_str,""); 
   }

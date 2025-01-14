@@ -62,6 +62,7 @@ typedef struct system_parameters_tag { // IDEA combine with Guider struct
   char   prefix[16];
   float  temp_ccd;
   char   origin[64];
+  char   gain[4];
   /* telescope stuff v0328*/
   double alpha,delta,equinox;
   float  telfocus,zd,airmass;
@@ -115,6 +116,7 @@ enum fits_headers {
   F_CAMERA,                  /* v0317 */
   F_FRAME,                   /* v0317 */
   F_ROTN,                    /* v0317 */
+  F_GAIN,
 
   F_COMMENT,
 

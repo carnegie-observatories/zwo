@@ -275,6 +275,7 @@ char** fits_setup(char** fits,FITSpars* st)
   fitsi(fits,F_CAMERA,st->camera,"");  /* v0317 */
   fitsi(fits,F_FRAME,st->frame,"send frame number");
   fitsi(fits,F_ROTN,st->rotn,"rotator port");
+  fitss(fits,F_GAIN,st->gain,"gain");
 
   fitss(fits,F_COMMENT,"","no comment");
 
