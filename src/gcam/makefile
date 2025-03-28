@@ -19,10 +19,10 @@ BINDIR	= ../bin
 
 # LINUX 64-bit -- Debug
 CC	= gcc -m64 -fcommon 
-CFLAGS	= -DLINUX -Wall -I../../CXT
+CFLAGS	= -DLINUX -Wall -I../cxt/src/
 #LIBS	= -lm -lpthread -latcore
 LIBS	= -lm -lpthread
-LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt
+LIBX	= -L/usr/X11R6/lib -lX11 -L../cxt/src/ -lcxt
 
 # LINUX 64-bit -- SIMULATOR
 #CC	= gcc -m64

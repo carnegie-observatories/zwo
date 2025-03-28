@@ -1,0 +1,3 @@
+[submodule "src/cxt"]
+	path = src/cxt
+	url = git@github.com:carnegie-observatories/cxt.git
