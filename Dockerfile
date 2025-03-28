@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 ubuntu:24.04
+FROM ubuntu:24.04
 RUN mkdir /app
 RUN apt-get update
 
@@ -30,3 +30,8 @@ RUN cd /app/zwo/docs/ZWO/Setup/EFW_linux_mac_SDK_V1.7/lib/ && install efw.rules 
 RUN cd /usr/local/lib && ln -s libEFWFilter.so.1.7 libEFWFilter.so
 ## build
 RUN cd /app/zwo/src/server && make clean && make
+
+# Run
+EXPOSE 52311
+ENV LD_LIBRARY_PATH=/usr/local/lib/
+CMD ["/app/zwo/src/server/zwoserver"]

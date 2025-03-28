@@ -1,0 +1,29 @@
+services:
+  zwo:
+    platform: linux/x86_64
+    image: ghcr.io/carnegie-observatories/zwo:latest
+    build:
+      # no_cache: true
+      context: ./
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "52311:52311"
+    volumes:
+      - ./etc:/etc/zwo
+
+  gcam:
+    platform: linux/x86_64
+    image: ghcr.io/carnegie-observatories/gcam:latest
+    build:
+      # no_cache: true
+      context: ./
+      dockerfile: src/gcam/Dockerfile
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    restart: always
