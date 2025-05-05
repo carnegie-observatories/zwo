@@ -1,0 +1,49 @@
+name: CI
+on:
+  workflow_dispatch:
+  push:
+      branches: [master, gh-action]
+  pull_request:
+      branches: [master]
+  release:
+      types: [published]
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Get artifact name
+        id: get_artifact_name
+        run: |
+          short_sha=$(git rev-parse --short ${{ github.sha }})
+          if [ -z "${{ github.event.release.tag_name }}" ]; then
+            artifact_name=zwoserver-${short_sha}.tar.bz2
+          else
+            artifact_name=zwoserver-${{ github.event.release.tag_name }}-${short_sha}.tar.bz2
+          fi
+          echo artifact_name="$artifact_name" >> $GITHUB_OUTPUT
+      - name: Build
+        uses: docker
+        with:
+          dockerfile: Dockerfile
+      - name: Rename artifact
+        run: mv zwoserver.tar.bz2 ${{ steps.get_artifact_name.outputs.artifact_name }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.get_artifact_name.outputs.artifact_name }}
+          include-hidden-files: true
+          path: $GITHUB_WORKSPACE
+      - name: Upload artifact to release (if available)
+        run: |
+          if [ -z "${{ github.event.release.tag_name }}" ]; then
+            echo "No release tag found, skipping release artifact upload"
+          else
+            cd $GITHUB_WORKSPACE
+            gh release upload ${{github.event.release.tag_name}} ${{ steps.get_artifact_name.outputs.artifact_name }}
+          fi
+
