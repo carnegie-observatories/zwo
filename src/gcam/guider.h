@@ -63,9 +63,9 @@ typedef struct guider_tag {
   pthread_mutex_t mutex;
   volatile int update_flag;
   volatile double fps,flux,ppix,back,fwhm,dx,dy;
+  /* setup parameters (.ini file) */
   char        send_host[128];
   int         send_port;
-  /* setup parameters (.ini file) */
   int         rPort;                   /* rotator port */
   int         lmag,bx;
   int         pct,bkg,span;            /* default scaling */

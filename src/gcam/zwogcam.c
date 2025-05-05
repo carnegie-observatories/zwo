@@ -199,7 +199,7 @@ static time_t startup_time;
 static int    pa_interval=30;
 static float  elev=90,para=0;
 
-static int   baseD=1800,baseB=2,baseI=600,pHIGH=117;
+static int   baseD=1760,baseB=2,baseI=600,pHIGH=117;
 static int   eWIDE,eHIGH;
 static int   wINFO;                    /* v0401 */
 static int   lSIZE=128;                /* v0402 */
@@ -301,7 +301,9 @@ int main(int argc,char **argv)
   sGuider.px = 0.051;                  /* PFS:53, MIKE:54 */
   sGuider.lmag = sGuider.bx = 0;
   sGuider.pct = sGuider.bkg = sGuider.span = 0;
-  strcpy(sGuider.host,"localhost");
+  strcpy(sGuider.send_host, "localhost");
+  sGuider.send_port = 0;
+  strcpy(sGuider.host, "localhost");
   sGuider.rPort = 0;
   sGuider.sens = 0.5f;
 #ifdef ENG_MODE
@@ -439,8 +441,6 @@ int main(int argc,char **argv)
     g->pamode = 1;                     /* v0066 */
     g->msmode = 1;
     g->sendNumber = 1;                 /* v0313 */
-    strcpy(g->send_host,telio_host);
-    g->send_port = 5700+g->gnum-1;     /* v0316 */
     g->stored_tf1 = 0.5f; g->stored_tf3 = 1.0f;
     g->stored_send = 0; g->stored_av = 0; g->stored_mode = 1;
     strcpy(g->lastCommand,"");
@@ -1951,8 +1951,8 @@ static void* run_cycle(void* param)
         seqNumber = frame->seqNumber;  /* most recent frame */
         if ((g->send_flag) && (cnt <= 0.0)) { /* send frame */
           update_status(&g->status,g,frame);
-          if (telio_online) { int sock;
-            sock = TCPIP_CreateClientSocket(g->send_host,g->send_port,&err);
+          if (g->send_port > 0) {
+            int sock = TCPIP_CreateClientSocket(g->send_host,g->send_port,&err);
             if (!err) {
               err = fits_send(frame->data,&g->status,sock); /* network */
               (void)close(sock);
@@ -2631,6 +2631,8 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       // printf("%s: %s\n",key,val); 
       if      (!strcmp(key,"host")) strcpy(g->host,val);
       else if (!strcmp(key,"port")) g->rPort = atoi(val); 
+      else if (!strcmp(key,"send_host")) strcpy(g->send_host,val);
+      else if (!strcmp(key,"send_port")) g->send_port = atoi(val); 
       else if (!strcmp(key,"gain")) strcpy(g->gain,val);
       else if (!strcmp(key,"mode")) setup_m_switch(val[0]);
       else if (!strcmp(key,"gnum")) g->gnum = atoi(val);
