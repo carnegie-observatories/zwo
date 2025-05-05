@@ -22,7 +22,7 @@ RUN cp /app/zwo/docs/ZWO/Setup/EFW_linux_mac_SDK_V1.7/lib/armv8/libEFWFilter.so.
 RUN cd /app/zwo/docs/ZWO/Setup/EFW_linux_mac_SDK_V1.7/lib/ && install efw.rules /lib/udev/rules.d
 RUN cd /usr/local/lib && ln -s libEFWFilter.so.1.7 libEFWFilter.so
 ## build
-RUN cd /app/zwo/src/server && make clean && make CC="gcc-aarch64-linux-gnu -mcpu=cortex-a72"
+RUN cd /app/zwo/src/server && make clean && make CC="aarch64-linux-gnu-gcc -mcpu=cortex-a72"
 ## install
 RUN cp /app/zwo/src/server/zwoserver /usr/local/bin
 
