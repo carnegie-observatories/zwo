@@ -2,7 +2,7 @@ FROM ubuntu:24.04
 RUN mkdir /app
 RUN apt-get update
 
-# Install dependencies
+# Install dependencies - GCC is ARM64 version!
 RUN apt-get install -y wget make gcc-aarch64-linux-gnu bzip2 telnet
 RUN apt-get install -y libx11-dev
 
@@ -22,7 +22,7 @@ RUN cp /app/zwo/docs/ZWO/Setup/EFW_linux_mac_SDK_V1.7/lib/armv8/libEFWFilter.so.
 RUN cd /app/zwo/docs/ZWO/Setup/EFW_linux_mac_SDK_V1.7/lib/ && install efw.rules /lib/udev/rules.d
 RUN cd /usr/local/lib && ln -s libEFWFilter.so.1.7 libEFWFilter.so
 ## build
-RUN cd /app/zwo/src/server && make clean && make
+RUN cd /app/zwo/src/server && make clean && make CC="gcc-aarch64-linux-gnu -mcpu=cortex-a72"
 ## install
 RUN cp /app/zwo/src/server/zwoserver /usr/local/bin
 
