@@ -11,6 +11,12 @@
 OPT     = -g # -O
 BINDIR	= ../bin
 
+# LINUX ARM 64-bit v8 -- Release - Raspberry Pi 4
+CC	= gcc -mcpu=cortex-a72
+CFLAGS	= -DLINUX -DNDEBUG -Wall
+LIBS	= -lm -lpthread -lASICamera2 -lEFWFilter
+#LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
+
 # LINUX 64-bit -- Release
 #CC	= gcc -m64
 #CFLAGS	= -DLINUX -DNDEBUG -Wall
@@ -18,11 +24,11 @@ BINDIR	= ../bin
 #LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
 
 # LINUX 64-bit -- Debug
-CC	= gcc
-CFLAGS	= -DLINUX -Wall -I../../CXT
-LIBA	= -lASICamera2 -lEFWFilter # -Wl,-Bdynamic
-LIBS	= -lm -lpthread # -L/usr/local/lib
-LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
+# CC	= gcc
+# CFLAGS	= -DLINUX -Wall -I../../CXT
+# LIBA	= -lASICamera2 -lEFWFilter # -Wl,-Bdynamic
+# LIBS	= -lm -lpthread # -L/usr/local/lib
+# LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
 
 # LINUX 64-bit -- SIMULATOR
 #CC	= gcc -m64

@@ -1,6 +1,6 @@
 services:
   zwo:
-    platform: linux/x86_64
+    platform: linux/arm/v8
     image: ghcr.io/carnegie-observatories/zwo:latest
     build:
       # no_cache: true
@@ -26,4 +26,4 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-    restart: always
+    restart: no
