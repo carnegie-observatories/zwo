@@ -13,7 +13,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=pi
-ExecStart=/home/pi/zwo.sh
+ExecStart=/usr/local/bin/zwoserver
 
 [Install]
 WantedBy=default.target
