@@ -1,0 +1,70 @@
+name: CI - ZWO Server
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, gh-action]
+    paths:
+      - src/server/**
+      - src/server/**
+      - Dockerfile
+      - .github/workflows/ci_server.yml
+
+  pull_request:
+    branches: [main]
+    paths:
+      - src/server/**
+      - Dockerfile
+      - .github/workflows/ci_server.yml
+
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Get artifact name
+        id: get_artifact_name
+        run: |
+          short_sha=$(git rev-parse --short ${{ github.sha }})
+          if [ -z "${{ github.event.release.tag_name }}" ]; then
+            artifact_name=zwoserver-${short_sha}.run
+          else
+            artifact_name=zwoserver-${{ github.event.release.tag_name }}-${short_sha}.run
+          fi
+          echo artifact_name="$artifact_name" >> $GITHUB_OUTPUT
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          tags: ghcr.io/carnegie-observatories/zwo:latest
+      - name: Copy artifact file from container
+        run: |
+          docker run --name temp-container ghcr.io/carnegie-observatories/zwo:latest
+          docker cp temp-container:/app/zwoserver.run $GITHUB_WORKSPACE/${{ steps.get_artifact_name.outputs.artifact_name }}
+          docker rm temp-container
+      # - name: Rename artifact
+      #   run: mv /app/zwoserver.run /app/${{ steps.get_artifact_name.outputs.artifact_name }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.get_artifact_name.outputs.artifact_name }}
+          include-hidden-files: true
+          path: ${{ steps.get_artifact_name.outputs.artifact_name }}
+          if-no-files-found: error
+      - name: Upload artifact to release (if available)
+        run: |
+          if [ -z "${{ github.event.release.tag_name }}" ]; then
+            echo "No release tag found, skipping release artifact upload"
+          else
+            cd $GITHUB_WORKSPACE
+            gh release upload ${{github.event.release.tag_name}} ${{ steps.get_artifact_name.outputs.artifact_name }}
+          fi
+
