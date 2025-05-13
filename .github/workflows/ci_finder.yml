@@ -1,12 +1,20 @@
-name: CI
+name: CI - ZWO Finder
 on:
-    workflow_dispatch:
-    push:
-        branches: [master, gh-action]
-    pull_request:
-        branches: [master]
-    release:
-        types: [published]
+  workflow_dispatch:
+  push:
+    branches: [main, gh-action]
+    paths:
+      - src/finder/**
+      - .github/workflows/ci_finder.yml
+
+  pull_request:
+    branches: [main]
+    paths:
+      - src/finder/**
+      - .github/workflows/ci_finder.yml
+
+  release:
+    types: [published]
 permissions:
   contents: write
 env:
