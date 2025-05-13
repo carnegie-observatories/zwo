@@ -22,6 +22,9 @@ on:
 permissions:
   contents: write
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
