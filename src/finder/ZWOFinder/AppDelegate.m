@@ -287,16 +287,16 @@ static char* get_ut_timestr(char* string,time_t ut)
 #endif
 
   flipX = YprefGetInt(DBE_FLIP_X,0,NO);
-  [chk_flipx setState:((flipX) ? NSOnState : NSOffState)];
+    [chk_flipx setState:((flipX) ? NSControlStateValueOn : NSControlStateValueOff)];
   flipY = YprefGetInt(DBE_FLIP_Y,0,NO);
-  [chk_flipy setState:((flipY) ? NSOnState : NSOffState)];
+    [chk_flipy setState:((flipY) ? NSControlStateValueOn : NSControlStateValueOff)];
   
   runNumber = YprefGetInt(DBE_RUN,1,NO);
   sprintf(buf,"%d",runNumber); YeditSet(edit_run,buf);
   
   [edit_window setStringValue:YprefGetString(@DBE_WINDOW,@"",NO)]; // b0021
   windowMode = (YprefGetInt(DBE_WINMODE,0,NO)) ? YES : NO; // b0025
-  [chk_window setState:((windowMode) ? NSOnState : NSOffState)];
+    [chk_window setState:((windowMode) ? NSControlStateValueOn : NSControlStateValueOff)];
   
   self.fitsPath = YprefGetString(@DBE_FITSPATH,NSHomeDirectory(),NO);
   if (!YpathWritable([_fitsPath UTF8String])) self.fitsPath = NSHomeDirectory();
@@ -377,7 +377,7 @@ static char* get_ut_timestr(char* string,time_t ut)
 
   if (self.running) return;             // check if exposure is running
 
-  if ([chk_loop state] == NSOnState) {  // auto looping ?
+    if ([chk_loop state] == NSControlStateValueOn) {  // auto looping ?
     if (YsecSince(_lastImage) >= [edit_loop doubleValue]) {
       [self action_button:but_image];
     }
@@ -632,7 +632,7 @@ static char* get_ut_timestr(char* string,time_t ut)
   }
 
   YprefPutString(@DBE_WINDOW,[edit_window stringValue],NO); // b0024
-  windowMode = ([chk_window state] == NSOnState) ? YES : NO;
+    windowMode = ([chk_window state] == NSControlStateValueOn) ? YES : NO;
   YprefPutInt(DBE_WINMODE,windowMode,NO); // b0025
   if (windowMode) {
     const char *text = [[edit_window stringValue] UTF8String];
@@ -838,23 +838,23 @@ static char* get_ut_timestr(char* string,time_t ut)
   assert([NSThread isMainThread]);
 
   if (sender == chk_reticle) {
-    view_image.reticleMode = ([chk_reticle state] == NSOnState) ? YES : NO;
+      view_image.reticleMode = ([chk_reticle state] == NSControlStateValueOn) ? YES : NO;
     view_image.needsDisplay = YES;  // b0042
   } else
   if (sender == chk_flipx) {
-    flipX = ([sender state] == NSOnState) ? 1 : 0;
+      flipX = ([sender state] == NSControlStateValueOn) ? 1 : 0;
     YprefPutInt(DBE_FLIP_X,flipX,NO);
     [ccd setFlipX:flipX Y:flipY];
     [view_image setImage:[self flip_x:[view_image image]]];
   } else
   if (sender == chk_flipy) {
-    flipY = ([sender state] == NSOnState) ? 1 : 0;
+      flipY = ([sender state] == NSControlStateValueOn) ? 1 : 0;
     YprefPutInt(DBE_FLIP_Y,flipY,NO);
     [ccd setFlipX:flipX Y:flipY];
     [view_image setImage:[self flip_y:[view_image image]]];
   } else
   if (sender == chk_fits) {
-    writeFits = ([sender state] == NSOnState) ? YES : NO;
+      writeFits = ([sender state] == NSControlStateValueOn) ? YES : NO;
   } else {
     assert(0);
   }
@@ -935,12 +935,12 @@ static char* get_ut_timestr(char* string,time_t ut)
   if (!ccd) return;
   
   if (strstr(title,"Preferences") || strstr(title,"Settings")) {
-    [chk_autostart setState:(YprefGetInt(DBE_AUTOSTART,0,NO) ? NSOnState : NSOffState)];
+      [chk_autostart setState:(YprefGetInt(DBE_AUTOSTART,0,NO) ? NSControlStateValueOn : NSControlStateValueOff)];
     [edit_fitspath setStringValue:_fitsPath];
     assert(ccd);
     [edit_setpoint setEnabled:ccd.hasCooler];
     [chk_cooler setEnabled:ccd.hasCooler];   // b0022
-    [chk_cooler setState:(ccd.cooler ? NSOnState : NSOffState)];
+      [chk_cooler setState:(ccd.cooler ? NSControlStateValueOn : NSControlStateValueOff)];
     [edit_wbred setEnabled:ccd.isColor];
     [edit_wblue setEnabled:ccd.isColor];
     [pop_vbits selectItemWithTitle:[NSString stringWithFormat:@"%d",videoBits]];
@@ -986,7 +986,7 @@ static char* get_ut_timestr(char* string,time_t ut)
   } else
   if ([[sender title] compare:@"Apply"] == NSOrderedSame) {
     [panel_preferences orderOut:self];
-    YprefPutInt(DBE_AUTOSTART,([chk_autostart state] == NSOnState) ? 1 : 0,NO);
+      YprefPutInt(DBE_AUTOSTART,([chk_autostart state] == NSControlStateValueOn) ? 1 : 0,NO);
     NSString *path = [edit_fitspath stringValue];
     if (!YpathWritable([path UTF8String])) YpathCreate([path UTF8String],YES);
     if (!YpathWritable([path UTF8String])) path = NSHomeDirectory();
@@ -995,7 +995,7 @@ static char* get_ut_timestr(char* string,time_t ut)
     if (ccd.hasCooler) {            // b0022
       float setp = [edit_setpoint floatValue];
       YprefPutDouble(DBE_SETPOINT,setp,use_shared); // b0029
-      BOOL cool = ([chk_cooler state] == NSOnState) ? YES : NO;
+        BOOL cool = ([chk_cooler state] == NSControlStateValueOn) ? YES : NO;
       dispatch_async(GLOBAL_QUEUE,^(void) {
         int err = [ccd setTemp:setp cooler:cool];
         if (err) [self showWarning:"setting setpoint failed" error:err];
@@ -1075,7 +1075,7 @@ static char* get_ut_timestr(char* string,time_t ut)
     dispatch_sync(MAIN_QUEUE,^(void) {
       NSBitmapImageRep *rep = [self update:ccd.imageData W:ccd.w H:ccd.h B:ccd.bpp];
       if (writeFits && ccd.isColor) { 
-        NSData *data = [rep representationUsingType:NSJPEGFileType properties:@{}];
+          NSData *data = [rep representationUsingType:NSBitmapImageFileTypeJPEG properties:@{}];
         NSString *file = [NSString stringWithFormat:@"%@/zf%04d.jpg",_fitsPath,runNumber];
         [data writeToFile:file atomically:NO];
         [self updateRunNumber:1];

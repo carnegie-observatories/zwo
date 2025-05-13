@@ -6,7 +6,6 @@ on:
     branches: [main, gh-action]
     paths:
       - src/server/**
-      - src/server/**
       - Dockerfile
       - .github/workflows/ci_server.yml
 

@@ -623,9 +623,9 @@ static int imin(int a,int b) { return (a<b) ? a : b; }
       } else {  ASI_SN sn; char buf[32];
         ret = ASIGetSerialNumber(handle,&sn);
         if (ret == ASI_SUCCESS) {
-          assert(sizeof(sn.idNumber) == 8);
+          assert(sizeof(sn.id) == 8);
           for (int i=0; i<8; i++) {
-            sprintf(buf,"%02x",sn.idNumber[i]); strcat(string,buf);
+            sprintf(buf,"%02x",sn.id[i]); strcat(string,buf);
           }
         }
       }
