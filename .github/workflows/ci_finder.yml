@@ -1,0 +1,56 @@
+name: CI
+on:
+    workflow_dispatch:
+    push:
+        branches: [master, gh-action]
+    pull_request:
+        branches: [master]
+    release:
+        types: [published]
+permissions:
+  contents: write
+env:
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Xcodebuild Action
+      uses: sersoft-gmbh/xcodebuild-action@v3.2.0
+      with:
+        project: src/finder/ZWOFinder.xcodeproj
+        scheme: ZWOFinder
+        destination: platform=macOS
+        action: build
+    - name: Locate output app file
+      id: locate_output_app_file
+      run: |
+        echo app_path=$(find ~/Library/Developer/Xcode/DerivedData/ZWOFinder-*/Build/Products -name Debug) >> $GITHUB_OUTPUT
+    - name: Get artifact name
+      id: get_artifact_name
+      run: |
+        short_sha=$(echo ${{ github.sha }} | cut -c1-7)
+        if [ -z "${{ github.event.release.tag_name }}" ]; then
+          artifact_name=ZWOFinder-${short_sha}.app
+        else
+          artifact_name=ZWOFinder-${{ github.event.release.tag_name }}-${short_sha}.app
+        fi
+        echo artifact_name="$artifact_name" >> $GITHUB_OUTPUT
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.get_artifact_name.outputs.artifact_name }}
+        include-hidden-files: true
+        path: ${{ steps.locate_output_app_file.outputs.app_path }}
+    - name: Upload artifact to release (if available)
+      run: |
+        if [ -z "${{ github.event.release.tag_name }}" ]; then
+          echo "No release tag found, skipping release artifact upload"
+        else
+          cd ${{ steps.locate_output_app_file.outputs.app_path }}
+          zip -r ${{ steps.get_artifact_name.outputs.artifact_name }}.zip .
+          cd $GITHUB_WORKSPACE
+          gh release upload ${{github.event.release.tag_name}} ${{ steps.locate_output_app_file.outputs.app_path }}/${{ steps.get_artifact_name.outputs.artifact_name }}.zip
+        fi
