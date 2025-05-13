@@ -1,3 +1,5 @@
+Releases: https://github.com/carnegie-observatories/zwo/releases
+
 Documentation: https://instrumentation.obs.carnegiescience.edu/Software/ZWO/
 
 Building on Docker
