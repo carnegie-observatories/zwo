@@ -750,6 +750,26 @@ static int handle_command(const char* command,char* answer,size_t buflen)
       if (!err) sprintf(answer,"%.1f %.0f",t,p);
     }
   } else
+  if (!strcasecmp(cmd,"fancon")) {
+    int v = 0;
+    if (n > 1) {
+      if (!strcmp(par1,"off")) {
+        v = 0;
+      } else
+      if (!strcmp(par1,"on")) {
+        v = 1;
+      } else {
+        strcpy(answer,"-Einvalid fan state");
+        return 0;
+      }
+      sprintf(buf,"ASISetControlValue %d %d",ASI_FAN_ON,v);
+      err = handle_asi(buf,answer,buflen);
+    }
+    sprintf(buf,"ASIGetControlValue %d",ASI_FAN_ON);
+    err = handle_asi(buf,answer,buflen);
+    if (!err) sscanf(answer,"%d",&err,&v);
+    if (!err) sprintf(answer,"%d",v);
+  } else
   if (!strcasecmp(cmd,"filters")) { /* NOTE: must be called before 'filter' */
     err = handle_efw("EFWGetNum",answer,buflen);
     if (err || (atoi(answer)) == 0) {
