@@ -181,6 +181,7 @@ static FITSKey fitskeys[] = {
   { F_CAMERA,    "CAMERA" },
   { F_FRAME,     "FRAME" },
   { F_ROTN,      "ROTATORN" },
+  { F_GAIN,      "GAIN" },
 
   { F_COMMENT,   "COMMENT" },
 

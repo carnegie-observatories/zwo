@@ -280,9 +280,21 @@ int zwo_temperature(ZwoStruct *self,const char* value)
   assert(self->handle >= 0);
 
   if (value) {
-    sprintf(cmd,"tempcon %s",value);
-    if (strcmp(value,"off")) self->tempSetpoint = (float)atof(value);
-    else                     self->coolerPercent = 0; /* v0313 */
+    if (!strcmp(value, "fan_on")) {
+      sprintf(cmd,"fancon on");
+      printf("%s %s\n",value,cmd);
+    } else
+    if (!strcmp(value, "fan_off")) {
+      sprintf(cmd,"fancon off");
+      printf("%s %s\n",value,cmd);
+    } else {
+      sprintf(cmd,"tempcon %s",value);
+    }
+    if (!strcmp(value,"off") || !strcmp(value,"fan_off") || !strcmp(value,"fan_on")) {
+      self->coolerPercent = 0;
+    } else {
+      self->tempSetpoint = (float)atof(value);
+    }
   } else {
     strcpy(cmd,"tempcon");
   }
