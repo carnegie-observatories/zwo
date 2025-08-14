@@ -627,9 +627,11 @@ TELGUIDE= '10'
 <dt><b>write [#]</b> </dt>
 <dd>writes the next '#' images to disk as FITS files (default=1)  </dd>
 <p> </p>
-<dt><b>tec</b> {#,off} </dt>
+<dt><b>tec</b> {#,off,fan_on,fan_off} </dt>
 <dd>#: Turn on the temperature control at setpoint # [Celsius].   </dd>
 <dd>off: Turn off the temperature control.   </dd>
+<dd>fan_on: Turn on the fan. No temperature control.  </dd>
+<dd>fan_off: Turn off the fan.  No temperature control. </dd>
 <p> </p>
 <dt><b>gain</b> {#,# #,lo,med,hi}  </dt>
 <dd>#: set the gain {0..570} and leave the offset as is. </dd>

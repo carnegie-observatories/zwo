@@ -1420,7 +1420,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   if (!strcasecmp(cmd,"tec")) {        /* cooler setting */
     if (*par1) {
       err = zwo_temperature(g->server,par1); 
-      if (!strcmp(par1,"off")) {
+      if (!strcmp(par1,"off") || !strcmp(par1,"fan_off") || !strcmp(par1,"fan_on")) {
         g->house_running = False;
         strcpy(g->cpbox.text,"");      /* v0313 */
         CBX_UpdateEditWindow(&g->cpbox);
