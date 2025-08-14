@@ -57,6 +57,9 @@
  * v0.418  2024-03-07  guide mode 'gm5'
  *
  * v0.425  2024-10-18  update compass with flipx and flipy [PP]
+ * v0.428              gain fits keyword 
+ * v0.429  2025-03-19  add location flag
+ * v1.0.1  2025-07-17  added send_host/send_port to config file, merged with Povilas' changes
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
@@ -199,7 +202,7 @@ static time_t startup_time;
 static int    pa_interval=30;
 static float  elev=90,para=0;
 
-static int   baseD=1760,baseB=2,baseI=600,pHIGH=117;
+static int   baseD=1800,baseB=2,baseI=600,pHIGH=117;
 static int   eWIDE,eHIGH;
 static int   wINFO;                    /* v0401 */
 static int   lSIZE=128;                /* v0402 */
@@ -213,7 +216,7 @@ static pthread_mutex_t scanMutex,mesgMutex;
 
 static char   paString[128];
 
-static int   vertical=0;
+static int   vertical=0, location=1;
 
 /* function prototype(s) ------------------------------------------ */
 
@@ -314,7 +317,7 @@ int main(int argc,char **argv)
 
   { extern char *optarg; double f;     /* parse command line */  
     extern int opterr,optopt; opterr=0;
-    while ((i=getopt(argc,argv,"a:e:f:g:h:i:m:n:o:p:r:t:v")) != EOF) {
+    while ((i=getopt(argc,argv,"a:e:f:g:h:i:m:n:o:p:r:t:vl:")) != EOF) {
       switch (i) {
       case 'a':                        /* 'angle' v0311 */
         sGuider.angle = atof(optarg);
@@ -356,6 +359,9 @@ int main(int argc,char **argv)
       case 'v':                        /* vertical layout */
         vertical = 1;
         break;
+      case 'l':                        /*location*/
+ 	location =atoi(optarg);
+        break;
       case '?':
         fprintf(stderr,"%s: option '-%c' unknown or parameter missing\n",
                 P_TITLE,(char)optopt);
@@ -370,6 +376,19 @@ int main(int argc,char **argv)
   if (vertical) wINFO = imax(wINFO,baseI+6);
   eWIDE = wINFO + ((vertical) ? 2 : baseI+6);
   eHIGH = baseI+6 + ((vertical) ? pHIGH+30*PXh+3 : 0); 
+
+  switch (location) {
+  case 1:
+    break;                              /*same as default */
+  case 2:
+    winpos = CBX_CalcPosition(eWIDE+1,0);    /*  MACOS case ?*/
+    break;
+  case 3:
+    winpos = CBX_CalcPosition(2*(eWIDE+1),0);
+    break;
+  default:
+    break;                              /*ignore for now*/
+  }
 
   InitRandom(0,0,0);                   /* QlTool uses Random */
 
@@ -441,6 +460,8 @@ int main(int argc,char **argv)
     g->pamode = 1;                     /* v0066 */
     g->msmode = 1;
     g->sendNumber = 1;                 /* v0313 */
+    strcpy(g->send_host,telio_host);
+    g->send_port = 5700+g->gnum-1;     /* v0316 */
     g->stored_tf1 = 0.5f; g->stored_tf3 = 1.0f;
     g->stored_send = 0; g->stored_av = 0; g->stored_mode = 1;
     strcpy(g->lastCommand,"");
