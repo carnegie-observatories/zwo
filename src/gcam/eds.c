@@ -256,7 +256,7 @@ static char* eds_82i(char* buf,int gn,int cur,float x,float y)
 {
   char msg[128];
 
-#if 1  // old format (%05d%05d)    but not x 10
+#if 1  // old format (%04d%04d)    but not x 10
   sprintf(msg,"82%d;%04d%04d",cur,(int)my_round(x,0),
                                   (int)my_round(y,0));
 #else // EDS-82i format v0347
