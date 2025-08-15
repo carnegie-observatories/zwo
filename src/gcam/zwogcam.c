@@ -60,6 +60,9 @@
  * v0.428              gain fits keyword 
  * v0.429  2025-03-19  add location flag
  * v1.0.1  2025-07-17  added send_host/send_port to config file, merged with Povilas' changes
+ * v1.0.2  2025-08-07  sign of mm2 aer commands
+ * v1.0.3  2025-08-07  add ca command
+
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
@@ -229,6 +232,7 @@ static void    cb_file           (void*);
 static void    cb_options        (void*);
 
 static int     set_exptime       (Guider*,float);
+static int     set_ca            (Guider*,double);
 static int     set_pa            (Guider*,double,int);
 static void    set_sens          (Guider*,double);
 static void    set_mm            (Guider*,int);
@@ -1126,7 +1130,7 @@ static int handle_msmode(void* param,XEvent* event)
         qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
         if (g->msmode > 0) {
-	  err = telio_gpaer(g->gnum,-da,-de);
+	  err = telio_gpaer(g->gnum,da,de);
 	} else {
 	  err = telio_gpaer(3,-da,-de);
 	  if (!err)  err = telio_aeg(da,de);
@@ -1409,6 +1413,9 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       }
     }
     sprintf(msgstr,"%+.0f",g->parit2);
+  } else
+  if (!strcasecmp(cmd,"ca")) {         /* camera angle */
+    set_ca(g,atof(par1));
   } else
   if (!strcasecmp(cmd,"pa")) {         /* position angle */
     set_pa(g,atof(par1),0);
@@ -1888,6 +1895,7 @@ static void update_status(FITSpars* st,Guider* g,ZwoFrame* f) /* v0317 */
   st->gain = g->server->gain;
   st->shmode = g->shmode;                 /* v0316 */
   st->frame = g->sendNumber;              /* v0317 */
+  st->ca = modulo(g->angle+180.0,0,360);  /* v0430 */
 
   int err = telio_open(2);   /* update status from TCS v0328 */
   if (!err) { char  buf[128];
@@ -2281,6 +2289,24 @@ static void make_mask(Guider *g,const char* par)  /* v0319 */
     printf("saved %s\n",file);
   }
   free((void*)mask);
+}
+
+/* ---------------------------------------------------------------- */
+
+static int set_ca(Guider* g,double f)
+{
+  int err=0;
+#if (DEBUG > 1)
+  fprintf(stderr,"%s(%s,%f)\n",PREFUN,g->name,f);
+#endif
+
+  if (f == 0.0) f = 360.0;
+  while (f >  360.0) f -= 360.0;
+  while (f <    0.0) f += 360.0;
+  g->angle = f;
+  if (g->pamode) err = set_pa(g,g->pa,1);
+  return err;
+
 }
 
 /* ---------------------------------------------------------------- */
