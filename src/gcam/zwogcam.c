@@ -450,7 +450,9 @@ int main(int argc,char **argv)
   for (i=0; i<n_guiders; i++) {
     guiders[i] = &sGuider; // (Guider*)malloc(sizeof(Guider)); 
     Guider *g = guiders[i];
-    sprintf(g->name,"gCam%d",g->gnum);
+    if (strlen(g->name) == 0) {
+      sprintf(g->name,"gCam%d",g->gnum);
+    }
     g->server = zwo_create(g->host,SERVER_PORT);
     g->gid = 0;                        /* guiding thread ID */
     g->qltool = NULL;
@@ -1701,11 +1703,7 @@ static void* run_setup(void* param)
   g->init_flag = -1;                   /* init running */
   message(g,PREFUN,MSS_INFO);
 
-#if 1 // todo ?Povilas
-  sprintf(buf,"%s (%d) - v%s",g->host,g->gnum,P_VERSION); // v0419
-#else
-  sprintf(buf,"%s (%d) - v%s",g->server->modelName,g->gnum,P_VERSION);
-#endif
+  sprintf(buf,"%s %s (%d) - v%s",g->name,g->host,g->gnum,P_VERSION);
   CBX_SetMainWindowName(&mwin,buf);
 
   long err = zwo_setup(g->server,baseD,baseB,g->offx,g->offy);
@@ -2683,6 +2681,7 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"gain")) strcpy(g->gain,val);
       else if (!strcmp(key,"mode")) setup_m_switch(val[0]);
       else if (!strcmp(key,"gnum")) g->gnum = atoi(val);
+      else if (!strcmp(key,"name")) strcpy(g->name,val);
       else if (!strcmp(key,"gmode")) g->gmode = atoi(val);
       else if (!strcmp(key,"gmpar")) g->gmpar = (int)val[0];
       else if (!strcmp(key,"angle")) g->angle = atof(val);
