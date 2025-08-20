@@ -1,6 +1,13 @@
 - Releases: https://github.com/carnegie-observatories/zwo/releases
 - Old documentation webpage: https://instrumentation.obs.carnegiescience.edu/Software/ZWO/
 
+# Release Installation Instructions
+
+1. Download the latest release from the [Releases page](https://github.com/carnegie-observatories/zwo/releases).
+2. Run the executable `zwoserver-<version>-<hash>.run` as root.
+
+    sudo ./zwoserver-<version>-<hash>.run
+
 ### Building zwo server on Docker
 
 
