@@ -454,6 +454,7 @@ int main(int argc,char **argv)
       sprintf(g->name,"gCam%d",g->gnum);
     }
     g->server = zwo_create(g->host,SERVER_PORT);
+    g->server->expTime = g->status.exptime;
     g->gid = 0;                        /* guiding thread ID */
     g->qltool = NULL;
     g->loop_running = g->house_running = g->tcpip_running = False; 
@@ -2698,6 +2699,7 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"bx")) g->bx = atoi(val);
       else if (!strcmp(key,"sw")) g->slitW = atoi(val); 
       else if (!strcmp(key,"sn")) g->sens = fmin(4.0,fmax(0.1,atof(val)));
+      else if (!strcmp(key,"exptime")) g->status.exptime = atof(val);
       else n--;
 
     }
