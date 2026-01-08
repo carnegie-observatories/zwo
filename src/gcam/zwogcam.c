@@ -1405,7 +1405,17 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     if (n >= 2) set_fm(g,atoi(par1));
   } else
   if (!strcasecmp(cmd,"mm")) {         /* mouse mode */
-    set_mm(g,atoi(par1));
+    if (isdigit(par1[0]) || (par1[0] == '-')) {
+      set_mm(g,atoi(par1));
+    } else {
+      switch (par1[0]) {
+      case 'b': set_mm(g,1); break;  /* box */
+      case 'p': set_mm(g,2); break;  /* probe */
+      case 't': set_mm(g,-2); break;  /* telescope */
+      case 'c': set_mm(g,3); break;  /* coordinated probe and telescope */
+      default: message(g,"invalid mouse mode",MSS_WARN);
+      }
+    }
   } else
   if (!strncasecmp(cmd,"parity",3)) {  /* todo remove v0417 */
     if (*par1) {
