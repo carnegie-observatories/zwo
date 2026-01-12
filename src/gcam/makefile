@@ -36,6 +36,18 @@ LIBX	= -L/usr/X11R6/lib -lX11 -L../cxt/src/ -lcxt
 #LIBS	= # -lm -lpthread 
 #LIBX	= -L../../CXT -lcxt64 -L/opt/X11/lib -lX11
 
+# MACOSX 64-bit 10.9+ (ARM/M2)
+CC      = /usr/bin/gcc
+CFLAGS  = -DMACOSX -Wall -I../cxt/src/ -I/opt/X11/include
+LIBS    = # -lm -lpthread
+LIBX    = -L../cxt/src/ -lcxt -L/opt/X11/lib -lX11
+
+# MACOSX 64-bit 10.9+ (ARM/M2) -- SIMULATOR
+CC      = /usr/bin/gcc
+CFLAGS  = -DMACOSX -DSIM_ONLY -Wall -I../cxt/src/ -I/opt/X11/include
+LIBS    = # -lm -lpthread
+LIBX    = -L../cxt/src/ -lcxt -L/opt/X11/lib -lX11
+
 # -----------------------------------------------------------------
 
 HEADER	= utils.h ptlib.h tcpip.h

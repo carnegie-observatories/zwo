@@ -31,9 +31,7 @@ view and is directed at the support staff at SBS and LCO.
 <li><a href="#screen">Screen Shots</a> and Software Documentation
 
 <p> </a>
-<li>HowTo <a href="./Setup/setup.html">setup</a> the <em>RaspberryPi</em> and
-    <em>NUC</em> 
-<li><a href="http://instrumentation.obs.carnegiescience.edu/Software/ZWO/zwoserver.html">Zwo-Server</a>
+<li><a href="zwoserver.html">Zwo-Server</a>
 <p> </a>
 
 <p> </a>
@@ -44,6 +42,12 @@ view and is directed at the support staff at SBS and LCO.
 <h2>News</h2>
 
 <img src="undercon_ani.gif">
+<br>
+<br>
+
+Release notes for <b>ZWO-Gcam</b> after v0.423 were moved to GitHub:
+<a href="https://github.com/carnegie-observatories/zwo/releases">https://github.com/carnegie-observatories/zwo/releases</a>
+<br>
 
 <dl><b>v0.423</b> (2024-05-10) </dt> 
 <dt><li>Introduced the new image mode "-m5" (2520x2520) for use as the
@@ -501,6 +505,7 @@ TELGUIDE= '10'
 <dd><i>gain lo</i>: amplifier gain ('gain')  </dd>
 <dd><i>sw 6</i>: slit width, used for fit in 'gm4' ('sw')  </dd>
 <dd><i>sn 0.7</i>: guider control loop sensitivity ('sn')  </dd>
+<dd><i>exptime 0.5</i>: exposure time in seconds ('exptime')  </dd>
 </dl>
 <p>
 <dt>"-h" host: <dt>
@@ -601,10 +606,10 @@ TELGUIDE= '10'
 <dd>left click: move 1/10 of the distance (requires "Control" key)</dd>
 <dd>left click while holding down the right mouse button: move the full distance 
     (requires "Control" key)</dd>
-<dd>1: move guider box to the mouse position </dd>
-<dd>2: move guider probe to the mouse position (not available for SV)</dd>
-<dd>-2: move the SH- and PR-probes and the telescope to the mouse position</dd>
-<dd>3: move the telescope to the mouse position </dd>
+<dd>1 (or b): move guider box to the mouse position </dd>
+<dd>2 (or p): move guider probe to the mouse position (not available for SV)</dd>
+<dd>-2 (or t): move the SH- and PR-probes and the telescope to the mouse position</dd>
+<dd>3 (or c): move the telescope to the mouse position </dd>
 <p> </p>
 <dt><b>gm</b> # </dt>
 <dd>guider mode (paramter in 'gpaer' command when using mm-2 or mm2).  </dd>

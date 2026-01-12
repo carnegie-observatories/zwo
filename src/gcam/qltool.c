@@ -141,7 +141,7 @@ QlTool* qltool_create(MainWindow* mw,Window parent,const char* fontname,
   qlt->guiding = 0;
   qlt->gmode = 0;
   qlt->vrad = 20;                      /* was 15 v0416 */
-  qlt->smoothing = 0;
+  qlt->smoothing = 1;
 
   qlt->enoise = 1.5;
   qlt->egain = 0.5;

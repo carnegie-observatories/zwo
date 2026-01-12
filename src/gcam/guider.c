@@ -276,8 +276,8 @@ static void run_guider1(void* param)
           next_eds = walltime(0) + 1.0; /* v0347 */
           eds_send801(g->gnum,fwhm,qltool->guiding,g->dx,g->dy,flux);
 	  // This is a hack to get cursor 1 & 5 out for  coordinated offsets
-	  eds_send82i(g->gnum,1,g->qltool->curx[0],g->qltool->cury[0]);
-	  eds_send82i(g->gnum,5,g->qltool->curx[4],g->qltool->cury[4]);
+	  eds_send82i(g->gnum,1,g->qltool->curx[0],g->qltool->cury[0]); /* v0431 */
+	  eds_send82i(g->gnum,5,g->qltool->curx[4],g->qltool->cury[4]); /* v0431 */
 
         }
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) { int err=0;

@@ -203,7 +203,7 @@ int zwo_setup(ZwoStruct* self,int dim,int bin,int offx,int offy)
   if (!err) self->aoiW = self->aoiH = dim;
   sim_cx = sim_cy = dim/2;
   sim_cx2 = sim_cy2 = dim/4;
-  sprintf(cmd,"exptime 0.5");
+  sprintf(cmd,"exptime %f",self->expTime);
   if (!err) err = zwo_request(self,cmd,buf,5);
   if (!err) self->expTime = atof(buf); 
   pthread_mutex_unlock(&self->ioLock);
