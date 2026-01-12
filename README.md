@@ -1,3 +1,5 @@
+rsync -av --delete --exclude='.git' --exclude=cxt/ /Users/william/workspace/zwo/ zwo-lab:zwo/
+
 - Releases: https://github.com/carnegie-observatories/zwo/releases
 - Old documentation webpage: https://instrumentation.obs.carnegiescience.edu/Software/ZWO/
 

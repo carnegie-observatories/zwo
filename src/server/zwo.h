@@ -5,7 +5,7 @@
  * ---------------------------------------------------------------- */
 
 #define PROJECT_ID      23
-#define P_VERSION       "1.0.1"
+#define P_VERSION       "1.0.4"
 
 extern void message(const void*,const char*,int);
 

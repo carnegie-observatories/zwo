@@ -63,6 +63,12 @@
  * v1.0.2  2025-08-07  sign of mm2 aer commands
  * v1.0.3  2025-08-07  add ca command
 
+ * v1.0.4  2025-08-07  sign of mm2 aer commands
+ * v1.0.4  2025-08-07  add ca command
+ * v1.0.4  2025-08-16  add more cursor output for IMACS opperations during guiding mm1 command 
+ * v1.0.4  2025-12-11  on fone turn of eds guider eds flag 801, and set gdrbox message black.
+ * v1.0.4  2026-01-15  added exptime to config file
+ * v1.0.4  2026-01-15  added mouse-mode aliases, updated documentation
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
@@ -467,8 +473,8 @@ int main(int argc,char **argv)
     g->pamode = 1;                     /* v0066 */
     g->msmode = 1;
     g->sendNumber = 1;                 /* v0313 */
-    strcpy(g->send_host,telio_host);
-    g->send_port = 5700+g->gnum-1;     /* v0316 */
+    //    strcpy(g->send_host,telio_host);
+    //    g->send_port = 5700+g->gnum-1;     /* v0316 */ /*maco*/
     g->stored_tf1 = 0.5f; g->stored_tf3 = 1.0f;
     g->stored_send = 0; g->stored_av = 0; g->stored_mode = 1;
     strcpy(g->lastCommand,"");
@@ -791,6 +797,10 @@ int main(int argc,char **argv)
               }
             }
             handle_msmode(g,&event);
+	    int c = g->qltool->cursor_mode;
+	    float x = g->qltool->curx[c];
+	    float y = g->qltool->cury[c];
+	    eds_send82i(g->gnum,1+c,x,y); /* v0346 */
             break;
           }
         } /* endfor(guiders) */
@@ -1325,8 +1335,11 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     //    if (g->fmode == 1) {               /* fm1 */
     g->qltool->guiding = 0;
     if (g->gid) { pthread_join(g->gid,NULL); g->gid = 0; }
-    sprintf(g->gdbox.text,"gd  off"); CBX_UpdateEditWindow(&g->gdbox);
-    //    } else
+    sprintf(g->gdbox.text,"gd  off"); 
+    g->gdbox.fg = app->black;
+    CBX_UpdateEditWindow(&g->gdbox);
+    eds_send801(g->gnum,0,g->qltool->guiding,0,0,0);
+     //    } else
     if (g->fmode == 2) {               /* fm2 v0329 */
       if (g->stored_mode == 3) {       /* v0330 */
         g->stored_tf3 = g->server->expTime; /* store 'F3' values */
@@ -1714,7 +1727,11 @@ static void* run_setup(void* param)
   g->init_flag = -1;                   /* init running */
   message(g,PREFUN,MSS_INFO);
 
-  sprintf(buf,"%s %s (%d) - v%s",g->name,g->host,g->gnum,P_VERSION);
+#if 1 // todo ?Povilas
+  sprintf(buf,"%s (%d) - v%s",g->host,g->gnum,P_VERSION); // v0419
+#else
+  sprintf(buf,"%s (%d) - v%s",g->server->modelName,g->gnum,P_VERSION);
+#endif
   CBX_SetMainWindowName(&mwin,buf);
 
   long err = zwo_setup(g->server,baseD,baseB,g->offx,g->offy);
@@ -2448,7 +2465,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
 
   switch (g->gmode) {                  /* v0414 */
   case GM_PR: case GM_SV5:             /* SV5 v0416 */
-    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_tc->name,"tx"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
     strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
@@ -2460,7 +2477,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
     strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
     break;
   case GM_SV4:  /* [arcsec] before rotation and derivative */
-    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_tc->name,"tx"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"X");  graph_scale(g->g_az,-1.0,1.0,0x03);
     strcpy(g->g_el->name,"Y");  graph_scale(g->g_el,-1.0,1.0,0x03);
