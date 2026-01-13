@@ -21,7 +21,7 @@
 
     docker run -it zwo
     LD_LIBRARY_PATH=/usr/local/lib/ /app/zwo/src/server/zwoserver &
-    telnet localhost 52311
+    telnet localhost 52311asdasd
 
 ###  GCAM on Docker
 
