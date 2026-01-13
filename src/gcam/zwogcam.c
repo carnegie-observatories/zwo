@@ -319,6 +319,7 @@ int main(int argc,char **argv)
   strcpy(sGuider.host, "localhost");
   sGuider.rPort = 0;
   sGuider.sens = 0.5f;
+  sGuider.status.exptime = 1.0f;
 #ifdef ENG_MODE
   strcpy(sGuider.gain,"");
 #else
