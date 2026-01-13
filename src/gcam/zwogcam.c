@@ -2404,7 +2404,27 @@ static void set_mm(Guider* g,int m)
   if (g->msmode != m) {
     message(g,"invalid mouse mode",MSS_WARN);
   }
-  sprintf(g->mmbox.text,"mm %2d",g->msmode);
+  // display mouse mode in string form
+  char msmode_str[4];
+  switch (g->msmode)
+  {
+  case 1:
+    strcpy(msmode_str,"box");
+    break;
+  case 2:
+    strcpy(msmode_str,"prb");
+    break;
+  case -2:
+    strcpy(msmode_str,"tel");
+    break;
+  case 3:
+    strcpy(msmode_str,"cpt");  
+    break;
+  default:
+    strcpy(msmode_str,"unk");
+    break;
+  }
+  sprintf(g->mmbox.text,"mm %s",msmode_str);
   CBX_UpdateEditWindow(&g->mmbox);
 }
 
