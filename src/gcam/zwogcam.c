@@ -2409,19 +2409,19 @@ static void set_mm(Guider* g,int m)
   switch (g->msmode)
   {
   case 1:
-    strcpy(msmode_str,"box");
+    strcpy(msmode_str,"bo");
     break;
   case 2:
-    strcpy(msmode_str,"prb");
+    strcpy(msmode_str,"pr");
     break;
   case -2:
-    strcpy(msmode_str,"tel");
+    strcpy(msmode_str,"te");
     break;
   case 3:
-    strcpy(msmode_str,"cpt");  
+    strcpy(msmode_str,"cp");  
     break;
   default:
-    strcpy(msmode_str,"unk");
+    strcpy(msmode_str,"un");
     break;
   }
   sprintf(g->mmbox.text,"mm %s",msmode_str);
