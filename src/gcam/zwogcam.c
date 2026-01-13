@@ -2465,7 +2465,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
 
   switch (g->gmode) {                  /* v0414 */
   case GM_PR: case GM_SV5:             /* SV5 v0416 */
-    strcpy(g->g_tc->name,"tx"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
     strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
@@ -2477,7 +2477,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
     strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
     break;
   case GM_SV4:  /* [arcsec] before rotation and derivative */
-    strcpy(g->g_tc->name,"tx"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"X");  graph_scale(g->g_az,-1.0,1.0,0x03);
     strcpy(g->g_el->name,"Y");  graph_scale(g->g_el,-1.0,1.0,0x03);
