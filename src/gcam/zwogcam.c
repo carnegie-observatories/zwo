@@ -2409,16 +2409,16 @@ static void set_mm(Guider* g,int m)
   switch (g->msmode)
   {
   case 1:
-    strcpy(msmode_str,"bo");
+    strcpy(msmode_str,"bx");
     break;
   case 2:
     strcpy(msmode_str,"pr");
     break;
   case -2:
-    strcpy(msmode_str,"te");
+    strcpy(msmode_str,"tl");
     break;
   case 3:
-    strcpy(msmode_str,"cp");  
+    strcpy(msmode_str,"pt");  
     break;
   default:
     strcpy(msmode_str,"un");
