@@ -1416,7 +1416,17 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     }
   } else
   if (!strcasecmp(cmd,"fm")) {         /* function mode v0329 */
-    if (n >= 2) set_fm(g,atoi(par1));
+    if (n >= 2){
+      if (isdigit(par1[0])) {
+        set_fm(g,atoi(par1));
+      } else {
+        switch (par1[0]) {
+        case 'g': set_fm(g,1); break;  /* guider */
+        case 's': set_fm(g,2); break;  /* SH */
+        default: message(g,"invalid function mode",MSS_WARN);
+        }
+      }
+    }
   } else
   if (!strcasecmp(cmd,"mm")) {         /* mouse mode */
     if (isdigit(par1[0]) || (par1[0] == '-')) {
@@ -2433,14 +2443,28 @@ static void set_mm(Guider* g,int m)
 static void set_fm(Guider* g,int m)    /* v0329 */
 {
   switch (m) {
-  case 1: case 2: case 3:
+  case 1: case 2: // case 3:
     g->fmode = m;
     break;
   }
   if (g->fmode != m) { 
     message(g,"invalid function mode",MSS_WARN);
   }
-  sprintf(g->fmbox.text,"fm %2d",g->fmode);
+  // display function mode in string form
+  char fmmode_str[4];
+  switch (g->fmode)
+  {
+  case 1:
+    strcpy(fmmode_str,"gd");
+    break;
+  case 2:
+    strcpy(fmmode_str,"sh");
+    break;
+  default:
+    strcpy(fmmode_str,"un");
+    break;
+  }
+  sprintf(g->fmbox.text,"fm %s",fmmode_str);
   CBX_UpdateEditWindow(&g->fmbox);
 }
 
