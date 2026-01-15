@@ -448,9 +448,9 @@ int main(int argc,char **argv)
   sprintf(buf,"gcamzwo%drc",sGuider.gnum); /* runNumber & dataPath */
   (void)set_path(setup_rc,buf);        /* $HOME v0311 */
   // printf("setup=%s\n",setup_rc);
-  get_string(setup_rc,DBE_DATAPATH,buffer,genv2("HOME","/tmp"));
+  get_string(setup_rc,DBE_DATAPATH,buffer,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
   i = check_datapath(buffer,0);
-  if (!i) strcpy(buffer,genv2("HOME","/tmp"));
+  if (!i) strcpy(buffer,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
   // printf("path= %s\n",buffer); 
 
   assert(n_guiders == 1);
@@ -2233,7 +2233,7 @@ static void load_mask(Guider *g)       /* v0322 */
   assert(server->mask);
   int npix = server->aoiW * server->aoiH;
   assert(server->aoiW == server->aoiH);
-  sprintf(file,"%s/%s",genv2("HOME","/tmp"),mask_name(g,name));
+  sprintf(file,"%s/%s",genv2("GCAMZWOPATH", "/opt/gcamzwo"),mask_name(g,name));
 
   FILE *fp = fopen(file,"r");
   if (!fp) { 
@@ -2267,7 +2267,7 @@ static void make_mask(Guider *g,const char* par)  /* v0319 */
   assert(server->mask);
   assert(server->aoiW == server->aoiH);
   int npix = server->aoiW * server->aoiH;
-  sprintf(file,"%s/%s",genv2("HOME","/tmp"),mask_name(g,name));
+  sprintf(file,"%s/%s",genv2("GCAMZWOPATH","/opt/gcamzwo"),mask_name(g,name));
 
   if (!strcmp(par,"off")) {            /* turn OFF mask */
     memset(server->mask,0,npix*sizeof(char));
@@ -2656,7 +2656,7 @@ static int check_datapath(char* path,int interactive)
           }
         } while ((h=strtok(NULL,"/")) != NULL);
       } else {
-        strcpy(path,genv2("HOME","/tmp"));
+        strcpy(path,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
         CBX_MessageBox(P_TITLE ": set DataPath to",path);
       }
       CBX_ClearAutoQueue(&mwin);
@@ -2737,7 +2737,7 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
   char file[512],buffer[1024],key[128],val[128];
 
   if (*name == '/') strcpy(file,name);
-  else             sprintf(file,"%s/%s",genv3("GCAMZWOINI","HOME","."),name);
+  else             sprintf(file,"%s/%s",genv2("GCAMZWOINI", "/opt/gcamzwo"), name);
   FILE *fp = fopen(file,"r");
   if (!fp) {
     fprintf(stderr,"failed to open %s\n",file);

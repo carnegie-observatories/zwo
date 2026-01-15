@@ -480,7 +480,7 @@ TELGUIDE= '10'
 <dd>
 <p>
 <a name="inifile"></a>
-<dt>"-f" file  </dt>
+<dt>"-f" file (located in GCAMZWOPATH or /opt/gcamzwo if not set) </dt>
 <dd>load configuration from ASCII file containing one 'keyword value' pair
     per line; e.g.  
     <a href="./pfs.ini">pfs.ini</a>: </dd>
@@ -680,7 +680,7 @@ TELGUIDE= '10'
 <li>set "av 0" and "tf" to the desired value
 <li>"mask on"
 </ul>
-<dt>The mask will be stored in the home directory as a file named 
+<dt>The mask will be stored in GCAMZWOPATH or /opt/gcamzwo if not set, as a file named 
     "zwoSERIALNUMBER_gggg.mask" 
     and automatically loaded at startup of the <em>zwogcam</em>
     ('gggg' is the geometry).
