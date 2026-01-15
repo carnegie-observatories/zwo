@@ -13,8 +13,8 @@ COPY . /app/zwo
 ## build cxt library first
 RUN cd /app/zwo/src/cxt/src && make clean && make
 
-## build gcam (remove -latcore dependency as it's not available in Ubuntu)
-RUN cd /app/zwo/src/gcam && sed -i 's/LIBS.*= -lm -lpthread -latcore/LIBS\t= -lm -lpthread/' makefile && make clean && make
+## build gcam
+RUN cd /app/zwo/src/gcam && make clean && make
 
 ## install
 RUN cp /app/zwo/src/gcam/gcamzwo /usr/local/bin

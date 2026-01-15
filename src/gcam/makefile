@@ -12,17 +12,17 @@ OPT     = -O -g
 BINDIR	= ../bin
 
 # LINUX 64-bit -- Release
-#CC	= gcc -m64
-#CFLAGS	= -DLINUX -DNDEBUG -Wall -I../../CXT
-#LIBS	= -lm -lpthread -latcore
-#LIBX	= -L/usr/X11R6/lib -lX11 -L../../CXT -lcxt64 
-
-# LINUX 64-bit -- Debug
-CC	= gcc -m64 -fcommon 
-CFLAGS	= -DLINUX -Wall -I../cxt/src/
-#LIBS	= -lm -lpthread -latcore
+CC	= gcc -m64
+CFLAGS	= -DLINUX -DNDEBUG -Wall -I../cxt/src/
 LIBS	= -lm -lpthread
 LIBX	= -L/usr/X11R6/lib -lX11 -L../cxt/src/ -lcxt
+
+# LINUX 64-bit -- Debug
+# CC	= gcc -m64 -fcommon 
+# CFLAGS	= -DLINUX -Wall -I../cxt/src/
+# #LIBS	= -lm -lpthread -latcore
+# LIBS	= -lm -lpthread
+# LIBX	= -L/usr/X11R6/lib -lX11 -L../cxt/src/ -lcxt
 
 # LINUX 64-bit -- SIMULATOR
 #CC	= gcc -m64
@@ -36,17 +36,17 @@ LIBX	= -L/usr/X11R6/lib -lX11 -L../cxt/src/ -lcxt
 #LIBS	= # -lm -lpthread 
 #LIBX	= -L../../CXT -lcxt64 -L/opt/X11/lib -lX11
 
-# MACOSX 64-bit 10.9+ (ARM/M2)
-CC      = /usr/bin/gcc
-CFLAGS  = -DMACOSX -Wall -I../cxt/src/ -I/opt/X11/include
-LIBS    = # -lm -lpthread
-LIBX    = -L../cxt/src/ -lcxt -L/opt/X11/lib -lX11
+# # MACOSX 64-bit 10.9+ (ARM/M2)
+# CC      = /usr/bin/gcc
+# CFLAGS  = -DMACOSX -Wall -I../cxt/src/ -I/opt/X11/include
+# LIBS    = # -lm -lpthread
+# LIBX    = -L../cxt/src/ -lcxt -L/opt/X11/lib -lX11
 
-# MACOSX 64-bit 10.9+ (ARM/M2) -- SIMULATOR
-CC      = /usr/bin/gcc
-CFLAGS  = -DMACOSX -DSIM_ONLY -Wall -I../cxt/src/ -I/opt/X11/include
-LIBS    = # -lm -lpthread
-LIBX    = -L../cxt/src/ -lcxt -L/opt/X11/lib -lX11
+# # MACOSX 64-bit 10.9+ (ARM/M2) -- SIMULATOR
+# CC      = /usr/bin/gcc
+# CFLAGS  = -DMACOSX -DSIM_ONLY -Wall -I../cxt/src/ -I/opt/X11/include
+# LIBS    = # -lm -lpthread
+# LIBX    = -L../cxt/src/ -lcxt -L/opt/X11/lib -lX11
 
 # -----------------------------------------------------------------
 
