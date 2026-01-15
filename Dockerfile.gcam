@@ -1,0 +1,36 @@
+FROM --platform=linux/amd64 ubuntu:24.04
+RUN mkdir /app
+RUN apt-get update
+
+## Install dependencies
+RUN apt-get install -y make gcc bzip2
+RUN apt-get install -y libx11-dev
+# RUN apt-get install -y wget telnet
+
+# Copy files
+COPY . /app/zwo
+
+## build cxt library first
+RUN cd /app/zwo/src/cxt/src && make clean && make
+
+## build gcam (remove -latcore dependency as it's not available in Ubuntu)
+RUN cd /app/zwo/src/gcam && sed -i 's/LIBS.*= -lm -lpthread -latcore/LIBS\t= -lm -lpthread/' makefile && make clean && make
+
+## install
+RUN cp /app/zwo/src/gcam/gcamzwo /usr/local/bin
+RUN cp /app/zwo/src/gcam/getimages /usr/local/bin
+
+# Make a self-extracting installer
+## deps
+RUN apt-get install -y wget rsync jq
+RUN wget -q -O - https://api.github.com/repos/megastep/makeself/releases/latest |  jq -r '.assets[] | select(.name | contains ("run")) | .browser_download_url' | wget -i - -O /app/makeself.run 
+RUN chmod +x /app/makeself.run && cd /app && /app/makeself.run
+
+RUN rsync -avR /usr/local/bin/gcamzwo /usr/local/bin/getimages /app/installer/
+RUN mkdir /app/installer/tmp && echo '#!/bin/bash\nset -xe\nrm -- "$0" # remove this script' > /app/installer/tmp/install_gcamzwo.sh
+RUN chmod +x /app/installer/tmp/install_gcamzwo.sh
+RUN /app/makeself*/makeself.sh --target / /app/installer /app/gcamzwo.run "ZWO GCAM" /tmp/install_gcamzwo.sh
+
+# Run
+# ENV LD_LIBRARY_PATH=/usr/local/lib/
+# CMD ["/app/zwo/src/gcam/gcamzwo"]
