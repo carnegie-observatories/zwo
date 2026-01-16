@@ -128,7 +128,7 @@
 
 #define GM_MAX          GM_SV5         /* v0404 */
 
-#define DEF_HELP "http://instrumentation.obs.carnegiescience.edu/Software/ZWO"
+#define DEF_HELP "https://carnegie-observatories.github.io/zwo/ZWO/"
 #if defined(MACOSX)
 #define DEF_BROWSER     "open"         /* Safari */
 #else
@@ -2237,15 +2237,15 @@ static void load_mask(Guider *g)       /* v0322 */
 
   FILE *fp = fopen(file,"r");
   if (!fp) { 
-    if (strlen(name) > 30) sprintf(buf,"failed ~/%s",name);
-    else                   sprintf(buf,"failed to load ~/%s",name);
+    if (strlen(file) > 30) sprintf(buf,"failed %s",file);
+    else                   sprintf(buf,"failed to load %s",file);
     message(g,buf,MSS_WARN|MSS_FILE);
   } else {
     size_t s = fread(server->mask,sizeof(char),npix,fp);
     fclose(fp);
     if (s != npix) {
       memset(server->mask,0,npix*sizeof(char));
-      sprintf(buf,"invalid file ~/%s",name);
+      sprintf(buf,"invalid file %s",file);
       message(g,buf,MSS_WARN|MSS_FILE);
     } else {
       printf("loaded %s\n",file);
