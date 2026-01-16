@@ -480,7 +480,7 @@ TELGUIDE= '10'
 <dd>
 <p>
 <a name="inifile"></a>
-<dt>"-f" file  </dt>
+<dt>"-f" file (located in GCAMZWOPATH or /opt/gcamzwo if not set) </dt>
 <dd>load configuration from ASCII file containing one 'keyword value' pair
     per line; e.g.  
     <a href="./pfs.ini">pfs.ini</a>: </dd>
@@ -606,10 +606,10 @@ TELGUIDE= '10'
 <dd>left click: move 1/10 of the distance (requires "Control" key)</dd>
 <dd>left click while holding down the right mouse button: move the full distance 
     (requires "Control" key)</dd>
-<dd>1 (or b): move guider box to the mouse position </dd>
-<dd>2 (or p): move guider probe to the mouse position (not available for SV)</dd>
-<dd>-2 (or t): move the SH- and PR-probes and the telescope to the mouse position</dd>
-<dd>3 (or c): move the telescope to the mouse position </dd>
+<dd>1 (or b): move guider box to the mouse position. Shows "bx" on mm label when active. </dd>
+<dd>2 (or p): move guider probe to the mouse position (not available for SV). Shows "pr" on mm label when active. </dd>
+<dd>-2 (or t): move the SH- and PR-probes and the telescope to the mouse position. Shows "tl" on mm label when active. </dd>
+<dd>3 (or c): move the telescope to the mouse position. Shows "pt" on mm label when active. </dd>
 <p> </p>
 <dt><b>gm</b> # </dt>
 <dd>guider mode (paramter in 'gpaer' command when using mm-2 or mm2).  </dd>
@@ -652,15 +652,14 @@ TELGUIDE= '10'
 <p> </p>
 <dt><b>sw</b> # </dt>
 <dd>Set the slit width for the "gm4" fit (default=6 [pixels]).
-   <img src="./new.gif"> </dd>
 <p> </p>
 <a name="fm"></a>
 <dt><b>fm</b> # </dt>
-<dd>Function mode: determines the action for the F1 and F3 keys </dd>
-<dt>fm1: </dt>
+<dd>Function mode: determines the action for the F1 and F3 keys. Shows as "fm gd" or "fm sh" in the fm label box. </dd>
+<dt>fm1 (or fm gd): </dt>
 <dd>F1: stop guiding </dd>
 <dd>F3: start guiding </dd>
-<dt>fm2: </dt>
+<dt>fm2 (or fm sh): </dt>
 <dd>F1: save 'tf(F3)', 'av', 'send' parameters; then restore 'tf(F1)', av=0, send=0  </dd>
 <dd>F3: save 'tf(F1)'; then restore 'tf(F3)', 'av' and 'send' paramters  </dd>
 
@@ -681,7 +680,7 @@ TELGUIDE= '10'
 <li>set "av 0" and "tf" to the desired value
 <li>"mask on"
 </ul>
-<dt>The mask will be stored in the home directory as a file named 
+<dt>The mask will be stored in GCAMZWOPATH or /opt/gcamzwo if not set, as a file named 
     "zwoSERIALNUMBER_gggg.mask" 
     and automatically loaded at startup of the <em>zwogcam</em>
     ('gggg' is the geometry).

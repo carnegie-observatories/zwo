@@ -319,6 +319,7 @@ int main(int argc,char **argv)
   strcpy(sGuider.host, "localhost");
   sGuider.rPort = 0;
   sGuider.sens = 0.5f;
+  sGuider.status.exptime = 1.0f;
 #ifdef ENG_MODE
   strcpy(sGuider.gain,"");
 #else
@@ -447,9 +448,9 @@ int main(int argc,char **argv)
   sprintf(buf,"gcamzwo%drc",sGuider.gnum); /* runNumber & dataPath */
   (void)set_path(setup_rc,buf);        /* $HOME v0311 */
   // printf("setup=%s\n",setup_rc);
-  get_string(setup_rc,DBE_DATAPATH,buffer,genv2("HOME","/tmp"));
+  get_string(setup_rc,DBE_DATAPATH,buffer,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
   i = check_datapath(buffer,0);
-  if (!i) strcpy(buffer,genv2("HOME","/tmp"));
+  if (!i) strcpy(buffer,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
   // printf("path= %s\n",buffer); 
 
   assert(n_guiders == 1);
@@ -1415,7 +1416,17 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     }
   } else
   if (!strcasecmp(cmd,"fm")) {         /* function mode v0329 */
-    if (n >= 2) set_fm(g,atoi(par1));
+    if (n >= 2){
+      if (isdigit(par1[0])) {
+        set_fm(g,atoi(par1));
+      } else {
+        switch (par1[0]) {
+        case 'g': set_fm(g,1); break;  /* guider */
+        case 's': set_fm(g,2); break;  /* SH */
+        default: message(g,"invalid function mode",MSS_WARN);
+        }
+      }
+    }
   } else
   if (!strcasecmp(cmd,"mm")) {         /* mouse mode */
     if (isdigit(par1[0]) || (par1[0] == '-')) {
@@ -2222,7 +2233,7 @@ static void load_mask(Guider *g)       /* v0322 */
   assert(server->mask);
   int npix = server->aoiW * server->aoiH;
   assert(server->aoiW == server->aoiH);
-  sprintf(file,"%s/%s",genv2("HOME","/tmp"),mask_name(g,name));
+  sprintf(file,"%s/%s",genv2("GCAMZWOPATH", "/opt/gcamzwo"),mask_name(g,name));
 
   FILE *fp = fopen(file,"r");
   if (!fp) { 
@@ -2256,7 +2267,7 @@ static void make_mask(Guider *g,const char* par)  /* v0319 */
   assert(server->mask);
   assert(server->aoiW == server->aoiH);
   int npix = server->aoiW * server->aoiH;
-  sprintf(file,"%s/%s",genv2("HOME","/tmp"),mask_name(g,name));
+  sprintf(file,"%s/%s",genv2("GCAMZWOPATH","/opt/gcamzwo"),mask_name(g,name));
 
   if (!strcmp(par,"off")) {            /* turn OFF mask */
     memset(server->mask,0,npix*sizeof(char));
@@ -2403,7 +2414,27 @@ static void set_mm(Guider* g,int m)
   if (g->msmode != m) {
     message(g,"invalid mouse mode",MSS_WARN);
   }
-  sprintf(g->mmbox.text,"mm %2d",g->msmode);
+  // display mouse mode in string form
+  char msmode_str[4];
+  switch (g->msmode)
+  {
+  case 1:
+    strcpy(msmode_str,"bx");
+    break;
+  case 2:
+    strcpy(msmode_str,"pr");
+    break;
+  case -2:
+    strcpy(msmode_str,"tl");
+    break;
+  case 3:
+    strcpy(msmode_str,"pt");  
+    break;
+  default:
+    strcpy(msmode_str,"un");
+    break;
+  }
+  sprintf(g->mmbox.text,"mm %s",msmode_str);
   CBX_UpdateEditWindow(&g->mmbox);
 }
 
@@ -2412,14 +2443,28 @@ static void set_mm(Guider* g,int m)
 static void set_fm(Guider* g,int m)    /* v0329 */
 {
   switch (m) {
-  case 1: case 2: case 3:
+  case 1: case 2: // case 3:
     g->fmode = m;
     break;
   }
   if (g->fmode != m) { 
     message(g,"invalid function mode",MSS_WARN);
   }
-  sprintf(g->fmbox.text,"fm %2d",g->fmode);
+  // display function mode in string form
+  char fmmode_str[4];
+  switch (g->fmode)
+  {
+  case 1:
+    strcpy(fmmode_str,"gd");
+    break;
+  case 2:
+    strcpy(fmmode_str,"sh");
+    break;
+  default:
+    strcpy(fmmode_str,"un");
+    break;
+  }
+  sprintf(g->fmbox.text,"fm %s",fmmode_str);
   CBX_UpdateEditWindow(&g->fmbox);
 }
 
@@ -2465,7 +2510,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
 
   switch (g->gmode) {                  /* v0414 */
   case GM_PR: case GM_SV5:             /* SV5 v0416 */
-    strcpy(g->g_tc->name,"tx"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"AZ"); graph_scale(g->g_az,-1.0,1.0,0x01);
     strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
@@ -2477,7 +2522,7 @@ static void set_gm(Guider* g,int m,char c)  /* v0354 */
     strcpy(g->g_el->name,"EL"); graph_scale(g->g_el,-1.0,1.0,0x01);
     break;
   case GM_SV4:  /* [arcsec] before rotation and derivative */
-    strcpy(g->g_tc->name,"tx"); graph_scale(g->g_fw,0,10000,0);
+    strcpy(g->g_tc->name,"tc"); graph_scale(g->g_fw,0,10000,0);
     strcpy(g->g_fw->name,"fw"); graph_scale(g->g_fw,0.0,2.0,0);
     strcpy(g->g_az->name,"X");  graph_scale(g->g_az,-1.0,1.0,0x03);
     strcpy(g->g_el->name,"Y");  graph_scale(g->g_el,-1.0,1.0,0x03);
@@ -2611,7 +2656,7 @@ static int check_datapath(char* path,int interactive)
           }
         } while ((h=strtok(NULL,"/")) != NULL);
       } else {
-        strcpy(path,genv2("HOME","/tmp"));
+        strcpy(path,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
         CBX_MessageBox(P_TITLE ": set DataPath to",path);
       }
       CBX_ClearAutoQueue(&mwin);
@@ -2692,7 +2737,7 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
   char file[512],buffer[1024],key[128],val[128];
 
   if (*name == '/') strcpy(file,name);
-  else             sprintf(file,"%s/%s",genv3("GCAMZWOINI","HOME","."),name);
+  else             sprintf(file,"%s/%s",genv2("GCAMZWOINI", "/opt/gcamzwo"), name);
   FILE *fp = fopen(file,"r");
   if (!fp) {
     fprintf(stderr,"failed to open %s\n",file);
