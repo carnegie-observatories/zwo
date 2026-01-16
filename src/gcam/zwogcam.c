@@ -203,8 +203,6 @@ static Menu       opmenu;              /* options dropdown menu */
 static EditWindow utbox,rtbox;
 
 static Guider sGuider;                 /* singleton v0400 */
-static Guider *guiders[1];             /* historical */
-static const int n_guiders=1;          /* historical */
 
 static time_t disk_next=0;
 static time_t startup_time;
@@ -453,10 +451,9 @@ int main(int argc,char **argv)
   if (!i) strcpy(buffer,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
   // printf("path= %s\n",buffer); 
 
-  assert(n_guiders == 1);
-  for (i=0; i<n_guiders; i++) {
-    guiders[i] = &sGuider; // (Guider*)malloc(sizeof(Guider)); 
-    Guider *g = guiders[i];
+  /* Initialize single guider */
+  {
+    Guider *g = &sGuider;
     if (strlen(g->name) == 0) {
       sprintf(g->name,"gCam%d",g->gnum);
     }
@@ -503,11 +500,11 @@ int main(int argc,char **argv)
     st->rotn = sGuider.rPort;            /* v0317 */
     st->psize = 4.63f;                   /* [um] v0327 */
     strcpy(st->st_str,""); strcpy(st->ha_str,""); strcpy(st->tg_str,""); 
-  }
+  } /* end guider initialization */
 
   /* create main-window ------------------------------------------- */
  
-  sprintf(buf,"%s (v%s)",guiders[0]->status.instrument,P_VERSION);
+  sprintf(buf,"%s (v%s)",sGuider.status.instrument,P_VERSION);
   // printf("eWIDE=%d, eHIGH=%d\n",eWIDE,eHIGH); 
   CXT_OpenMainWindow(&mwin,winpos,eWIDE,eHIGH,&hint,buf,P_TITLE,True);
   // XSynchronize(mwin.disp,True);
@@ -534,8 +531,9 @@ int main(int argc,char **argv)
   x -= w + PXw;
   CBX_CreateAutoOutput(&mwin,&rtbox,x,y,w,XXh,"et");
 
-  for (i=0; i<n_guiders; i++) {        /* guider controls */
-    Guider *g = guiders[i];
+  /* Create guider controls */
+  {
+    Guider *g = &sGuider;
     g->win = mwin.win;                 /* one guider window v0400 */
     /* 1st column ------------------------------------------------- */
     Window p = g->win;                 /* parent */
@@ -669,7 +667,7 @@ int main(int argc,char **argv)
     if (g->span > 0) { sprintf(buf,"%d",g->span); qltool_scale(g->qltool,"spa",buf,""); }
     if (g->bx   > 0) { sprintf(buf,"bx %d",g->bx); handle_command(g,buf,0); }
     else sprintf(g->bxbox.text,"bx %2d",1+2*g->qltool->vrad);
-  } /* endfor(n_guiders) */
+  } /* end guider controls */
   done = False;
 
   sprintf(paString,"PA = %.1f %cELEV %cROTE (%c)",  /* v0315 */
@@ -677,13 +675,14 @@ int main(int argc,char **argv)
          (sGuider.elsign > 0) ? '+' : (sGuider.elsign < 0) ? '-' : '0',  
          (sGuider.rosign > 0) ? '+' : (sGuider.rosign < 0) ? '-' : '0',
          (sGuider.parity > 0) ? '+' : '-');   /* v0351 */
-  message(guiders[0],paString,MSS_INFO);   /* v0311 */
+  message(&sGuider,paString,MSS_INFO);   /* v0311 */
 
   /* -------------------------------------------------------------- */
 
   eds_open(2);
-  for (i=0; i<n_guiders; i++) {        /* setup GUI */
-    Guider *g = guiders[i];
+  /* setup GUI */
+  {
+    Guider *g = &sGuider;
     // redraw_gwin(g);
     // CBX_SendExpose_Ext(mwin.disp,g->win);
     set_fm  (g,1);
@@ -720,8 +719,8 @@ int main(int argc,char **argv)
           redraw_text();               /* redraw everything */
           break;
         }
-        for (i=0; i<n_guiders; i++) {
-          Guider *g = guiders[i];
+        {
+          Guider *g = &sGuider;
           if (event.xexpose.window == g->win) { 
             redraw_compass(g);
             // implicit redraw_gwin(g); 
@@ -766,8 +765,8 @@ int main(int argc,char **argv)
       /* ignore */
       break;
     case KeyPress:                     /* keyboard events */
-      for (i=0; i<n_guiders; i++) {
-        Guider *g = guiders[i];
+      {
+        Guider *g = &sGuider;
         if (event.xkey.window == g->win) { 
           int b = cursor_blocked(g,g->qltool->cursor_mode,0);
           if (qltool_handle_key(g->qltool,(XKeyEvent*)&event,b)) {
@@ -787,9 +786,9 @@ int main(int argc,char **argv)
       break;
     case ButtonPress:                  /* mouse button pressed */
       if (event.xbutton.button == 1) { /* left button */
-        for (i=0; i<n_guiders; i++) {
-          Guider *g = guiders[i];
-          if (g->init_flag != 1) continue;
+        {
+          Guider *g = &sGuider;
+          if (g->init_flag != 1) break;
           if (event.xbutton.window == g->qltool->iwin) {
             if (require_control_key) {
               if (!(event.xbutton.state & ControlMask)) {
@@ -804,7 +803,7 @@ int main(int argc,char **argv)
 	    eds_send82i(g->gnum,1+c,x,y); /* v0346 */
             break;
           }
-        } /* endfor(guiders) */
+        }
       } /* endif(left button) */
       break;
 #if (DEBUG > 1)
@@ -819,10 +818,7 @@ int main(int argc,char **argv)
 
   CBX_CloseMainWindow(&mwin);
 
-  for (i=0; i<n_guiders; i++) {
-    Guider *g = guiders[i];
-    if (g->server) zwo_free(g->server);
-  }
+  if (sGuider.server) zwo_free(sGuider.server);
 
 #if (TIME_TEST > 0)                    /* print cpu-time */
   { struct tms tmsbuf;
@@ -978,21 +974,18 @@ static void update_ut(void)
     CBX_UpdateEditWindow(&rtbox); 
   }
 
-  if (ut_now >= pa_last+pa_interval) { int i; Guider *g;
-    for (i=0; i<n_guiders; i++) { 
-      g = guiders[i];
-      int wait = (g->gmode == GM_SV5) ? 5 : 30; /* if not guiding v0420 */
-      if ((!g->qltool->guiding) && (ut_now-pa_last < wait)) continue;
-      if (g->pamode) {
-        thread_detach(run_tele,NULL);
-        pa_last = ut_now;
-        break;
-      }
+  if (ut_now >= pa_last+pa_interval) {
+    Guider *g = &sGuider;
+    int wait = (g->gmode == GM_SV5) ? 5 : 30; /* if not guiding v0420 */
+    if ((!g->qltool->guiding) && (ut_now-pa_last < wait)) return;
+    if (g->pamode) {
+      thread_detach(run_tele,NULL);
+      pa_last = ut_now;
     }
   }
   
   if (ut_now >= disk_next) {           /* check disk */
-    Guider *g = guiders[0];            /* takes about 0.5 msec */
+    Guider *g = &sGuider;              /* takes about 0.5 msec */
     float file_system = checkfs(g->status.datapath); 
     if (file_system < 0.05) { char buf[128]; 
       sprintf(buf,"WARNING: disk %.1f%% full",100.0*(1.0-file_system));
@@ -1006,8 +999,6 @@ static void update_ut(void)
  
 static void cb_file(void* param)
 {
-  int i;
- 
   switch (fimenu.sel) {  
   case FILE_HELP:
     { char cmd[512]; AMB *box;
@@ -1021,11 +1012,8 @@ static void cb_file(void* param)
     break;
   case FILE_EXIT:                      /* exit GUI */
     done = True;                       /* kill housekeeping loop */
-    for (i=0; i<n_guiders; i++) {
-      if (guiders[i]->loop_running) {
-        if (!CBX_AlertBox("Exposure","Really exit?")) done = False;
-        break;
-      }
+    if (sGuider.loop_running) {
+      if (!CBX_AlertBox("Exposure","Really exit?")) done = False;
     }
     if (done) my_shutdown(True);
     break;
@@ -1037,7 +1025,6 @@ static void cb_file(void* param)
 
 static void cb_options(void* param)
 {
-  int  i;
   char buffer[1024];
   Guider *g=&sGuider;
 
@@ -1046,13 +1033,11 @@ static void cb_options(void* param)
     CBX_AsyncMessageBox(P_TITLE,logfile);
     break;
   case OPT_DATAPATH:                   /* set save-path (data) */
-    sprintf(buffer,"%s",guiders[0]->status.datapath);
+    sprintf(buffer,"%s",sGuider.status.datapath);
     if (CBX_ParameterBox("Set Datapath",buffer)) {
       check_datapath(buffer,1);
       put_string(setup_rc,DBE_DATAPATH,buffer);
-      for (i=0; i<n_guiders; i++) {
-        strcpy(guiders[i]->status.datapath,buffer);
-      }
+      strcpy(sGuider.status.datapath,buffer);
     }
     break;
   case OPT_FLIP_X:
@@ -1853,12 +1838,9 @@ static void* run_tele(void* param)
 #endif
 
   err = telio_open(2);
-  if (!err) { int i;
-    for (i=0; i<n_guiders; i++ ) {
-      Guider *g = guiders[i];
-      if (g->pamode) err = set_pa(g,g->pa,1);
-      if (err) break;
-    }
+  if (!err) {
+    Guider *g = &sGuider;
+    if (g->pamode) err = set_pa(g,g->pa,1);
     telio_close();
     // printf("elev=%.3f, para=%.3f\n",elev,para);
   }
@@ -2571,10 +2553,9 @@ void message(const void *param,const char* text,int flags)
   assert(text);
 
   if (param) {
-    for (i=0; i<n_guiders; i++) {      /* source */
-      if (param == guiders[i]) { g = guiders[i]; break; }
-      if (param == guiders[i]->server) { g = guiders[i]; break; }
-    } 
+    /* Check if param matches sGuider */
+    if (param == &sGuider) { g = &sGuider; }
+    else if (param == sGuider.server) { g = &sGuider; }
   }
 
   if (flags & MSS_FILE) { char who[64]="-";  /* write to file */
@@ -2688,20 +2669,14 @@ static int cursor_blocked(Guider *g,int mode,int prnt) /* v0421 */
 
 static void my_shutdown(Bool force)
 {
-  int i;
-
   if (!force) {
     force = True;
-    for (i=0; i<n_guiders; i++) {
-      if (guiders[i]->loop_running) force = False;
-    }
+    if (sGuider.loop_running) force = False;
   }
   if (force) { Bool wait=False;
-    for (i=0; i<n_guiders; i++) {
-      if (guiders[i]->loop_running) {
-        wait = True;
-        do_stop(guiders[i],0);
-      }
+    if (sGuider.loop_running) {
+      wait = True;
+      do_stop(&sGuider,0);
     }
     if (wait) msleep(1000);
     done = True;
