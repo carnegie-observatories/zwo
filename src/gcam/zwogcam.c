@@ -818,7 +818,10 @@ int main(int argc,char **argv)
 
   CBX_CloseMainWindow(&mwin);
 
-  if (sGuider.server) zwo_free(sGuider.server);
+  if (sGuider.server) {
+    zwo_free(sGuider.server);
+    sGuider.server = NULL;
+  }
 
 #if (TIME_TEST > 0)                    /* print cpu-time */
   { struct tms tmsbuf;
@@ -869,6 +872,7 @@ static void redraw_compass(Guider* g)
 #if (DEBUG > 1)
   fprintf(stderr,"%s(%p): pa=%.1f, para=%.1f\n",PREFUN,g,g->pa,para);
 #endif
+  assert(g != NULL);
   assert(g->pa != 0);
 
   CBX_Lock(0);
@@ -1090,7 +1094,12 @@ static int do_stop(Guider* g,int wait)
 #endif
 
   if (g->loop_running) {
-    if (g->qltool->guiding) { g->qltool->guiding = 0; msleep(350); } 
+    if (g->qltool->guiding) {
+      pthread_mutex_lock(&g->mutex);
+      g->qltool->guiding = 0;
+      pthread_mutex_unlock(&g->mutex);
+      msleep(350);
+    } 
     g->stop_flag = True;
     message(g,"stopping acquisition",MSS_INFO);
     while (wait > 0) {
@@ -1319,7 +1328,9 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     /* F2 F4 & F5 are not blocked by fmode 2 and so should be turned off with F1
        F4 and F5 move the box which could be a problem for SH? block? */
     //    if (g->fmode == 1) {               /* fm1 */
+    pthread_mutex_lock(&g->mutex);
     g->qltool->guiding = 0;
+    pthread_mutex_unlock(&g->mutex);
     if (g->gid) { pthread_join(g->gid,NULL); g->gid = 0; }
     sprintf(g->gdbox.text,"gd  off"); 
     g->gdbox.fg = app->black;
@@ -1340,7 +1351,9 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   } else
   if (!strcasecmp(cmd,"ftwo")) {       /* F2 */
     if (g->loop_running) {             /* implies (init_flag==1) */
+      pthread_mutex_lock(&g->mutex);
       g->qltool->guiding = -2;
+      pthread_mutex_unlock(&g->mutex);
       if (!g->gid) thread_create(run_guider,g,&g->gid);
       sprintf(g->gdbox.text,"gd calc"); CBX_UpdateEditWindow(&g->gdbox);
     } else err = E_NOTACQ;
@@ -1348,7 +1361,9 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   if (!strcasecmp(cmd,"fthr")) {       /* F3 */
     if (g->fmode == 1) {               /* fm1 */
       if (g->loop_running) {           /* implies (init_flag==1) */
+        pthread_mutex_lock(&g->mutex);
         g->qltool->guiding = -3;
+        pthread_mutex_unlock(&g->mutex);
         if (!g->gid) thread_create(run_guider,g,&g->gid); 
         sprintf(g->gdbox.text,"gd move"); CBX_UpdateEditWindow(&g->gdbox);
       } else err = E_NOTACQ;
@@ -1365,14 +1380,18 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   } else
   if (!strcasecmp(cmd,"ffou")) {       /* F4 */
     if (g->loop_running) {             /* implies (init_flag==1) */
+      pthread_mutex_lock(&g->mutex);
       g->qltool->guiding = -4;
+      pthread_mutex_unlock(&g->mutex);
       if (!g->gid) thread_create(run_guider,g,&g->gid);
       sprintf(g->gdbox.text,"gd calc"); CBX_UpdateEditWindow(&g->gdbox);
     } else err = E_NOTACQ;
   } else
   if (!strcasecmp(cmd,"ffiv")) {       /* F5 */
     if (g->loop_running) {             /* implies (init_flag==1) */
+      pthread_mutex_lock(&g->mutex);
       g->qltool->guiding = -5;
+      pthread_mutex_unlock(&g->mutex);
       if (!g->gid) thread_create(run_guider,g,&g->gid);
       sprintf(g->gdbox.text,"gd move"); CBX_UpdateEditWindow(&g->gdbox);
     } else err = E_NOTACQ;
