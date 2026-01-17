@@ -1649,13 +1649,15 @@ static int handle_command(Guider* g,const char* command,int showMsg)
         err = -1;
       } else {                         /* update server host from config */
         strcpy(g->server->host,g->host);
-        if (g->server->mask) {         /* force mask reload */
-          free(g->server->mask);
-          g->server->mask = NULL;
-        }
       }
     }
-    if (!err && g->init_flag >= 0) thread_detach(run_init,g);
+    if (!err) {
+      if (g->server->mask) {           /* force mask reload */
+        free(g->server->mask);
+        g->server->mask = NULL;
+      }
+      if (g->init_flag >= 0) thread_detach(run_init,g);
+    }
   } else                               /* shutdown server */
   if (!strncasecmp(cmd,"shutdown",4) || !strncasecmp(cmd,"poweroff",5)) {
     if (g->loop_running) do_stop(g,3000);
@@ -2251,6 +2253,8 @@ static void load_mask(Guider *g)       /* v0322 */
   int npix = server->aoiW * server->aoiH;
   assert(server->aoiW == server->aoiH);
   sprintf(file,"%s/%s",genv2("GCAMZWOPATH", "/opt/gcamzwo"),mask_name(g,name));
+  printf("load_mask: loading %s (serial=%s, aoiW=%d, offx=%d, offy=%d)\n",
+         file, server->serialNumber, server->aoiW, g->offx, g->offy);
 
   FILE *fp = fopen(file,"r");
   if (!fp) { 
