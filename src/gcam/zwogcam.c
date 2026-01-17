@@ -1640,6 +1640,8 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       if (read_inifile(g,inifile) < 0) {
         sprintf(msgstr,"config file '%s' not found",inifile);
         err = -1;
+      } else {                         /* update server host from config */
+        strcpy(g->server->host,g->host);
       }
     }
     if (!err && g->init_flag >= 0) thread_detach(run_init,g);
