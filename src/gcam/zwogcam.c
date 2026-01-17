@@ -300,30 +300,37 @@ int main(int argc,char **argv)
   pthread_mutex_init(&scanMutex,NULL);
   pthread_mutex_init(&mesgMutex,NULL);
 
-  sGuider.gnum = 1;                    /* PR */
-  sGuider.gmode = 0; 
-  sGuider.gmpar = 't';
-  sGuider.angle = -120.0;              /* PFS:-128, MIKE:-119 */
-  sGuider.elsign = -1.0;
-  sGuider.rosign =  0.0;
-  sGuider.parity =  -1.0;
-  sGuider.parit2 =  1.0;
-  sGuider.offx = sGuider.offy = 0;     /* PFS:-10+85, MIKE:+45+230 */
-  sGuider.slitW = 6;                   /* PFS:6, MIKE:13 */
-  sGuider.px = 0.051;                  /* PFS:53, MIKE:54 */
-  sGuider.lmag = sGuider.bx = 0;
-  sGuider.pct = sGuider.bkg = sGuider.span = 0;
-  strcpy(sGuider.send_host, "localhost");
-  sGuider.send_port = 0;
-  strcpy(sGuider.host, "localhost");
-  sGuider.rPort = 0;
-  sGuider.sens = 0.5f;
-  sGuider.status.exptime = 1.0f;
+  /* Initialize sGuider with struct initializer for clarity */
+  sGuider = (Guider){
+    .gnum = 1,
+    .gmode = 0,
+    .gmpar = 't',
+    .angle = -120.0,              /* PFS:-128, MIKE:-119 */
+    .elsign = -1.0,
+    .rosign = 0.0,
+    .parity = -1.0,
+    .parit2 = 1.0,
+    .offx = 0,                    /* PFS:-10+85, MIKE:+45+230 */
+    .offy = 0,
+    .slitW = 6,                   /* PFS:6, MIKE:13 */
+    .px = 0.051,                  /* PFS:53, MIKE:54 */
+    .lmag = 0,
+    .bx = 0,
+    .pct = 0,
+    .bkg = 0,
+    .span = 0,
+    .send_host = "localhost",
+    .send_port = 0,
+    .host = "localhost",
+    .rPort = 0,
+    .sens = 0.5f,
+    .status.exptime = 1.0f,
 #ifdef ENG_MODE
-  strcpy(sGuider.gain,"");
+    .gain = "",
 #else
-  strcpy(sGuider.gain,"hi");
+    .gain = "hi",
 #endif
+  };
 
   { extern char *optarg; double f;     /* parse command line */  
     extern int opterr,optopt; opterr=0;
