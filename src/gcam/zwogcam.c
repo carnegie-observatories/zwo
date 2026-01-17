@@ -1642,6 +1642,10 @@ static int handle_command(Guider* g,const char* command,int showMsg)
         err = -1;
       } else {                         /* update server host from config */
         strcpy(g->server->host,g->host);
+        if (g->server->mask) {         /* force mask reload */
+          free(g->server->mask);
+          g->server->mask = NULL;
+        }
       }
     }
     if (!err && g->init_flag >= 0) thread_detach(run_init,g);
