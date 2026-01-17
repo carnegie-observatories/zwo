@@ -1750,11 +1750,7 @@ static void* run_setup(void* param)
   g->init_flag = -1;                   /* init running */
   message(g,PREFUN,MSS_INFO);
 
-#if 1 // todo ?Povilas
-  sprintf(buf,"%s (%d) - v%s",g->host,g->gnum,P_VERSION); // v0419
-#else
-  sprintf(buf,"%s (%d) - v%s",g->server->modelName,g->gnum,P_VERSION);
-#endif
+  sprintf(buf,"%s %s (%d) - v%s",g->name,g->host,g->gnum,P_VERSION);
   CBX_SetMainWindowName(&mwin,buf);
 
   long err = zwo_setup(g->server,baseD,baseB,g->offx,g->offy);
