@@ -445,11 +445,9 @@ int main(int argc,char **argv)
 
   sprintf(buf,"gcamzwo%drc",sGuider.gnum); /* runNumber & dataPath */
   (void)set_path(setup_rc,buf);        /* $HOME v0311 */
-  // printf("setup=%s\n",setup_rc);
   get_string(setup_rc,DBE_DATAPATH,buffer,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
   i = check_datapath(buffer,0);
-  if (!i) strcpy(buffer,genv2("GCAMZWOPATH", "/opt/gcamzwo"));
-  // printf("path= %s\n",buffer); 
+  if (!i) strcpy(buffer,genv2("GCAMZWOPATH", "/opt/gcamzwo")); 
 
   /* Initialize single guider */
   {
@@ -507,7 +505,6 @@ int main(int argc,char **argv)
   /* create main-window ------------------------------------------- */
  
   sprintf(buf,"%s (v%s)",sGuider.status.instrument,P_VERSION);
-  // printf("eWIDE=%d, eHIGH=%d\n",eWIDE,eHIGH); 
   CXT_OpenMainWindow(&mwin,winpos,eWIDE,eHIGH,&hint,buf,P_TITLE,True);
   // XSynchronize(mwin.disp,True);
   CBX_SelectInput(&mwin,ExposureMask | KeyPressMask);
@@ -1187,7 +1184,6 @@ static int handle_key(void* param,XEvent* event)
 
   CBX_Lock(0);
   char *keys = XKeysymToString(XLookupKeysym((XKeyEvent*)event,0));
-  // printf("%s: keys=%s\n",PREFUN,keys);
   CBX_Unlock();
 
   if (!strcmp(keys,"F1")) {            /* stop guiding */
@@ -1601,7 +1597,6 @@ static int handle_command(Guider* g,const char* command,int showMsg)
 #if 1  // todo 
     message(g,"not yet implemented",MSS_INFO);
 #else
-    printf("n=%d\n",n); //xxx
     if (n < 3) { 
       err = E_MISSPAR;
     } else {
@@ -1863,7 +1858,6 @@ static void* run_tele(void* param)
     Guider *g = &sGuider;
     if (g->pamode) err = set_pa(g,g->pa,1);
     telio_close();
-    // printf("elev=%.3f, para=%.3f\n",elev,para);
   }
 
   return (void*)(long)err;
@@ -2147,7 +2141,9 @@ static void* run_display(void* param)
     slpt = (throttle) ? 0.6*slpt + 0.4*slpt*(fps/throttle) : 0.02;
     tmax = (throttle) ? 1.0/throttle : 0.35;
     slpt = fmax(0.02,fmin(tmax,fmax(slpt,g->status.exptime/3.0)));
-    // printf("slpt=%.3f\n",slpt);
+#if (DEBUG > 3)
+    fprintf(stderr,"slpt=%.3f\n",slpt);
+#endif
     msleep((int)(1000.0*slpt)); 
   } // endwhile(!stop)
   sprintf(g->fdbox.text,"%d",0); CBX_UpdateEditWindow(&g->fdbox);
@@ -2710,7 +2706,6 @@ static int setup_m_switch(char m)       /* v0423 */
 {
   int r=1;
 
-  // printf("m=%d (%c)\n",m,m); 
   switch (m) {                         /* geometry modes */
     case '1': baseD= 504; baseB=2; baseI=504; pHIGH=87;  break;
     case '2': baseD=1000; baseB=2; baseI=500; pHIGH=82;  break; /* PFS */
@@ -2721,7 +2716,6 @@ static int setup_m_switch(char m)       /* v0423 */
     case 'f': baseD=2400; baseB=2; baseI=600; pHIGH=117; break;
     default: r=0; break;
   }
-  // printf("r=%d (%d,%d,%d,%d)\n",r,baseD,baseB,baseI,pHIGH);
   return r;
 } 
  
@@ -2742,7 +2736,6 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
   while (fgets(buffer,sizeof(buffer),fp) != NULL) {
     if (sscanf(buffer,"%s %s",key,val) == 2) {
       n++;
-      // printf("%s: %s\n",key,val); 
       if      (!strcmp(key,"host")) strcpy(g->host,val);
       else if (!strcmp(key,"port")) g->rPort = atoi(val); 
       else if (!strcmp(key,"send_host")) strcpy(g->send_host,val);
