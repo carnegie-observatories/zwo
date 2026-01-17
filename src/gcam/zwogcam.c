@@ -484,9 +484,11 @@ int main(int argc,char **argv)
     st->seqNumber = 0;
     get_string(setup_rc,DBE_PREFIX,buf,DEF_PREFIX);
     buf[12] = '\0';                    /* avoid compiler warning v0315 */
-    char *b = malloc(1+strlen(buf)); strcpy(b,buf);    
-    sprintf(st->prefix,"%s%d_",b,g->gnum);
-    free((void*)b);
+    /* Use stack buffer instead of malloc/free */
+    char prefix_buf[16];
+    strncpy(prefix_buf, buf, sizeof(prefix_buf)-1);
+    prefix_buf[sizeof(prefix_buf)-1] = '\0';
+    sprintf(st->prefix,"%s%d_",prefix_buf,g->gnum);
     strcpy(st->datapath,buffer); 
     strcpy(st->origin,"LCO/OCIW");
     strcpy(st->version,P_VERSION);
