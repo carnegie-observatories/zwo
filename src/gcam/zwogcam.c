@@ -69,6 +69,7 @@
  * v1.0.4  2025-12-11  on fone turn of eds guider eds flag 801, and set gdrbox message black.
  * v1.0.4  2026-01-15  added exptime to config file
  * v1.0.4  2026-01-15  added mouse-mode aliases, updated documentation
+ * v1.0.5  starting on v1.0.5, updates are documented in the release notes on github
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
@@ -1633,7 +1634,15 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     make_mask(g,par1);
   } else                               /* reset server */
   if (!strcasecmp(cmd,"dspi") || !strcasecmp(cmd,"reset")) {
-    if (g->init_flag >= 0) thread_detach(run_init,g);
+    if (n > 1) {                       /* load config file if specified */
+      char inifile[256];
+      sprintf(inifile,"%s.ini",par1);
+      if (read_inifile(g,inifile) < 0) {
+        sprintf(msgstr,"config file '%s' not found",inifile);
+        err = -1;
+      }
+    }
+    if (!err && g->init_flag >= 0) thread_detach(run_init,g);
   } else                               /* shutdown server */
   if (!strncasecmp(cmd,"shutdown",4) || !strncasecmp(cmd,"poweroff",5)) {
     if (g->loop_running) do_stop(g,3000);
