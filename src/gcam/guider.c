@@ -113,8 +113,8 @@ static void run_guider1(void* param)
   double next_eds=0;
   double r0=1,a0=0,n0=0;               /* gm5 stuff v0416 */
   int    gm5_locked=0;
-  int    ix,iy,ppix=0,vrad=0,npix=0,doit=1;
-  u_int  seqNumber=0,counter=0;
+  int    ix,iy,ppix=0,vrad=0,npix=0;
+  u_int  seqNumber=0;
   Pixel  *pbuf=NULL;
   Guider *g = (Guider*)param;
   QlTool *qltool = g->qltool;
@@ -267,7 +267,6 @@ static void run_guider1(void* param)
         g->azerp = azerr;              /* store last error */
         g->elerp = elerr;
         qltool->guiding = abs(qltool->guiding);
-        counter++; doit=1;
 	//	if (server->rolling && (walltime(0) < next_eds)) {
 	//          if (counter % server->rolling) doit = 0;
 	//}
@@ -510,7 +509,8 @@ static int tcs_recon(Guider *g)        /* v0417 */
   char buf[128];
 #if (DEBUG > 0)
   fprintf(stderr,"%s(%p)\n",__func__,g);
-  tdebug(__func__,g);
+  sprintf(buf,"tcs_recon(%p)",g);
+  tdebug(__func__,buf);
 #endif
 
   int err = telio_open(2);
