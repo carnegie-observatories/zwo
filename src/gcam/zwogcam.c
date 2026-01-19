@@ -315,6 +315,7 @@ int main(int argc,char **argv)
     .slitW = 6,                   /* PFS:6, MIKE:13 */
     .px = 0.051,                  /* PFS:53, MIKE:54 */
     .lmag = 0,
+    .name = "",
     .bx = 0,
     .pct = 0,
     .bkg = 0,
@@ -460,9 +461,6 @@ int main(int argc,char **argv)
   /* Initialize single guider */
   {
     Guider *g = &sGuider;
-    if (strlen(g->name) == 0) {
-      sprintf(g->name,"gCam%d",g->gnum);
-    }
     g->server = zwo_create(g->host,SERVER_PORT);
     g->server->expTime = g->status.exptime;
     g->gid = 0;                        /* guiding thread ID */
@@ -1644,6 +1642,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     if (n > 1) {                       /* load config file if specified */
       char inifile[256];
       sprintf(inifile,"%s.ini",par1);
+      strncpy(g->name, "", sizeof(g->name));               /* reset name to avoid confusion */
       if (read_inifile(g,inifile) < 0) {
         sprintf(msgstr,"config file '%s' not found",inifile);
         err = -1;
