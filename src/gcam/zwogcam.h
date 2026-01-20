@@ -5,7 +5,7 @@
  * ---------------------------------------------------------------- */
 
 #define PROJECT_ID      22             /* andorgui / zwogcam */
-#define P_VERSION       "1.0.5"
+#define P_VERSION       "1.0.6"
 
 extern void message(const void*,const char*,int);
 

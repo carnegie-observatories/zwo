@@ -69,6 +69,7 @@
  * v1.0.4  2025-12-11  on fone turn of eds guider eds flag 801, and set gdrbox message black.
  * v1.0.4  2026-01-15  added exptime to config file
  * v1.0.4  2026-01-15  added mouse-mode aliases, updated documentation
+ * v1.0.5  starting on v1.0.5, updates are documented in the release notes on github
  *
  * http://www.lco.cl/telescopes-information/magellan/
  *   operations-homepage/magellan-control-system/magellan-code/gcam
@@ -299,30 +300,38 @@ int main(int argc,char **argv)
   pthread_mutex_init(&scanMutex,NULL);
   pthread_mutex_init(&mesgMutex,NULL);
 
-  sGuider.gnum = 1;                    /* PR */
-  sGuider.gmode = 0; 
-  sGuider.gmpar = 't';
-  sGuider.angle = -120.0;              /* PFS:-128, MIKE:-119 */
-  sGuider.elsign = -1.0;
-  sGuider.rosign =  0.0;
-  sGuider.parity =  -1.0;
-  sGuider.parit2 =  1.0;
-  sGuider.offx = sGuider.offy = 0;     /* PFS:-10+85, MIKE:+45+230 */
-  sGuider.slitW = 6;                   /* PFS:6, MIKE:13 */
-  sGuider.px = 0.051;                  /* PFS:53, MIKE:54 */
-  sGuider.lmag = sGuider.bx = 0;
-  sGuider.pct = sGuider.bkg = sGuider.span = 0;
-  strcpy(sGuider.send_host, "localhost");
-  sGuider.send_port = 0;
-  strcpy(sGuider.host, "localhost");
-  sGuider.rPort = 0;
-  sGuider.sens = 0.5f;
-  sGuider.status.exptime = 1.0f;
+  /* Initialize sGuider with struct initializer for clarity */
+  sGuider = (Guider){
+    .gnum = 1,
+    .gmode = 0,
+    .gmpar = 't',
+    .angle = -120.0,              /* PFS:-128, MIKE:-119 */
+    .elsign = -1.0,
+    .rosign = 0.0,
+    .parity = -1.0,
+    .parit2 = 1.0,
+    .offx = 0,                    /* PFS:-10+85, MIKE:+45+230 */
+    .offy = 0,
+    .slitW = 6,                   /* PFS:6, MIKE:13 */
+    .px = 0.051,                  /* PFS:53, MIKE:54 */
+    .lmag = 0,
+    .name = "",
+    .bx = 0,
+    .pct = 0,
+    .bkg = 0,
+    .span = 0,
+    .send_host = "localhost",
+    .send_port = 0,
+    .host = "localhost",
+    .rPort = 0,
+    .sens = 0.5f,
+    .status.exptime = 1.0f,
 #ifdef ENG_MODE
-  strcpy(sGuider.gain,"");
+    .gain = "",
 #else
-  strcpy(sGuider.gain,"hi");
+    .gain = "hi",
 #endif
+  };
 
   { extern char *optarg; double f;     /* parse command line */  
     extern int opterr,optopt; opterr=0;
@@ -452,9 +461,6 @@ int main(int argc,char **argv)
   /* Initialize single guider */
   {
     Guider *g = &sGuider;
-    if (strlen(g->name) == 0) {
-      sprintf(g->name,"gCam%d",g->gnum);
-    }
     g->server = zwo_create(g->host,SERVER_PORT);
     g->server->expTime = g->status.exptime;
     g->gid = 0;                        /* guiding thread ID */
@@ -1633,7 +1639,24 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     make_mask(g,par1);
   } else                               /* reset server */
   if (!strcasecmp(cmd,"dspi") || !strcasecmp(cmd,"reset")) {
-    if (g->init_flag >= 0) thread_detach(run_init,g);
+    if (n > 1) {                       /* load config file if specified */
+      char inifile[256];
+      sprintf(inifile,"%s.ini",par1);
+      strncpy(g->name, "", sizeof(g->name));               /* reset name to avoid confusion */
+      if (read_inifile(g,inifile) < 0) {
+        sprintf(msgstr,"config file '%s' not found",inifile);
+        err = -1;
+      } else {                         /* update server host from config */
+        strcpy(g->server->host,g->host);
+      }
+    }
+    if (!err) {
+      if (g->server->mask) {           /* force mask reload */
+        free(g->server->mask);
+        g->server->mask = NULL;
+      }
+      if (g->init_flag >= 0) thread_detach(run_init,g);
+    }
   } else                               /* shutdown server */
   if (!strncasecmp(cmd,"shutdown",4) || !strncasecmp(cmd,"poweroff",5)) {
     if (g->loop_running) do_stop(g,3000);
@@ -1739,11 +1762,7 @@ static void* run_setup(void* param)
   g->init_flag = -1;                   /* init running */
   message(g,PREFUN,MSS_INFO);
 
-#if 1 // todo ?Povilas
-  sprintf(buf,"%s (%d) - v%s",g->host,g->gnum,P_VERSION); // v0419
-#else
-  sprintf(buf,"%s (%d) - v%s",g->server->modelName,g->gnum,P_VERSION);
-#endif
+  sprintf(buf,"%s %s (%d) - v%s",g->name,g->host,g->gnum,P_VERSION);
   CBX_SetMainWindowName(&mwin,buf);
 
   long err = zwo_setup(g->server,baseD,baseB,g->offx,g->offy);
@@ -2233,6 +2252,8 @@ static void load_mask(Guider *g)       /* v0322 */
   int npix = server->aoiW * server->aoiH;
   assert(server->aoiW == server->aoiH);
   sprintf(file,"%s/%s",genv2("GCAMZWOPATH", "/opt/gcamzwo"),mask_name(g,name));
+  printf("load_mask: loading %s (serial=%s, aoiW=%d, offx=%d, offy=%d)\n",
+         file, server->serialNumber, server->aoiW, g->offx, g->offy);
 
   FILE *fp = fopen(file,"r");
   if (!fp) { 
@@ -2266,7 +2287,7 @@ static void make_mask(Guider *g,const char* par)  /* v0319 */
   assert(server->mask);
   assert(server->aoiW == server->aoiH);
   int npix = server->aoiW * server->aoiH;
-  sprintf(file,"%s/%s",genv2("GCAMZWOPATH","/opt/gcamzwo"),mask_name(g,name));
+  sprintf(file,"%s/%s",genv2("GCAMZWOPATH", "/opt/gcamzwo"),mask_name(g,name));
 
   if (!strcmp(par,"off")) {            /* turn OFF mask */
     memset(server->mask,0,npix*sizeof(char));
@@ -2317,7 +2338,7 @@ static void make_mask(Guider *g,const char* par)  /* v0319 */
 
   FILE *fp = fopen(file,"w");
   if (!fp) {
-    sprintf(buf,"failed to write ~/%s",name); 
+    sprintf(buf,"failed to write %s",file);
     message(g,buf,MSS_WARN);
   } else {
     fwrite(mask,sizeof(char),npix,fp);

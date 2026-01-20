@@ -699,9 +699,15 @@ TELGUIDE= '10'
 <dt><b>exit</b>  </dt>
 <dd>Close the GUI immediately (without a confirmation dialog box). </dd>
 <p>
-<!--
+<dt><b>dspi</b> [config_name] </dt>
+<dd>Restart the acquisition with optional configuration file. </dd>
+<dd>Without parameter: restart with current configuration. </dd>
+<dd>With parameter: load the specified .ini config file (e.g., <code>dspi mage</code> loads <code>mage.ini</code>) and restart acquisition. </dd>
+<dd>Shows an error message if the config file doesn't exist. </dd>
 <dt><b>reset</b>  </dt>
-<dd>  </dd>
+<dd>Same as <b>dspi</b> (alias for restart acquisition). </dd>
+<p>
+<!--
 <dt><b>reboot</b>  </dt>
 <dd>  </dd>
 <p>
