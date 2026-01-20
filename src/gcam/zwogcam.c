@@ -2287,7 +2287,7 @@ static void make_mask(Guider *g,const char* par)  /* v0319 */
   assert(server->mask);
   assert(server->aoiW == server->aoiH);
   int npix = server->aoiW * server->aoiH;
-  sprintf(file,"%s/%s",genv2("GCAMZWOPATH","/opt/gcamzwo"),mask_name(g,name));
+  sprintf(file,"%s/%s",genv2("GCAMZWOPATH", "/opt/gcamzwo"),mask_name(g,name));
 
   if (!strcmp(par,"off")) {            /* turn OFF mask */
     memset(server->mask,0,npix*sizeof(char));
@@ -2338,7 +2338,7 @@ static void make_mask(Guider *g,const char* par)  /* v0319 */
 
   FILE *fp = fopen(file,"w");
   if (!fp) {
-    sprintf(buf,"failed to write ~/%s",name); 
+    sprintf(buf,"failed to write %s",file);
     message(g,buf,MSS_WARN);
   } else {
     fwrite(mask,sizeof(char),npix,fp);
