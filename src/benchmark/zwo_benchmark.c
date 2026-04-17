@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <math.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -430,28 +431,97 @@ static int run_one(int sock, const BenchCfg *cfg,
   return 0;
 }
 
-/* ---------------- output (nicer table + CSV land in step 3) ---------------- */
+/* ---------------- output ---------------- */
 
-static void print_header(const BenchCfg *cfg, const char *model,
-                         int W, int H, int cooler, int color, int bitDepth)
+static void print_session_banner(const BenchCfg *cfg, const char *model,
+                                 int W, int H, int cooler, int color,
+                                 int bitDepth)
 {
   printf("ZWO benchmark   host=%s:%d   duration=%.1fs   warmup=%.1fs\n",
          cfg->host, cfg->port, cfg->duration_s, cfg->warmup_s);
   printf("camera: %s  %dx%d  cooler=%d color=%d bitDepth=%d\n\n",
          model, W, H, cooler, color, bitDepth);
-  printf("%-8s %-4s %-5s %-6s %-6s %-7s %-8s %-8s %-9s %-7s %-6s %-7s %s\n",
-         "exptime","bin","bits","W","H","frames","elapsed","fps","expFPS",
-         "eff%","drops","enodata","note");
+  fflush(stdout);
 }
 
-static void print_row_live(const BenchRow *r)
+/* Short progress line on stderr so stdout stays clean for the final table
+ * (allows `zwo_benchmark ... > results.txt` without losing feedback). */
+static void print_progress_start(int idx, int total, const BenchRow *r)
 {
-  printf("%-8.4f %-4d %-5d %-6d %-6d %-7d %-8.2f %-8.2f %-9.2f %-7.1f %-6d %-7d %s\n",
-         r->exptime, r->bin, r->bits, r->w, r->h,
-         r->frames, r->elapsed, r->fps, r->expected_fps,
-         r->efficiency_pct, r->drops, r->enodata_count,
-         r->note[0] ? r->note : "");
+  fprintf(stderr, "[%2d/%2d] exptime=%.4f bin=%d bits=%d ... ",
+          idx, total, r->exptime, r->bin, r->bits);
+  fflush(stderr);
+}
+
+static void print_progress_done(const BenchRow *r)
+{
+  if (r->note[0]) {
+    fprintf(stderr, "%s (fps=%.2f/%.2f)\n", r->note, r->fps, r->expected_fps);
+  } else {
+    fprintf(stderr, "fps=%.2f/%.2f eff=%.1f%% drops=%d\n",
+            r->fps, r->expected_fps, r->efficiency_pct, r->drops);
+  }
+  fflush(stderr);
+}
+
+/* Column layout for the bordered ASCII table. Keep the widths here in sync
+ * with the format strings in print_table_*(). */
+static void print_table_separator(FILE *fp)
+{
+  fprintf(fp,
+    "+--------+-----+------+------+------+--------+---------+---------"
+    "+---------+-------+------+---------+--------+--------------------+\n");
+}
+
+static void print_table_header(FILE *fp)
+{
+  fprintf(fp,
+    "| %-6s | %-3s | %-4s | %-4s | %-4s | %-6s | %-7s | %-7s | %-7s | "
+    "%-5s | %-4s | %-7s | %-6s | %-18s |\n",
+    "exptim", "bin", "bits", "W", "H", "frames", "elapsed", "fps",
+    "expFPS", "eff%", "drop", "enodata", "MB/s", "note");
+}
+
+static void print_table_row(FILE *fp, const BenchRow *r)
+{
+  fprintf(fp,
+    "| %6.4f | %3d | %4d | %4d | %4d | %6d | %7.2f | %7.2f | %7.2f | "
+    "%5.1f | %4d | %7d | %6.1f | %-18.18s |\n",
+    r->exptime, r->bin, r->bits, r->w, r->h,
+    r->frames, r->elapsed, r->fps, r->expected_fps,
+    r->efficiency_pct, r->drops, r->enodata_count, r->mbps,
+    r->note[0] ? r->note : "");
+}
+
+static void print_table(const BenchRow *rows, int n)
+{
+  print_table_separator(stdout);
+  print_table_header(stdout);
+  print_table_separator(stdout);
+  for (int i = 0; i < n; i++) print_table_row(stdout, &rows[i]);
+  print_table_separator(stdout);
   fflush(stdout);
+}
+
+static int write_csv(const BenchRow *rows, int n, const char *path)
+{
+  FILE *fp = fopen(path, "w");
+  if (!fp) {
+    fprintf(stderr, "csv: cannot open '%s': %s\n", path, strerror(errno));
+    return -1;
+  }
+  fprintf(fp, "exptime,bin,bits,w,h,frames,elapsed,fps,expected_fps,"
+              "efficiency_pct,drops,enodata,bytes_per_frame,mbps,note\n");
+  for (int i = 0; i < n; i++) {
+    const BenchRow *r = &rows[i];
+    fprintf(fp, "%.6f,%d,%d,%d,%d,%d,%.4f,%.4f,%.4f,%.2f,%d,%d,%zu,%.3f,\"%s\"\n",
+            r->exptime, r->bin, r->bits, r->w, r->h,
+            r->frames, r->elapsed, r->fps, r->expected_fps,
+            r->efficiency_pct, r->drops, r->enodata_count,
+            r->bytes_per_frame, r->mbps, r->note);
+  }
+  fclose(fp);
+  return 0;
 }
 
 /* ---------------- main ---------------- */
@@ -482,22 +552,36 @@ int main(int argc, char **argv)
   if (cfg.have_gain)   set_int_control(sock, "gain",   cfg.gain);
   if (cfg.have_offset) set_int_control(sock, "offset", cfg.offset);
 
-  print_header(&cfg, model, W, H, cooler, color, bitDepth);
+  print_session_banner(&cfg, model, W, H, cooler, color, bitDepth);
 
   int n_rows = cfg.n_bit * cfg.n_bin * cfg.n_exp;
   BenchRow *rows = calloc((size_t)n_rows, sizeof(BenchRow));
   u_char *frame_buf = NULL;
   size_t  frame_cap = 0;
-  int idx = 0;
+  int idx = 0, completed = 0;
   for (int bi = 0; bi < cfg.n_bit && !g_stop; bi++) {
     for (int ni = 0; ni < cfg.n_bin && !g_stop; ni++) {
       for (int ei = 0; ei < cfg.n_exp && !g_stop; ei++) {
-        BenchRow *row = &rows[idx++];
+        BenchRow *row = &rows[idx];
+        row->exptime = cfg.exptimes[ei];
+        row->bin     = cfg.bins[ni];
+        row->bits    = cfg.bitdepths[bi];
+        print_progress_start(idx + 1, n_rows, row);
         (void)run_one(sock, &cfg, W, H,
-                      cfg.exptimes[ei], cfg.bins[ni], cfg.bitdepths[bi],
+                      row->exptime, row->bin, row->bits,
                       &frame_buf, &frame_cap, row);
-        print_row_live(row);
+        print_progress_done(row);
+        completed = ++idx;
       }
+    }
+  }
+
+  fprintf(stderr, "\n");
+  print_table(rows, completed);
+
+  if (cfg.csv_path) {
+    if (write_csv(rows, completed, cfg.csv_path) == 0) {
+      fprintf(stderr, "wrote %d rows to %s\n", completed, cfg.csv_path);
     }
   }
 
