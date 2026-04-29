@@ -1443,8 +1443,8 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       switch (par1[0]) {
       case 'b': set_mm(g,1); break;  /* box */
       case 'p': set_mm(g,2); break;  /* probe */
-      case 't': set_mm(g,-2); break;  /* telescope */
-      case 'c': set_mm(g,3); break;  /* coordinated probe and telescope */
+      case 'c': set_mm(g,-2); break; /* coordinated probe and telescope */
+      case 't': set_mm(g,3); break;  /* telescope */
       default: message(g,"invalid mouse mode",MSS_WARN);
       }
     }
@@ -2439,19 +2439,19 @@ static void set_mm(Guider* g,int m)
   switch (g->msmode)
   {
   case 1:
-    strcpy(msmode_str,"bx");
+    strcpy(msmode_str,"bx");  /* box */
     break;
   case 2:
-    strcpy(msmode_str,"pr");
+    strcpy(msmode_str,"pr");  /* probe */
     break;
   case -2:
-    strcpy(msmode_str,"tl");
+    strcpy(msmode_str,"cd");  /* coordinated probe and telescope */
     break;
   case 3:
-    strcpy(msmode_str,"pt");  
+    strcpy(msmode_str,"tl");  /* telescope */
     break;
   default:
-    strcpy(msmode_str,"un");
+    strcpy(msmode_str,"un");  /* unknown */
     break;
   }
   sprintf(g->mmbox.text,"mm %s",msmode_str);
