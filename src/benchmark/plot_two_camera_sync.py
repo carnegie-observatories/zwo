@@ -19,10 +19,13 @@ misalignment. We measure it on two clocks:
         that matters for cross-correlating the cameras.
 
 No GPS/absolute time needed: the flash is the shared fiducial and only
-relative timing is measured. Outputs a summary and a PNG.
+relative timing is measured. Reports a per-frame stall/glitch census
+and a delay drift-rate fit (both matter for long runs). Outputs a
+summary and a 4-panel PNG.
 
 Usage:
     python3 plot_two_camera_sync.py camA.csv camB.csv [-o out.png]
+        [--guard SEC] [--reject-outliers] [--stall-thresh MS]
 """
 
 import argparse
@@ -126,6 +129,52 @@ def summarize_delay(name, at, deltas):
     return med
 
 
+def stall_census(name, t, thresh_ms):
+    """Per-frame inter-arrival gaps; report frames delayed beyond thresh."""
+    dt = np.diff(t) * 1e3  # ms
+    if dt.size == 0:
+        return
+    med = np.median(dt)
+    thr = thresh_ms if thresh_ms else max(2.5 * med, med + 15.0)
+    big = np.where(dt > thr)[0]
+    dur = (t[-1] - t[0]) / 60.0  # minutes
+    rate = len(big) / dur if dur > 0 else 0.0
+    print(f"  {name}: {t.size} frames, median dt={med:.2f} ms, "
+          f"max={dt.max():.1f} ms; stalls>{thr:.0f}ms: {len(big)} "
+          f"({rate:.2f}/min)")
+    for i in big[np.argsort(-dt[big])][:8]:
+        print(f"      t={t[i] - t[0]:7.2f}s  dt={dt[i]:.1f} ms")
+    return t[1:][big] - t[0], dt[big]  # times, sizes
+
+
+def drift_fit(at, d):
+    """Linear fit delay-vs-time; return (slope_us_per_min, intercept_ms)."""
+    if at.size < 3:
+        return None, None
+    p = np.polyfit(at, d, 1)          # d in seconds, at in seconds
+    slope_us_per_min = p[0] * 1e6 * 60.0
+    return slope_us_per_min, p[1] * 1e3
+
+
+def apply_guard(at, d, t_lo, t_hi, guard):
+    """Drop matched flashes within `guard` seconds of the run edges."""
+    if guard <= 0:
+        return at, d, 0
+    keep = (at >= t_lo + guard) & (at <= t_hi - guard)
+    return at[keep], d[keep], int((~keep).sum())
+
+
+def flag_outliers(d, k=5.0):
+    """Boolean mask of |d-median| > k*sigma_MAD."""
+    if d.size == 0:
+        return np.zeros(0, bool)
+    med = np.median(d)
+    mad = np.median(np.abs(d - med)) * 1.4826
+    if mad == 0:
+        return np.zeros(d.size, bool)
+    return np.abs(d - med) > k * mad
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -134,6 +183,14 @@ def main():
     ap.add_argument("-o", "--out", default="two_camera_sync.png")
     ap.add_argument("--zoom", type=float, default=5.0,
                     help="seconds of flux to show in the zoom panel (default 5)")
+    ap.add_argument("--guard", type=float, default=0.0,
+                    help="drop matched flashes within N seconds of the run "
+                         "start/end (default 0 = keep all)")
+    ap.add_argument("--reject-outliers", action="store_true",
+                    help="exclude >5-sigma_MAD flashes from summary stats")
+    ap.add_argument("--stall-thresh", type=float, default=0.0,
+                    help="frame-gap [ms] counted as a stall (default auto: "
+                         "max(2.5x median, median+15ms))")
     args = ap.parse_args()
 
     A, B = load(args.csv_a), load(args.csv_b)
@@ -165,10 +222,33 @@ def main():
     period = np.median(np.diff(ea_c)) if ea_c.size > 1 else 1.0
     max_dt = 0.4 * period  # match window: fraction of a flash period
 
+    # per-frame stall census (direct glitch detection over the whole run)
+    print("\nper-frame timing (stall / glitch census):")
+    stallA = stall_census("A", A["st"] if A["has_server_ts"] else A["ct"],
+                          args.stall_thresh)
+    stallB = stall_census("B", B["st"] if B["has_server_ts"] else B["ct"],
+                          args.stall_thresh)
+
+    t_lo = max(A["ct"][0], B["ct"][0])
+    t_hi = min(A["ct"][-1], B["ct"][-1])
+
     print(f"\nflash period ~ {period:.3f} s")
+    if args.guard > 0:
+        print(f"guard: dropping flashes within {args.guard:g}s of run edges")
     print("inter-camera delay (B - A), by flash edge matching:")
     at_c, dc = match_edges(ea_c, eb_c, max_dt)
-    med_client = summarize_delay("client clock (arrival skew)", at_c, dc)
+    at_c, dc, ng = apply_guard(at_c, dc, t_lo, t_hi, args.guard)
+    out_c = flag_outliers(dc)
+    if out_c.any():
+        print(f"  outliers (>5 sigma_MAD): {out_c.sum()} at "
+              + ", ".join(f"{t:.1f}s" for t in at_c[out_c]))
+    stat_c = at_c[~out_c] if args.reject_outliers else at_c
+    dstat_c = dc[~out_c] if args.reject_outliers else dc
+    med_client = summarize_delay("client clock (arrival skew)", stat_c, dstat_c)
+    sl, _ = drift_fit(at_c, dc)
+    if sl is not None:
+        print(f"    drift: {sl:+.2f} µs/min over "
+              f"{(t_hi - t_lo) / 60:.1f} min")
 
     med_server = None
     at_s, ds = np.array([]), np.array([])
@@ -176,8 +256,16 @@ def main():
         ea_s, _ = rising_edges(A["st"], A["flux"])
         eb_s, _ = rising_edges(B["st"], B["flux"])
         at_s, ds = match_edges(ea_s, eb_s, max_dt)
+        at_s, ds, _ = apply_guard(at_s, ds, t_lo, t_hi, args.guard)
+        out_s = flag_outliers(ds)
+        stat_s = at_s[~out_s] if args.reject_outliers else at_s
+        dstat_s = ds[~out_s] if args.reject_outliers else ds
         med_server = summarize_delay(
-            "server clocks (host-clock misalignment)", at_s, ds)
+            "server clocks (host-clock misalignment)", stat_s, dstat_s)
+        sl_s, _ = drift_fit(at_s, ds)
+        if sl_s is not None:
+            print(f"    drift: {sl_s:+.2f} µs/min over "
+                  f"{(t_hi - t_lo) / 60:.1f} min")
     else:
         print("  server timestamps absent (server < v1.0.5) — skipping")
 
@@ -187,7 +275,7 @@ def main():
               f"{xc * 1e3:+.3f} ms")
 
     # ---- plots ----
-    fig, ax = plt.subplots(3, 1, figsize=(11, 10))
+    fig, ax = plt.subplots(4, 1, figsize=(11, 13))
 
     # (1) flux zoom — see the flashes line up
     zt = A["ct"][0]
@@ -201,16 +289,24 @@ def main():
     ax[0].legend(loc="upper right", fontsize=8)
     ax[0].grid(alpha=0.3)
 
-    # (2) per-flash delay vs time — drift / jitter
+    # (2) per-flash delay vs time — drift / jitter (with linear drift fit)
     if dc.size:
         ax[1].axhline(0, color="k", lw=0.6)
-        ax[1].plot(at_c, dc * 1e3, "o-", ms=4, color="tab:blue",
-                   label="client clock")
+        ax[1].plot(at_c, dc * 1e3, "o-", ms=3, lw=0.6, color="tab:blue",
+                   alpha=0.8, label="client clock")
         if med_server is not None and at_s.size:
-            ax[1].plot(at_s, ds * 1e3, "s-", ms=4, color="tab:red",
-                       label="server clocks")
+            ax[1].plot(at_s, ds * 1e3, "s-", ms=3, lw=0.6, color="tab:red",
+                       alpha=0.8, label="server clocks")
+            sl_s, ic_s = drift_fit(at_s, ds)
+            if sl_s is not None:
+                ax[1].plot(at_s, (np.polyval([sl_s / 6e7, ic_s / 1e3], at_s))
+                           * 1e3, "-", color="darkred", lw=1.5,
+                           label=f"server drift {sl_s:+.1f} µs/min")
+        if out_c.any():
+            ax[1].plot(at_c[out_c], dc[out_c] * 1e3, "x", color="k",
+                       ms=9, label="outlier (>5σ)")
         ax[1].set(xlabel="time [s]", ylabel="B − A delay [ms]",
-                  title="Per-flash inter-camera delay")
+                  title="Per-flash inter-camera delay (drift + outliers)")
         ax[1].legend(loc="best", fontsize=8)
         ax[1].grid(alpha=0.3)
     else:
@@ -233,6 +329,17 @@ def main():
                   title="Delay distribution (spread = alignment jitter)")
         ax[2].legend(fontsize=8)
         ax[2].grid(alpha=0.3)
+
+    # (4) per-frame inter-arrival gaps over the whole run — glitch/stall census
+    for d, c, tag in ((A, "tab:blue", "A"), (B, "tab:orange", "B")):
+        tt = d["st"] if d["has_server_ts"] else d["ct"]
+        ax[3].plot(tt[1:] - tt[0], np.diff(tt) * 1e3, ".", ms=1.5,
+                   color=c, alpha=0.5, label=f"cam {tag}")
+    ax[3].set(xlabel="time [s]", ylabel="frame gap Δt [ms]",
+              title="Per-frame delivery interval (spikes = stalls)",
+              yscale="log")
+    ax[3].legend(loc="upper right", fontsize=8, markerscale=4)
+    ax[3].grid(alpha=0.3, which="both")
 
     fig.tight_layout()
     fig.savefig(args.out, dpi=130)
