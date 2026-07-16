@@ -35,8 +35,14 @@ the **transfer path** (FX3 + libusb) and the **buffer/wakeup path**
 
 ## Track A — unused features *inside* the provided SDK (low risk, do first)
 
-The header (`ASICamera2.h`) exposes far more than we've used. Ranked by
-likely payoff for "push to the limit":
+> **Note:** the header (`ASICamera2.h`) exposes these, but the probe
+> (bottom of this doc) shows the ASI294MM Pro **supports almost none of
+> them** — A1–A5 below describe the SDK API in general; see the probe
+> verdict for what is actually available on this body (essentially only
+> A6). The API-level notes are kept for the "different body" option.
+
+The header exposes far more than we've used. Ranked by likely payoff for
+"push to the limit":
 
 ### A1. Soft-trigger mode — the big one
 `ASISetCameraMode(ASI_MODE_TRIG_SOFT_EDGE)` + `ASISendSoftTrigger()`
@@ -157,7 +163,58 @@ ever exposed it, inside the SDK:
    (A2) or the trigger-output-to-GPS-logger path (A5) is a far better
    investment than reverse engineering.
 
-## Probe results (this camera)
+## Probe results (this camera) — 2026-07-17
 
-<!-- filled in from asi_probe on zwoserver01 when connectivity allows -->
-_Pending — `asi_probe` run queued against 10.8.80.225._
+`asi_probe` against the ASI294MM Pro on 10.8.80.218 (SDK 1.20.2):
+
+```
+Camera: ZWO ASI294MM Pro  USB3cam=1 USB3host=1 trigger=0 ST4=0
+        mechshutter=0 elecPerADU=0.126 bit=12
+SupportModes: NORMAL(video)          ← the ONLY supported mode
+current mode: NORMAL(video)
+perf-relevant controls present:  BandWidth [40..100],  HighSpeedMode [0..1]
+  (of 13 controls total; the other 11 are gain/exposure/offset/gamma/WB/
+   temp/cooler/fan/flip/auto-* — nothing timing-relevant)
+```
+
+**This deflates most of Track A for this body.** The fancy SDK features
+exist in the *API* but are not enabled on the 294MM Pro:
+
+| avenue | probe verdict |
+|---|---|
+| A1 soft-trigger | ✗ **not supported** — `IsTriggerCam=0`, only `NORMAL` mode |
+| A2 GPS timestamps | ✗ no `ASI_GPS_SUPPORT` control — no GPS in this body |
+| A3 `ASI_ROLLING_INTERVAL` | ✗ control not present |
+| A4 `ASI_OVERCLOCK` / `ASI_HARDWARE_BIN` | ✗ neither control present |
+| A5 trigger output | ✗ `IsTriggerCam=0` — no trigger IO at all |
+| A6 hygiene (dropped-frame counter, tempcon off-thread) | ✓ still valid |
+
+So on **this camera model the SDK offers nothing beyond the two knobs we
+already tested** (BandWidth, HighSpeedMode — both no effect on the
+stalls) plus the A6 hygiene items. Track A is effectively exhausted.
+
+## Revised conclusion (after the probe)
+
+The ASI294MM Pro exposes only free-running video with no trigger, no
+GPS, no overclock, no rolling-interval readout. That means:
+
+1. **Within the SDK, we are essentially at the limit already.** Only A6
+   hygiene remains (worth doing, small): consume `ASIGetDroppedFrames`,
+   and move the 30 s `tempcon` poll fully off the acquisition thread.
+2. **The flash-LED optical method really is the only sync path** — no
+   trigger in/out means no electrical timestamp option on this body.
+   Confirmed, not just assumed.
+3. **To push further you must change one of two things:**
+   - **The software boundary (Track B):** a direct-libusb path is now
+     the *only* remaining lever to kill the `CirBuf` lost-wakeup and get
+     deterministic, URB-timestamped delivery — with all the RE / EULA /
+     effort costs above, and no help for the ~5 ms sensor floor.
+   - **The hardware:** a trigger-capable or GPS-equipped ASI body would
+     unlock A1/A2/A5 directly and is very likely a better investment
+     than reverse-engineering — especially if absolute UTC or
+     deterministic exposure timing ever becomes a hard requirement.
+
+In short: for the current cameras, the measured 100 fps / sub-100 µs
+sync and the 30 ms-stall-bounded 200 fps are close to what this
+SDK+sensor combination can give. Bigger gains need either a direct-USB
+effort (determinism only) or a different camera body (trigger/GPS).
