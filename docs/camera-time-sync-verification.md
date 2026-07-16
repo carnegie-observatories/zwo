@@ -163,29 +163,92 @@ line; ~10 lines.)*
    UTC also needed? The shared LED gives relative directly; absolute
    needs the GPS UTC reference.
 
-## Host clock architecture — per-host GPS beats PTP here
+## Host clock architecture — three viable routes
 
-Preferred design: **give each guider Pi its own GPS+PPS discipline**
-(one u-blox NEO-M8T GNSS Timing HAT per host, ~$50, + gpsd + chrony:
-PPS on a GPIO via `dtoverlay=pps-gpio`, NMEA as the coarse anchor).
-This locks each Pi's `CLOCK_REALTIME` — the exact clock zwoserver
-stamps read — to GPS/UTC at ~1 µs. Two (or three) independently
-GPS-locked Stratum-1 clocks are then mutually aligned to ~µs **with no
-PTP or NTP between the hosts at all**, which is cleaner than a
-grandmaster/client link and scales identically to the AUX2 camera.
-The same HAT's PPS also drives the flash-test LED, so one part serves
-both roles.
+The clock that matters is each host's `CLOCK_REALTIME` — the one
+zwoserver reads to stamp frames. It must be (a) disciplined to a stable
+reference and (b) mutually aligned across the guider hosts. Three
+routes, **all of which clear the ≲1 ms science requirement by a wide
+margin** — so choose on operational grounds (cabling, uniformity,
+robustness, scaling to the AUX2 camera and beyond), not on raw
+accuracy.
 
-Why not PTP-between-hosts: the **Raspberry Pi 4 Model B NIC
-(BCM54213PE) has no hardware timestamping**, so a Pi 4 can only run
-`ptp4l` in software-timestamping mode (tens of µs, jittery) — worse
-than per-host GPS. Hardware PTP grandmaster capability (a disciplinable
-PHC with a PPS-sync pin) exists only on the **CM4** (BCM54210PE) and
-**Pi 5** [Geerling 2022; jclark rpi-cm4-ptp-guide]. Confirm each host
-with `ethtool -T eth0` (look for `hardware-transmit`/`hardware-receive`)
-and `cat /proc/device-tree/model`. Only if the hosts are CM4/Pi 5 is
-hardware PTP worth considering over per-host GPS — and even then, with
-per-host GPS the cameras are already aligned, so PTP buys little.
+| route | per-host accuracy | GPS units | needs | robustness | best when |
+|---|---|---|---|---|---|
+| **A. Per-host GPS** | ~1 µs, any Pi model | one **per host** | M8T HAT + gpsd + chrony each | no shared master, no net dependency | few cameras; want independence |
+| **B. Pi 5 grandmaster + SW-PTP clients** | ~tens of µs (client-gated) | one (master) | Pi 5 master, `ptp4l` net, Pi 4 clients OK | single master; net-dependent | reusing existing Pi 4 guiders |
+| **C. CM4 (PoE) hardware-PTP** | sub-µs | one (grandmaster) | CM4+carrier per host, PoE net | single master (mitigable) | standardizing observatory timing |
+
+### A. Per-host GPS (model-agnostic, most independent)
+
+One u-blox NEO-M8T GNSS Timing HAT per host (~$50): PPS on a GPIO via
+`dtoverlay=pps-gpio`, NMEA as the coarse anchor, chrony disciplines
+`CLOCK_REALTIME` to GPS/UTC at ~1 µs. Independently GPS-locked hosts
+are mutually aligned to ~µs **with no PTP or NTP between them** — no
+grandmaster to fail, no reliance on a quiet network. The same HAT's PPS
+also drives the flash-test LED. Cost is one GPS per host.
+
+### B. Pi 5 grandmaster + software-PTP clients
+
+A Pi 5 *can* be a PTP master (it has hardware timestamping), but
+**PTP accuracy is gated by the worse end of each link**: the client
+stamps two of the four PTP timestamps itself, so a Pi 4 client doing
+*software* timestamping caps the link at ~tens of µs regardless of the
+master. That still clears 1 ms comfortably, so this is the cheap way to
+reuse existing Pi 4 guiders — but it is neither the most accurate nor
+the most robust (single master, network-dependent). Note the Pi 5, for
+all its hardware timestamping, brings PPS in only over **GPIO**
+(disciplining the system clock), not into the NIC's hardware clock.
+
+### C. CM4 on a PoE carrier — hardware PTP (recommended if refreshing)
+
+Best-suited hardware of the three. The **CM4 (and CM5) uniquely have a
+dedicated hardware PPS input wired to the NIC's PTP hardware clock**
+(the `SYNC_IN` pin) — feed GPS-PPS straight into the PHC and discipline
+it in hardware via `ts2phc`, so the clock the PTP packets are stamped
+against is itself GPS-locked at the silicon level. Even the Pi 5 lacks
+this. Toolchain: `ts2phc` (GPS-PPS → PHC) → `ptp4l` (distribute) →
+`phc2sys` (PHC → system clock, so `CLOCK_REALTIME` follows)
+[jclark rpi-cm4-ptp-guide].
+
+Architecture: one CM4+GPS as hardware grandmaster; each guider a CM4 on
+a **PoE** carrier as a hardware-PTP client → sub-µs everywhere and
+**one cable per camera** (power + data + time) at the telescope. Scales
+to AUX2 by adding one PoE drop.
+
+Carrier-board selection — three requirements:
+1. **Route the native CM4 gigabit Ethernet to the (PoE) magjack** — the
+   CM4's PTP + PPS live on its built-in PHY; avoid boards that add the
+   timed link via a USB/PCIe NIC (those usually lack HW timestamping).
+2. **PoE** — built-in PD, or PoE magjack + PD chip.
+3. **Expose `SYNC_IN`** (grandmaster only, for GPS-PPS); clients can
+   fall back to GPIO-PPS.
+
+Board options:
+- **Official CM4 IO Board** (+ PoE add-on) — exposes `SYNC_IN/OUT`
+  (pin 9 wired); ideal grandmaster, bulky as a host.
+- **Waveshare CM4 PoE Board** — compact, PoE built in, native GbE; good
+  client board (verify `SYNC_IN` breakout; GPIO-PPS otherwise).
+- **Switchberry** (TimeAppliances) — purpose-built timing appliance
+  (5-port GbE switch + DPLL, grandmaster or client) if timing becomes
+  observatory-wide infrastructure.
+
+Trade-off vs A: one GPS instead of one-per-host and sub-µs instead of
+~1 µs, but reintroduces a network + single-grandmaster dependency
+(mitigate with BMCA failover or a second GPS-CM4). Also a hardware
+refresh (replaces the current Pi hosts).
+
+### Deciding
+
+Confirm the current hosts first: `cat /proc/device-tree/model` and
+`ethtool -T eth0` (hardware timestamping shows as
+`hardware-transmit`/`hardware-receive`). If the guiders stay Pi 4,
+choose **A** (per-host GPS) over **B** — more accurate and more robust
+for the same rough effort. If the observatory is standardizing timing
+and can absorb a hardware refresh, **C** (CM4 + PoE) is the clean,
+scalable, single-cable answer. **B** is only the "reuse what's here
+cheaply" fallback. Because all three meet 1 ms, this is an
+infrastructure/operations decision, not an accuracy one.
 
 ## Relation to other work
 
@@ -206,3 +269,5 @@ per-host GPS the cameras are already aligned, so PTP buys little.
 - Kulcsár et al. 2018, SPIE 10703 — WFS camera latency measurement
 - Geerling 2022 — PTP hardware timestamping on the Pi CM4 (jeffgeerling.com)
 - jclark, rpi-cm4-ptp-guide — CM4/CM5 hardware PTP + PPS-disciplined PHC
+- linuxptp — `ts2phc` (GPS-PPS → PHC discipline) man page
+- Switchberry (TimeAppliances) — CM4 timing appliance, GM/client
