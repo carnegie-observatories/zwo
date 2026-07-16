@@ -171,20 +171,23 @@ matched ASI294MM Pro guiders imaging the same blinking LED, captured
 simultaneously from one client and cross-correlated (full method and
 data in [camera-time-sync-verification.md](camera-time-sync-verification.md)).
 
-**Result: the two cameras' server timestamps cross-align to
-−0.036 ± 0.19 ms (~36 µs median), stable over 60 s** — comfortably
-inside the ≲1 ms goal for relative cross-camera correlation. The
-server-side timestamp is tighter than client arrival-time (0.19 vs
-0.40 ms std), confirming it removes transport/network jitter. (A first
-run with two *different* camera models gave +1.75 ms — that offset was
-the fixed readout-timing difference between sensors, which vanishes
-with a matched pair.)
+**Result (best config, 30-min run at ~100 fps): the two cameras' server
+timestamps cross-align to −0.05 ms (~sub-100 µs median), with no drift
+(−35 µs/min) and zero stalls** — comfortably inside the ≲1 ms goal for
+relative cross-camera correlation. The ~1 ms per-flash spread is a
+flasher/sampling beat, not the clocks. At ~200 fps the alignment is the
+same but the measurement degrades to ~3 ms MAD because the SDK
+lost-wakeup stalls (~30 ms, ~16/min) contaminate the flash edges. (A
+first run with two *different* camera models gave +1.75 ms — that
+offset was the fixed readout-timing difference between sensors, which
+vanished with a matched pair.)
 
 ![Two ASI294MM Pro guiders on a common bracket imaging a blinking
 headlamp LED.](images/two-camera-sync-setup.jpg)
 
-![Per-flash inter-camera delay — server-clock delay (red) hugs zero,
-tighter than client arrival (blue).](images/two-camera-sync-matched-result.png)
+![100 fps 30-min: inter-camera delay flat around zero, zero stalls —
+server-clock delay (red) tighter than client arrival
+(blue).](images/sync-100fps.png)
 
 Notes and remaining refinements:
 

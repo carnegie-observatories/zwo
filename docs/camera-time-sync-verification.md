@@ -162,203 +162,86 @@ line; ~10 lines.)*
 - Offset **repeatable** across ROI/exposure changes, or if not,
   characterized as a lookup (the mode-dependent-latency pitfall).
 
-## First on-hardware validation — 2026-07-16 (non-GPS flasher)
+## Measured results — best configuration (2026-07-16)
 
-First run of the pipeline above, as a baseline before the GPS-PPS LED.
+Two matched **ASI294MM Pro** guiders (serials `2a354b041d010900` on
+zwoserver01/10.8.80.225 and `3924d3032a010900` on
+zwoserver02/10.8.80.218), both running server v1.0.6 with the tuning
+below, captured simultaneously from zwo-nuc against a plain ~2.9 Hz
+LED flasher (no GPS) — `two_camera_capture.sh -m -P`, analyzed with
+`plot_two_camera_sync.py`. Two operating points, each a 30-min run:
 
-Cameras at test time (recorded 2026-07-16 via `open` +
-`ASIGetSerialNumber`, before the planned swap to a matched pair):
-
-| host | IP | model | sensor (full) | bitDepth | serial (hex) |
-|---|---|---|---|---|---|
-| zwoserver01 | 10.8.80.225 | ZWO_ASI294MM_Pro | 8288×5644 | 12 | `2a354b041d010900` |
-| zwoserver02 | 10.8.80.218 | ZWO_ASI1600MM_Pro | 4656×3520 | 12 | `313084041f070900` |
-
-Note the two are **different models** (294MM Pro vs 1600MM Pro —
-different sensors and readout), which is the main confound below.
-
-- **Setup:** both cameras rebuilt from the repo (server v1.0.6,
-  identical build), captured simultaneously from zwo-nuc with
-  `two_camera_capture.sh` (bin 2, 10% ROI, 10 ms exposure, gain 200,
-  ~97 fps each, 60 s). Light: a plain ~2.9 Hz LED flasher (no GPS)
-  imaged by both cameras; 171 flashes. Analyzed with
-  `plot_two_camera_sync.py`.
-- **Result — cross-camera timestamp alignment (server clocks):
-  +1.75 ± 0.87 ms** (median ± per-flash std; median SE ~0.07 ms),
-  stable over 60 s with no drift. Client-arrival skew (common zwo-nuc
-  clock): +1.13 ± 0.93 ms; cross-correlation +0.92 ms. Per-camera
-  frame-interval jitter 0.34 ms each (matches the 0.35 ms single-camera
-  figure).
-- **Interpretation:** the ~0.6 ms gap between the server-clock (1.75)
-  and client-arrival (1.13) numbers is the residual between the two
-  Pis' clocks. Both are NTP clients of zwo-nuc, so this is
-  NTP-over-LAN client-to-client residual, **not** independent drift.
-- **Caveats on this baseline:**
-  1. The two cameras were **different models** at test time (294MM Pro
-     vs 1600MM Pro; see the serial table above), so part of the offset
-     is a fixed readout-timing difference between sensors, not clock
-     error. A re-test with **two identical cameras** (planned) removes
-     that confound and isolates the clock term.
-  2. Upgrading 218 from the old v1.0.4 to v1.0.6 alone halved the
-     arrival skew (2.77 → 1.13 ms) — the old server's 5 ms poll and
-     missing latency fixes were a large part of the first measurement.
-- **Takeaway:** cross-camera timestamps are already usable at the
-  ~1–2 ms level; proper clock discipline (per-host GPS or PTP, below)
-  plus identical cameras should bring this to sub-ms. (Confirmed — see
-  the matched-pair re-test below.)
-
-## Re-test with matched cameras — 2026-07-16 (non-GPS flasher)
-
-218's camera was swapped so both hosts run the **same model**
-(ASI294MM Pro). Serials re-recorded via `open` + `ASIGetSerialNumber`:
-
-| host | IP | model | sensor | bitDepth | serial (hex) |
-|---|---|---|---|---|---|
-| zwoserver01 | 10.8.80.225 | ZWO_ASI294MM_Pro | 8288×5644 | 12 | `2a354b041d010900` (unchanged) |
-| zwoserver02 | 10.8.80.218 | ZWO_ASI294MM_Pro | 8288×5644 | 12 | `3924d3032a010900` (new) |
-
-Identical capture config to the baseline (both v1.0.6; bin 2, 10% ROI,
-10 ms, **gain 200 on both**, ~98 fps, 60 s; same ~2.9 Hz flasher,
-173 flashes).
-
-![Two ASI294MM Pro cameras on a common bracket, both imaging a blinking
-headlamp LED; a Raspberry Pi sits beneath the mount.](images/two-camera-sync-setup.jpg)
-
-*Setup: the two matched guiders side by side, both pointed at the same
-blinking headlamp LED (foreground). No GPS — the shared flash is the
-fiducial; only relative timing is measured.*
-
-![Per-flash inter-camera delay: flux traces, delay vs time, and
-histogram. Server-clock delay (red) hugs zero and is tighter than the
-client-arrival delay (blue).](images/two-camera-sync-matched-result.png)
-
-- **Result — cross-camera timestamp alignment (server clocks):
-  −0.036 ± 0.19 ms (≈36 µs median, SE ~0.014 ms)**, no drift over 60 s.
-  Client-arrival skew: −0.17 ± 0.40 ms; cross-correlation −0.30 ms.
-  Per-camera jitter 0.28 / 0.55 ms.
-- **The offset dropped from +1.75 ms (different models) to ~36 µs
-  (matched)** — confirming the baseline was dominated by the fixed
-  readout-timing difference between the 294MM Pro and 1600MM Pro, not
-  clock error. With that confound gone, the residual is just the
-  NTP-client-to-client alignment between the two Pis, which is
-  **sub-100 µs** on this LAN.
-- The server-clock delay is **tighter than the client-arrival delay**
-  (0.19 vs 0.40 ms std) because the server ns timestamp removes
-  transport/network jitter — exactly what the timestamps are for.
-- **Bottom line:** two matched ASI294MM Pro guiders, NTP-synced to a
-  common host, already cross-align to ~tens of µs — comfortably under
-  the ≲1 ms goal, with server timestamps demonstrably better than
-  arrival-time analysis. The GPS-PPS LED (below) would pin this to
-  absolute UTC and validate it against a known reference, but for
-  relative cross-camera correlation the requirement is already met.
-
-## 30-minute stability run — 2026-07-16 (drift + glitch census)
-
-Same matched pair and config, extended to **30 min** (~176,800 frames
-per camera, 5196 flashes) to look for slow drift and rare software
-glitches that a 60 s snapshot cannot see.
-
-![30-min run: delay vs time (banded), bimodal delay histogram, and
-per-frame delivery interval with rare stall spikes.](images/two-camera-sync-30min.png)
-
-- **Clock drift: none.** Server-clock inter-camera delay drift is
-  **−0.02 µs/min over 30 min** (client-clock +3.7 µs/min) — flat, no
-  walk or NTP sawtooth at our resolution. Median stays −0.30 ms,
-  consistent with the 60 s value. **The NTP-client-of-a-common-host
-  setup holds the two cameras aligned with no measurable drift for at
-  least half an hour.**
-- **Software glitches: rare, brief, independent.** 5 delivery stalls
-  total (A: 2, B: 3), each **~30 ms** (≈3 frame intervals), rate
-  **~0.1/min per camera** — one hiccup per ~10 min. They occur at
-  *different* times on A vs B (independent, not coincident), so a stall
-  momentarily perturbs one camera only. This is why the 60 s runs saw
-  zero. A fast-guiding loop must tolerate/mask a ~30 ms gap on one
-  camera roughly every 10 min.
-- **A measurement-method beat the long run exposed.** The per-flash
-  delay is **bimodal** (bands at ≈−1 ms and ≈+1.5 ms; see the middle
-  and histogram panels), so the robust spread grew from 0.13 ms (60 s)
-  to ~0.96 ms MAD. This is **not** a clock effect — the median and
-  drift are unchanged. It is a **beat between the ~2.9 Hz flasher and
-  the ~98.8 fps frame sampling**: edge-crossing timing has a residual
-  frame-quantization that cycles as the two cameras' grids slide
-  against the flash. The 60 s run happened to catch one beat phase
-  (hence its misleadingly tight 0.19 ms). The true alignment is the
-  drift-free median (~0.3 ms); the ~1 ms spread is method, reducible
-  with a higher frame rate (193 fps ≈ halves it) or a sharp-edged
-  GPS-PPS LED.
-- **Takeaway:** over 30 min the two matched guiders stay aligned with
-  **no drift**, median ~0.3 ms, punctuated only by rare independent
-  ~30 ms stalls. The apparent sub-ms→~1 ms jitter growth is a flasher/
-  sampling beat, not the clocks. This closes the drift and glitch
-  questions for the current (NTP + simple flasher) configuration.
-
-### Stall mechanism — two regimes (seq-step evidence)
-
-Checking whether each stall dropped a frame (seq jumps) or delivered it
-late (seq contiguous) separates two distinct causes, which dominate at
-different frame rates:
-
-| | 98 fps (10 ms) | 193 fps (5 ms) |
+| | **~100 fps** (10 ms, 10% ROI) | **~200 fps** (5 ms, 5% ROI) |
 |---|---|---|
-| stall rate | ~0.1 / min | **~15 / min** |
-| size | ~30 ms | ~65 ms (fixed) |
-| seq-step | 3 → **2 frames dropped** | 1 → **frame late, not dropped** |
-| cause | **client** misses its pull deadline (double-buffer overwritten); likely aggravated by the per-frame `--frame-log` I/O to NVMe on zwo-nuc | **server-side SDK lost-wakeup** — `CirBuf::ReadBuff` sleeps the full `ASIGetVideoData` timeout (the ~65 ms = 50 ms floor + exposure) |
+| cross-camera alignment (server median) | **−0.05 ms** | **+1.0 ms**¹ |
+| per-flash spread (MAD) | 1.05 ms | 3.1 ms¹ |
+| drift over 30 min | −35 µs/min | −5 µs/min |
+| stalls | **0** | ~16/min, 30 ms, all SDK, **0 client** |
+| per-camera frame jitter | 0.37 ms | 0.44 ms |
 
-Key point: at 193 fps the frames are **delivered late, not lost**
-(seq-step 1) and each keeps a correct ns timestamp — so for
-timestamp-based science (PSD/cross-correlation) the data is not
-corrupted, only non-uniformly sampled. A **fixed-cadence guiding loop**
-at 193 fps, however, would hit a ~65 ms gap every ~4 s.
+¹ the 200 fps median/MAD are inflated by the SDK stalls contaminating
+the flash-edge measurement (see below), not a real clock difference.
 
-### 193 fps run — beat test defeated by the SDK stalls
+![Two ASI294MM Pro guiders on a common bracket, both imaging a blinking
+headlamp LED.](images/two-camera-sync-setup.jpg)
 
-Repeating the 30-min run at ~197 fps (5 ms, 5% ROI, gain 300) to test
-whether the higher sampling rate halves the flasher/sampling beat:
+![100 fps 30-min: delay flat around zero, zero stalls in the per-frame
+panel.](images/sync-100fps.png)
 
-![193 fps 30-min run: the per-frame panel shows a dense ~65 ms stall
-band; the delay panel is peppered with ±60-80 ms stall-contaminated
-outliers.](images/two-camera-sync-30min-193fps.png)
+![200 fps 30-min: same alignment but a dense ~30 ms SDK-stall band and
+stall-contaminated delay outliers.](images/sync-200fps.png)
 
-It does the opposite. The ~15/min × 65 ms SDK stalls contaminate the
-flash-edge measurement so heavily (MAD 3.3 ms even after 5σ rejection;
-apparent median −4.9 ms and −114 µs/min "drift" are artifacts of A
-stalling more than B, 17 vs 13/min) that any beat is unmeasurable.
-**Higher frame rate makes the *sync measurement* worse, not better** —
-the beat is only cleanly seen at 98 fps, where the SDK stalls are rare.
-The true clock alignment is unchanged (it does not depend on camera
-fps); only the flash-edge method degrades.
+### What the runs show
 
-Mitigations for the 65 ms SDK stalls: lower the `ASIGetVideoData`
-timeout floor (50→~15 ms) to shorten each stall; test whether
-`ASI_BANDWIDTHOVERLOAD` / `ASI_HIGH_SPEED_MODE` reduce the stall *rate*
-(untested); for guiding, run ~98 fps (stalls rare) or mask the gaps;
-for PSD, they are already tolerable (correctly timestamped).
+- **Alignment: sub-100 µs at 100 fps.** The two cameras' server
+  timestamps cross-align to −0.05 ms (median SE ~15 µs) — the two Pis
+  are NTP clients of the common zwo-nuc host, so this is
+  NTP-over-LAN residual, and it is well inside the ≲1 ms goal.
+- **No drift.** −35 / −5 µs/min over 30 min at 100/200 fps: the
+  NTP-client-of-a-common-host discipline holds the cameras aligned with
+  no walk or sawtooth for at least half an hour.
+- **The ~1 ms MAD is a measurement beat, not the clocks.** The
+  per-flash delay is bimodal — a beat between the ~2.9 Hz flasher and
+  the frame sampling; the *median* is the true alignment. A short
+  (1-min) window catches one beat phase and looks misleadingly tight
+  (e.g. −0.5 ms), while 30 min averages the full beat. Reduce it with a
+  sharper (GPS-PPS) LED, not more frames — see next point.
+- **200 fps is limited by SDK stalls, not sync.** At 5 ms the SDK
+  lost-wakeup (below) fires ~16/min; those ~30 ms late frames
+  contaminate the flash-edge method (MAD 3.1 ms, apparent +1 ms median
+  = A stalls slightly more than B). The underlying alignment is the
+  same sub-ms as at 100 fps; the *measurement* just degrades. For the
+  cleanest sync check, run at ~100 fps.
 
-### Stall remediation — what worked (2026-07-16)
+### Client/server tuning that got here (condensed)
 
-Bandwidth first: two cameras at 200×140/193 fps use only **5.3 MB/s
-each = ~85 Mbps combined — under 9 % of the gigabit link**, so the
-client link is not a bottleneck (and the SDK stalls are server-side,
-before the network, so it could not be).
+Getting to the numbers above required removing two stall mechanisms,
+separated by whether the frame's sequence number jumps (dropped) or
+stays contiguous (delivered late):
 
-| lever | effect on the 193 fps SDK stall | verdict |
-|---|---|---|
-| `ASI_BANDWIDTHOVERLOAD` 40/70/100 | rate 20.5 → 17.5 /min (within noise) | **no meaningful effect** |
-| `ASI_HIGH_SPEED_MODE` 0/1 | none | no effect |
-| **`ASIGetVideoData` floor 50 → 15 ms** | **duration 65 → 30 ms**, same rate, no spurious timeouts | **2× shorter — adopted** |
-| **RAM-staged frame-log (`-m`)** | client-pull drops (seq>1) → **0** | **adopted** |
-| core-pin + RT priority (`-P`) | scheduler-jitter reduction | adopted (implemented) |
+- **Client-pull drops** (seq-step > 1, ~30 ms, rare) — the client
+  missed its pull deadline and the server's 2-frame double buffer was
+  overwritten. Cause was per-frame frame-log I/O to NVMe on zwo-nuc;
+  **staging the log in tmpfs (`-m`) drove these to zero**, and pinning
+  each client to its own core + best-effort real-time priority (`-P`)
+  removes scheduler jitter. Bandwidth is not involved — two cameras use
+  only ~85 Mbps of the gigabit link, and these are client-side anyway.
+- **SDK lost-wakeups** (seq-step 1, frame late-not-lost) — the SDK's
+  `CirBuf::ReadBuff` sleeps the full `ASIGetVideoData` timeout even
+  though the frame is ready; the stall length tracks that timeout.
+  `ASI_BANDWIDTHOVERLOAD` and `ASI_HIGH_SPEED_MODE` had no effect on the
+  rate, but **lowering the server's timeout floor 50 → 15 ms halved the
+  stall duration (65 → 30 ms)** with no spurious timeouts. The residual
+  ~30 ms × ~16/min at 200 fps is inherent to the closed SDK — but the
+  frames are **late, not lost, and correctly timestamped**, so
+  PSD/cross-correlation science tolerates them (non-uniform sampling
+  only); a fixed-cadence 200 fps guiding loop would see a 30 ms gap
+  ~every 4 s, so run ~100 fps (stalls rare/absent) or mask.
 
-Verified in a 5-min two-camera run with all three client/server
-improvements (15 ms floor + `-m` + `-P`): both cameras **82 stalls,
-all seq-step 1 (SDK), max 30 ms, zero client drops**, alignment median
-~0.23 ms. The residual ~30 ms × ~16/min SDK lost-wakeups are inherent
-to libASICamera2 at high frame rate — shortenable but not eliminable
-(closed-source SDK). They are **late-not-lost and correctly
-timestamped**, so PSD/cross-correlation science tolerates them; a
-fixed-cadence 193 fps guiding loop sees a 30 ms gap ~every 4 s (run
-~98 fps to make them rare, or mask).
+Earlier baseline note: the first run used two *different* camera models
+(294MM Pro + 1600MM Pro) and read +1.75 ms — that offset was the fixed
+readout-timing difference between sensors, which vanished with the
+matched pair, confirming it was not a clock effect.
 
 ## Open questions this test answers (added to the report)
 
