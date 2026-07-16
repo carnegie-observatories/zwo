@@ -25,8 +25,13 @@ that a cross-camera measurement depends on:
 2. **Host-clock alignment.** The two Pis' clocks must agree.
    NTP-disciplined PC clocks have been measured wrong by **tens to
    hundreds of ms** in real astronomy software (802 ms, 79 ± 17 ms,
-   up to 1 s) [Barry et al. 2015 PASA 32 e014]. On our own camera host
-   we already found `NTPSynchronized=no` with a free-running clock.
+   up to 1 s) [Barry et al. 2015 PASA 32 e014]. In our lab the two
+   camera Pis are NTP clients of the zwo-nuc client host — so they
+   share a time source and are *mutually* disciplined (their absolute
+   time follows zwo-nuc, which is itself free-running, but their
+   relative alignment is set by NTP-over-LAN residual, ~ms, not by
+   independent drift). That residual is still an unknown at the ms
+   level until checked.
 
 The established fix in every relevant community — occultation timing
 (IOTA), high-speed photometry, adaptive optics — is an **independent
@@ -146,6 +151,39 @@ line; ~10 lines.)*
   discipline is deployed (NTP now; PTP later — see below).
 - Offset **repeatable** across ROI/exposure changes, or if not,
   characterized as a lookup (the mode-dependent-latency pitfall).
+
+## First on-hardware validation — 2026-07-16 (non-GPS flasher)
+
+First run of the pipeline above, as a baseline before the GPS-PPS LED.
+
+- **Setup:** cameras zwoserver01 (10.8.80.225) and zwoserver02
+  (10.8.80.218), both rebuilt from the repo (server v1.0.6, identical
+  build), captured simultaneously from zwo-nuc with
+  `two_camera_capture.sh` (bin 2, 10% ROI, 10 ms exposure, gain 200,
+  ~97 fps each, 60 s). Light: a plain ~2.9 Hz LED flasher (no GPS)
+  imaged by both cameras; 171 flashes. Analyzed with
+  `plot_two_camera_sync.py`.
+- **Result — cross-camera timestamp alignment (server clocks):
+  +1.75 ± 0.87 ms** (median ± per-flash std; median SE ~0.07 ms),
+  stable over 60 s with no drift. Client-arrival skew (common zwo-nuc
+  clock): +1.13 ± 0.93 ms; cross-correlation +0.92 ms. Per-camera
+  frame-interval jitter 0.34 ms each (matches the 0.35 ms single-camera
+  figure).
+- **Interpretation:** the ~0.6 ms gap between the server-clock (1.75)
+  and client-arrival (1.13) numbers is the residual between the two
+  Pis' clocks. Both are NTP clients of zwo-nuc, so this is
+  NTP-over-LAN client-to-client residual, **not** independent drift.
+- **Caveats on this baseline:**
+  1. The two cameras were **different models** at test time, so part
+     of the offset is a fixed readout-timing difference between
+     sensors, not clock error. A re-test with **two identical cameras**
+     (planned) removes that confound and isolates the clock term.
+  2. Upgrading 218 from the old v1.0.4 to v1.0.6 alone halved the
+     arrival skew (2.77 → 1.13 ms) — the old server's 5 ms poll and
+     missing latency fixes were a large part of the first measurement.
+- **Takeaway:** cross-camera timestamps are already usable at the
+  ~1–2 ms level; proper clock discipline (per-host GPS or PTP, below)
+  plus identical cameras should bring this to sub-ms.
 
 ## Open questions this test answers (added to the report)
 
