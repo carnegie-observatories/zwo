@@ -335,6 +335,31 @@ timeout floor (50→~15 ms) to shorten each stall; test whether
 (untested); for guiding, run ~98 fps (stalls rare) or mask the gaps;
 for PSD, they are already tolerable (correctly timestamped).
 
+### Stall remediation — what worked (2026-07-16)
+
+Bandwidth first: two cameras at 200×140/193 fps use only **5.3 MB/s
+each = ~85 Mbps combined — under 9 % of the gigabit link**, so the
+client link is not a bottleneck (and the SDK stalls are server-side,
+before the network, so it could not be).
+
+| lever | effect on the 193 fps SDK stall | verdict |
+|---|---|---|
+| `ASI_BANDWIDTHOVERLOAD` 40/70/100 | rate 20.5 → 17.5 /min (within noise) | **no meaningful effect** |
+| `ASI_HIGH_SPEED_MODE` 0/1 | none | no effect |
+| **`ASIGetVideoData` floor 50 → 15 ms** | **duration 65 → 30 ms**, same rate, no spurious timeouts | **2× shorter — adopted** |
+| **RAM-staged frame-log (`-m`)** | client-pull drops (seq>1) → **0** | **adopted** |
+| core-pin + RT priority (`-P`) | scheduler-jitter reduction | adopted (implemented) |
+
+Verified in a 5-min two-camera run with all three client/server
+improvements (15 ms floor + `-m` + `-P`): both cameras **82 stalls,
+all seq-step 1 (SDK), max 30 ms, zero client drops**, alignment median
+~0.23 ms. The residual ~30 ms × ~16/min SDK lost-wakeups are inherent
+to libASICamera2 at high frame rate — shortenable but not eliminable
+(closed-source SDK). They are **late-not-lost and correctly
+timestamped**, so PSD/cross-correlation science tolerates them; a
+fixed-cadence 193 fps guiding loop sees a 30 ms gap ~every 4 s (run
+~98 fps to make them rare, or mask).
+
 ## Open questions this test answers (added to the report)
 
 1. Relative timestamp accuracy of the ASI294MM Pro server-timestamped
