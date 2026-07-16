@@ -156,9 +156,19 @@ line; ~10 lines.)*
 
 First run of the pipeline above, as a baseline before the GPS-PPS LED.
 
-- **Setup:** cameras zwoserver01 (10.8.80.225) and zwoserver02
-  (10.8.80.218), both rebuilt from the repo (server v1.0.6, identical
-  build), captured simultaneously from zwo-nuc with
+Cameras at test time (recorded 2026-07-16 via `open` +
+`ASIGetSerialNumber`, before the planned swap to a matched pair):
+
+| host | IP | model | sensor (full) | bitDepth | serial (hex) |
+|---|---|---|---|---|---|
+| zwoserver01 | 10.8.80.225 | ZWO_ASI294MM_Pro | 8288×5644 | 12 | `2a354b041d010900` |
+| zwoserver02 | 10.8.80.218 | ZWO_ASI1600MM_Pro | 4656×3520 | 12 | `313084041f070900` |
+
+Note the two are **different models** (294MM Pro vs 1600MM Pro —
+different sensors and readout), which is the main confound below.
+
+- **Setup:** both cameras rebuilt from the repo (server v1.0.6,
+  identical build), captured simultaneously from zwo-nuc with
   `two_camera_capture.sh` (bin 2, 10% ROI, 10 ms exposure, gain 200,
   ~97 fps each, 60 s). Light: a plain ~2.9 Hz LED flasher (no GPS)
   imaged by both cameras; 171 flashes. Analyzed with
@@ -174,10 +184,11 @@ First run of the pipeline above, as a baseline before the GPS-PPS LED.
   Pis' clocks. Both are NTP clients of zwo-nuc, so this is
   NTP-over-LAN client-to-client residual, **not** independent drift.
 - **Caveats on this baseline:**
-  1. The two cameras were **different models** at test time, so part
-     of the offset is a fixed readout-timing difference between
-     sensors, not clock error. A re-test with **two identical cameras**
-     (planned) removes that confound and isolates the clock term.
+  1. The two cameras were **different models** at test time (294MM Pro
+     vs 1600MM Pro; see the serial table above), so part of the offset
+     is a fixed readout-timing difference between sensors, not clock
+     error. A re-test with **two identical cameras** (planned) removes
+     that confound and isolates the clock term.
   2. Upgrading 218 from the old v1.0.4 to v1.0.6 alone halved the
      arrival skew (2.77 → 1.13 ms) — the old server's 5 ms poll and
      missing latency fixes were a large part of the first measurement.
