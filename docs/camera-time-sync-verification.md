@@ -259,6 +259,43 @@ Earlier baseline note: the first run used two *different* camera models
 readout-timing difference between sensors, which vanished with the
 matched pair, confirming it was not a clock effect.
 
+### Verdict — against the ≲1 ms requirement
+
+The stated requirement (top of this doc) is **frame timestamps aligned
+to ≲1 ms** so the two guiders can be cross-correlated for fast
+tip-tilt / ground-layer PSDs. The measured result clears it with room
+to spare:
+
+- **~20× inside the requirement.** At 100 fps the cross-camera
+  alignment is **−0.05 ms (sub-100 µs)** — the ≲1 ms target met with a
+  factor ~20 margin, using only the existing NTP-over-LAN discipline
+  (no GPS/PTP yet).
+- **Stable for an observing block.** Drift is **−35 µs/min over
+  30 min** — over a typical multi-minute PSD integration the two clocks
+  stay aligned to well under the requirement; there is no slow walk to
+  correct for.
+- **Negligible against the science timescales.** The fast-guiding band
+  of interest runs to the sampling Nyquist — ~50 Hz at 100 fps, ~100 Hz
+  at 200 fps (20–10 ms periods). A sub-100 µs alignment error is **<1 %
+  of a cycle even at 100 Hz**, so it adds essentially no phase error to
+  a cross-camera PSD or a time-lagged layer-wind / vibration
+  correlation. Even the beat-limited ~1 ms *spread* (not the median) is
+  ≤10 % of a cycle across that band.
+- **What is and isn't covered.** This validates **relative** alignment,
+  which is exactly what cross-correlation between the two cameras needs
+  — and it is done. **Absolute** UTC (for tying to an external
+  ephemeris) still needs the GPS-PPS LED and is not required for the
+  ground-layer/vibration cross-correlation goal.
+
+Bottom line: for the intended use — running both guiders (and, later, a
+third on AUX2) to cross-correlate fast tip-tilt / ground-layer seeing —
+the timestamp alignment is **already good enough with margin at
+100 fps**, and 200 fps extends the usable band to ~100 Hz at the cost
+of the SDK stalls (tolerable for PSD, not for a fixed-cadence loop). No
+further timing hardware is needed to begin the PSD study; GPS/PTP would
+only add absolute UTC and shave the residual for future multi-station
+work.
+
 ## Open questions this test answers (added to the report)
 
 1. Relative timestamp accuracy of the ASI294MM Pro server-timestamped
