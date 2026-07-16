@@ -52,6 +52,56 @@ Example — full default sweep against a remote server, with CSV output:
 Ctrl-C stops cleanly: the current config's partial row is kept and
 labelled `interrupted`.
 
+## Two-camera flash-sync test
+
+Validate that two cameras' frame timestamps are aligned (see
+[docs/camera-time-sync-verification.md](../../docs/camera-time-sync-verification.md)).
+Point both cameras at the **same blinking light** (~1 Hz is enough —
+no GPS needed; the flash is a shared fiducial and only *relative*
+timing is measured), capture both from one client, and cross-correlate
+the flux signals.
+
+`--frame-log PATH` makes `zwo_benchmark` write a per-frame CSV
+(`label,seq,server_ts_ns,client_epoch_s,mean_count`): the server
+timestamp (each camera host's clock), the client arrival time (this
+client's clock, common to both cameras when run on one host), and the
+mean ROI pixel value (the flash shows up as a step here).
+
+Capture both cameras at once with the helper script (run on the client,
+e.g. zwo-nuc, where `zwo_benchmark` is built):
+
+```
+./two_camera_capture.sh -a 10.8.80.225 -b 10.8.80.218 -d 60
+# options: -e exp  -n bin  -r roi%  -B bits  -o outdir ;  -- passes extra
+# flags to both, e.g.  -- --gain 200
+```
+
+It writes `camA_<host>.csv` and `camB_<host>.csv` into an output dir.
+Analyze:
+
+```
+python3 plot_two_camera_sync.py sync_*/camA_*.csv sync_*/camB_*.csv -o sync.png
+# needs numpy + matplotlib
+```
+
+The analyzer reports the inter-camera delay (B − A) two ways —
+per-flash **edge matching** (gives the jitter/spread across flashes)
+and **cross-correlation** (a robust single number) — on both the
+client clock (arrival skew) and the server clocks (host-clock
+misalignment — the number that matters if science uses `ts_ns`). It
+also prints each camera's client-minus-server offset (transport +
+clock) and writes a 3-panel plot: flux zoom, per-flash delay vs time,
+and the delay histogram. Recovers a known delay to ~0.3 ms at 193 fps
+with a 1 Hz flash; a faster flash or longer run tightens that.
+
+Manual equivalent (one camera at a time is *not* simultaneous — use the
+script for the real test):
+
+```
+./zwo_benchmark --host 10.8.80.225 --label camA --frame-log camA.csv \
+    --exptimes 0.005 --bins 2 --rois 5 --bits 8 --duration 60 --warmup 2
+```
+
 ## Example results
 
 Full default sweep (42 configs, 10 s each) run 2026-07-08 on
