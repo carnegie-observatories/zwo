@@ -252,6 +252,46 @@ client-arrival delay (blue).](images/two-camera-sync-matched-result.png)
   absolute UTC and validate it against a known reference, but for
   relative cross-camera correlation the requirement is already met.
 
+## 30-minute stability run — 2026-07-16 (drift + glitch census)
+
+Same matched pair and config, extended to **30 min** (~176,800 frames
+per camera, 5196 flashes) to look for slow drift and rare software
+glitches that a 60 s snapshot cannot see.
+
+![30-min run: delay vs time (banded), bimodal delay histogram, and
+per-frame delivery interval with rare stall spikes.](images/two-camera-sync-30min.png)
+
+- **Clock drift: none.** Server-clock inter-camera delay drift is
+  **−0.02 µs/min over 30 min** (client-clock +3.7 µs/min) — flat, no
+  walk or NTP sawtooth at our resolution. Median stays −0.30 ms,
+  consistent with the 60 s value. **The NTP-client-of-a-common-host
+  setup holds the two cameras aligned with no measurable drift for at
+  least half an hour.**
+- **Software glitches: rare, brief, independent.** 5 delivery stalls
+  total (A: 2, B: 3), each **~30 ms** (≈3 frame intervals), rate
+  **~0.1/min per camera** — one hiccup per ~10 min. They occur at
+  *different* times on A vs B (independent, not coincident), so a stall
+  momentarily perturbs one camera only. This is why the 60 s runs saw
+  zero. A fast-guiding loop must tolerate/mask a ~30 ms gap on one
+  camera roughly every 10 min.
+- **A measurement-method beat the long run exposed.** The per-flash
+  delay is **bimodal** (bands at ≈−1 ms and ≈+1.5 ms; see the middle
+  and histogram panels), so the robust spread grew from 0.13 ms (60 s)
+  to ~0.96 ms MAD. This is **not** a clock effect — the median and
+  drift are unchanged. It is a **beat between the ~2.9 Hz flasher and
+  the ~98.8 fps frame sampling**: edge-crossing timing has a residual
+  frame-quantization that cycles as the two cameras' grids slide
+  against the flash. The 60 s run happened to catch one beat phase
+  (hence its misleadingly tight 0.19 ms). The true alignment is the
+  drift-free median (~0.3 ms); the ~1 ms spread is method, reducible
+  with a higher frame rate (193 fps ≈ halves it) or a sharp-edged
+  GPS-PPS LED.
+- **Takeaway:** over 30 min the two matched guiders stay aligned with
+  **no drift**, median ~0.3 ms, punctuated only by rare independent
+  ~30 ms stalls. The apparent sub-ms→~1 ms jitter growth is a flasher/
+  sampling beat, not the clocks. This closes the drift and glitch
+  questions for the current (NTP + simple flasher) configuration.
+
 ## Open questions this test answers (added to the report)
 
 1. Relative timestamp accuracy of the ASI294MM Pro server-timestamped
