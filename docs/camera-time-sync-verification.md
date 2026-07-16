@@ -185,17 +185,33 @@ the flash-edge measurement (see below), not a real clock difference.
 ![Two ASI294MM Pro guiders on a common bracket, both imaging a blinking
 headlamp LED.](images/two-camera-sync-setup.jpg)
 
+**Figure 1.** Lab setup: two matched ASI294MM Pro guiders on a common
+bracket, both pointed at the same blinking headlamp LED (foreground).
+No GPS — the shared flash is the fiducial; only relative timing is
+measured.
+
 ![100 fps 30-min: delay flat around zero, zero stalls in the per-frame
 panel.](images/sync-100fps.png)
+
+**Figure 2.** Best config at **~100 fps**, 30 min. Top→bottom: flash
+flux (first 5 s), per-flash inter-camera delay vs time (server-clock
+red, client-arrival blue; drift −35 µs/min), delay histogram (median
+−0.05 ms), and per-frame delivery interval (flat at 10.18 ms — zero
+stalls).
 
 ![200 fps 30-min: same alignment but a dense ~30 ms SDK-stall band and
 stall-contaminated delay outliers.](images/sync-200fps.png)
 
+**Figure 3.** Best config at **~200 fps**, 30 min, same panels. The
+per-frame panel shows the ~30 ms SDK-lost-wakeup stall band (~16/min);
+those late frames contaminate the delay panels (MAD 3.1 ms), while the
+underlying alignment is unchanged from Figure 2.
+
 ### What the runs show
 
-- **Alignment: sub-100 µs at 100 fps.** The two cameras' server
-  timestamps cross-align to −0.05 ms (median SE ~15 µs) — the two Pis
-  are NTP clients of the common zwo-nuc host, so this is
+- **Alignment: sub-100 µs at 100 fps** (Figure 2). The two cameras'
+  server timestamps cross-align to −0.05 ms (median SE ~15 µs) — the
+  two Pis are NTP clients of the common zwo-nuc host, so this is
   NTP-over-LAN residual, and it is well inside the ≲1 ms goal.
 - **No drift.** −35 / −5 µs/min over 30 min at 100/200 fps: the
   NTP-client-of-a-common-host discipline holds the cameras aligned with
@@ -206,8 +222,8 @@ stall-contaminated delay outliers.](images/sync-200fps.png)
   (1-min) window catches one beat phase and looks misleadingly tight
   (e.g. −0.5 ms), while 30 min averages the full beat. Reduce it with a
   sharper (GPS-PPS) LED, not more frames — see next point.
-- **200 fps is limited by SDK stalls, not sync.** At 5 ms the SDK
-  lost-wakeup (below) fires ~16/min; those ~30 ms late frames
+- **200 fps is limited by SDK stalls, not sync** (Figure 3). At 5 ms
+  the SDK lost-wakeup (below) fires ~16/min; those ~30 ms late frames
   contaminate the flash-edge method (MAD 3.1 ms, apparent +1 ms median
   = A stalls slightly more than B). The underlying alignment is the
   same sub-ms as at 100 fps; the *measurement* just degrades. For the

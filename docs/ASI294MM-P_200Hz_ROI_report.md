@@ -185,9 +185,18 @@ vanished with a matched pair.)
 ![Two ASI294MM Pro guiders on a common bracket imaging a blinking
 headlamp LED.](images/two-camera-sync-setup.jpg)
 
+**Figure 1.** Lab setup: two matched ASI294MM Pro guiders imaging the
+same blinking headlamp LED (the shared timing fiducial).
+
 ![100 fps 30-min: inter-camera delay flat around zero, zero stalls —
 server-clock delay (red) tighter than client arrival
 (blue).](images/sync-100fps.png)
+
+**Figure 2.** Cross-camera timestamp validation, best config at
+~100 fps over 30 min: per-flash inter-camera delay flat around zero
+(median −0.05 ms, drift −35 µs/min), zero stalls; server-clock delay
+(red) tighter than client arrival (blue). Full method and the 200 fps
+case in [camera-time-sync-verification.md](camera-time-sync-verification.md).
 
 Notes and remaining refinements:
 
