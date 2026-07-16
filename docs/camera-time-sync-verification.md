@@ -194,7 +194,42 @@ different sensors and readout), which is the main confound below.
      missing latency fixes were a large part of the first measurement.
 - **Takeaway:** cross-camera timestamps are already usable at the
   ~1–2 ms level; proper clock discipline (per-host GPS or PTP, below)
-  plus identical cameras should bring this to sub-ms.
+  plus identical cameras should bring this to sub-ms. (Confirmed — see
+  the matched-pair re-test below.)
+
+## Re-test with matched cameras — 2026-07-16 (non-GPS flasher)
+
+218's camera was swapped so both hosts run the **same model**
+(ASI294MM Pro). Serials re-recorded via `open` + `ASIGetSerialNumber`:
+
+| host | IP | model | sensor | bitDepth | serial (hex) |
+|---|---|---|---|---|---|
+| zwoserver01 | 10.8.80.225 | ZWO_ASI294MM_Pro | 8288×5644 | 12 | `2a354b041d010900` (unchanged) |
+| zwoserver02 | 10.8.80.218 | ZWO_ASI294MM_Pro | 8288×5644 | 12 | `3924d3032a010900` (new) |
+
+Identical capture config to the baseline (both v1.0.6; bin 2, 10% ROI,
+10 ms, **gain 200 on both**, ~98 fps, 60 s; same ~2.9 Hz flasher,
+173 flashes).
+
+- **Result — cross-camera timestamp alignment (server clocks):
+  −0.036 ± 0.19 ms (≈36 µs median, SE ~0.014 ms)**, no drift over 60 s.
+  Client-arrival skew: −0.17 ± 0.40 ms; cross-correlation −0.30 ms.
+  Per-camera jitter 0.28 / 0.55 ms.
+- **The offset dropped from +1.75 ms (different models) to ~36 µs
+  (matched)** — confirming the baseline was dominated by the fixed
+  readout-timing difference between the 294MM Pro and 1600MM Pro, not
+  clock error. With that confound gone, the residual is just the
+  NTP-client-to-client alignment between the two Pis, which is
+  **sub-100 µs** on this LAN.
+- The server-clock delay is **tighter than the client-arrival delay**
+  (0.19 vs 0.40 ms std) because the server ns timestamp removes
+  transport/network jitter — exactly what the timestamps are for.
+- **Bottom line:** two matched ASI294MM Pro guiders, NTP-synced to a
+  common host, already cross-align to ~tens of µs — comfortably under
+  the ≲1 ms goal, with server timestamps demonstrably better than
+  arrival-time analysis. The GPS-PPS LED (below) would pin this to
+  absolute UTC and validate it against a known reference, but for
+  relative cross-camera correlation the requirement is already met.
 
 ## Open questions this test answers (added to the report)
 
