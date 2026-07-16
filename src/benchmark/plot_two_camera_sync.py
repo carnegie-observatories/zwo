@@ -89,10 +89,14 @@ def match_edges(ea, eb, max_dt):
     return np.array(at), np.array(deltas)
 
 
-def xcorr_delay(ta, fa, tb, fb, dt=1e-3):
-    """Cross-correlation delay (B lags A by +lag) on a uniform grid."""
+def xcorr_delay(ta, fa, tb, fb, dt=1e-3, max_win=120.0, max_lag=0.5):
+    """Cross-correlation delay (B lags A by +lag), bounded lag search.
+
+    Only a short window (max_win s) and a bounded lag range (±max_lag s)
+    are used — the delay is constant, so a full O(n²) correlate over a
+    long capture is both unnecessary and prohibitively slow."""
     t0 = max(ta[0], tb[0])
-    t1 = min(ta[-1], tb[-1])
+    t1 = min(min(ta[-1], tb[-1]), t0 + max_win)
     if t1 - t0 < 5 * dt:
         return None
     grid = np.arange(t0, t1, dt)
@@ -102,17 +106,25 @@ def xcorr_delay(ta, fa, tb, fb, dt=1e-3):
     b = b - b.mean()
     if a.std() < 1e-9 or b.std() < 1e-9:
         return None
-    corr = np.correlate(b, a, mode="full")
-    lags = np.arange(-len(a) + 1, len(a))
-    k = int(np.argmax(corr))
+    L = int(max_lag / dt)
+    lags = np.arange(-L, L + 1)
+    n = len(a)
+    corr = np.empty(lags.size)
+    for m, k in enumerate(lags):          # sum a[i]*b[i+k], bounded k
+        if k >= 0:
+            corr[m] = np.dot(a[:n - k], b[k:])
+        else:
+            corr[m] = np.dot(a[-k:], b[:n + k])
+    j = int(np.argmax(corr))
+    k = lags[j]
     # parabolic sub-sample refinement around the peak
-    if 0 < k < len(corr) - 1:
-        y0, y1, y2 = corr[k - 1], corr[k], corr[k + 1]
+    if 0 < j < len(corr) - 1:
+        y0, y1, y2 = corr[j - 1], corr[j], corr[j + 1]
         denom = y0 - 2 * y1 + y2
         shift = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
     else:
         shift = 0.0
-    return (lags[k] + shift) * dt
+    return (k + shift) * dt
 
 
 def summarize_delay(name, at, deltas):
