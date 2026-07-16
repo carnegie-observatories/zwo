@@ -292,6 +292,49 @@ per-frame delivery interval with rare stall spikes.](images/two-camera-sync-30mi
   sampling beat, not the clocks. This closes the drift and glitch
   questions for the current (NTP + simple flasher) configuration.
 
+### Stall mechanism — two regimes (seq-step evidence)
+
+Checking whether each stall dropped a frame (seq jumps) or delivered it
+late (seq contiguous) separates two distinct causes, which dominate at
+different frame rates:
+
+| | 98 fps (10 ms) | 193 fps (5 ms) |
+|---|---|---|
+| stall rate | ~0.1 / min | **~15 / min** |
+| size | ~30 ms | ~65 ms (fixed) |
+| seq-step | 3 → **2 frames dropped** | 1 → **frame late, not dropped** |
+| cause | **client** misses its pull deadline (double-buffer overwritten); likely aggravated by the per-frame `--frame-log` I/O to NVMe on zwo-nuc | **server-side SDK lost-wakeup** — `CirBuf::ReadBuff` sleeps the full `ASIGetVideoData` timeout (the ~65 ms = 50 ms floor + exposure) |
+
+Key point: at 193 fps the frames are **delivered late, not lost**
+(seq-step 1) and each keeps a correct ns timestamp — so for
+timestamp-based science (PSD/cross-correlation) the data is not
+corrupted, only non-uniformly sampled. A **fixed-cadence guiding loop**
+at 193 fps, however, would hit a ~65 ms gap every ~4 s.
+
+### 193 fps run — beat test defeated by the SDK stalls
+
+Repeating the 30-min run at ~197 fps (5 ms, 5% ROI, gain 300) to test
+whether the higher sampling rate halves the flasher/sampling beat:
+
+![193 fps 30-min run: the per-frame panel shows a dense ~65 ms stall
+band; the delay panel is peppered with ±60-80 ms stall-contaminated
+outliers.](images/two-camera-sync-30min-193fps.png)
+
+It does the opposite. The ~15/min × 65 ms SDK stalls contaminate the
+flash-edge measurement so heavily (MAD 3.3 ms even after 5σ rejection;
+apparent median −4.9 ms and −114 µs/min "drift" are artifacts of A
+stalling more than B, 17 vs 13/min) that any beat is unmeasurable.
+**Higher frame rate makes the *sync measurement* worse, not better** —
+the beat is only cleanly seen at 98 fps, where the SDK stalls are rare.
+The true clock alignment is unchanged (it does not depend on camera
+fps); only the flash-edge method degrades.
+
+Mitigations for the 65 ms SDK stalls: lower the `ASIGetVideoData`
+timeout floor (50→~15 ms) to shorten each stall; test whether
+`ASI_BANDWIDTHOVERLOAD` / `ASI_HIGH_SPEED_MODE` reduce the stall *rate*
+(untested); for guiding, run ~98 fps (stalls rare) or mask the gaps;
+for PSD, they are already tolerable (correctly timestamped).
+
 ## Open questions this test answers (added to the report)
 
 1. Relative timestamp accuracy of the ASI294MM Pro server-timestamped
