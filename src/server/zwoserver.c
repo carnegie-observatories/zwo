@@ -1057,9 +1057,10 @@ static void* run_video(void* param)
     }
     /* keep the GetVideoData timeout short: the SDK's CirBuf::ReadBuff
      * occasionally misses a wakeup and sleeps the FULL timeout even
-     * though the frame is ready (366ms stalls with the old 350ms
-     * floor; stall length tracks this value) */
-    wait = 50+(int)(1000.0*asi_expTime);
+     * though the frame is ready -- the stall length tracks this value
+     * (350ms->366ms, 50ms->65ms, 15ms->~30ms). Kept >2x the frame
+     * period so normal frames never spuriously time out. */
+    wait = 15+(int)(1000.0*asi_expTime);
     // printf("wait=%d, size=%u, seq=%u\n",wait,size,video_seq);
     data = (video_seq % 2) ? video_data1 : video_data2;
     // printf("writing to buffer %d\n",(data==video_data1) ? 1 : 2);
