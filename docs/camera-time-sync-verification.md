@@ -61,6 +61,16 @@ be worse; how much worse for the ASI294MM Pro at 193 Hz is
 uncharacterized in the literature and is exactly what this test
 measures.
 
+**Hardware triggering is not available on these cameras.** The
+ASI294MM Pro guiders have **no external hardware sync-trigger input**
+(no trigger/PPS pin, no TTL exposure I/O) — so the hardware-trigger
+methods above (proto-Lightspeed's GPS-PPS trigger + TTL
+end-of-readout, an external common trigger à la CANARY/DRAGON) are
+**ruled out**. Frames are free-running and stamped in software at USB
+delivery; the only synchronization check we can do is the **optical
+flash** method. This is the fundamental reason we time-stamp
+server-side and validate optically rather than triggering the sensors.
+
 ## Recommended test — shared GPS-PPS LED, phase-folded
 
 A single GPS-PPS-driven LED placed so **both cameras image it
@@ -210,6 +220,17 @@ different sensors and readout), which is the main confound below.
 Identical capture config to the baseline (both v1.0.6; bin 2, 10% ROI,
 10 ms, **gain 200 on both**, ~98 fps, 60 s; same ~2.9 Hz flasher,
 173 flashes).
+
+![Two ASI294MM Pro cameras on a common bracket, both imaging a blinking
+headlamp LED; a Raspberry Pi sits beneath the mount.](images/two-camera-sync-setup.jpg)
+
+*Setup: the two matched guiders side by side, both pointed at the same
+blinking headlamp LED (foreground). No GPS — the shared flash is the
+fiducial; only relative timing is measured.*
+
+![Per-flash inter-camera delay: flux traces, delay vs time, and
+histogram. Server-clock delay (red) hugs zero and is tighter than the
+client-arrival delay (blue).](images/two-camera-sync-matched-result.png)
 
 - **Result — cross-camera timestamp alignment (server clocks):
   −0.036 ± 0.19 ms (≈36 µs median, SE ~0.014 ms)**, no drift over 60 s.
