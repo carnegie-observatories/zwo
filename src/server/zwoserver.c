@@ -41,9 +41,12 @@
 
 #include <sys/reboot.h>                /* requires server */
 #include <linux/reboot.h>              /* to run as 'root' */
+#include <netinet/in.h>                /* IPPROTO_TCP */
+#include <netinet/tcp.h>               /* TCP_NODELAY */
+#include <time.h>                      /* clock_gettime() */
 
 #if (TIME_TEST > 0)
-#include <limits.h> 
+#include <limits.h>
 #include <sys/times.h>
 #include <unistd.h>
 #endif
@@ -88,21 +91,37 @@ static ASI_EXPOSURE_STATUS asi_exp_status=0;
 static u_char *asi_data=NULL;
 static u_char *video_data1=NULL,*video_data2=NULL; // v0024
 static u_int video_seq=0,video_last=0;
+static volatile int video_running=0;   /* run_video thread alive */
+/* per-frame receive timestamp [ns], [0]=video_data1 [1]=video_data2.
+ * CLOCK_REALTIME so two NTP/PTP-synced hosts can be cross-correlated
+ * on absolute time; switch to CLOCK_TAI on PTP deployments to be
+ * immune to leap-second steps. */
+#define TS_CLOCK CLOCK_REALTIME
+static unsigned long long video_ts[2];
+/* safety margin on buffers passed to the SDK: ASIGetVideoData was
+ * observed to write past w*h*bytes at 16-bit large ROIs (ASI294MM Pro,
+ * SDK 1.20.2) corrupting the heap -> SEGV in a later realloc */
+#define SDK_BUF_PAD (1L<<20)
 static size_t asi_size=0;
 static double asi_startTime,asi_expTime;
 static int   asi_gain=0,asi_offset=10;
+static int   asi_usb=40;               /* ASI_BANDWIDTHOVERLOAD, SDK default */
+static int   asi_highspeed=0;          /* ASI_HIGH_SPEED_MODE (10-bit ADC) */
 static int   asi_cooler;
 static float asi_temperature,asi_target,asi_cooler_power;
 
 static const int efw_id=0;
 
-enum server_errors_enum { E_first=ASI_ERROR_END+1,
-                          E_no_camera,
+/* fixed base (was ASI_ERROR_END+1): SDK 1.41 added GPS error codes,
+ * shifting ASI_ERROR_END 18->23; clients (gcam/zwotcp.h, ZwoGUI,
+ * zwo_emulator.py) expect 20..25 on the wire */
+enum server_errors_enum { E_first=19,
+                          E_no_camera, /* 20 */
                           E_not_open,
                           E_not_idle,  /* 22 */
                           E_no_data,
 			  E_not_video,
-                          E_unknown,
+                          E_unknown,   /* 25 */
                           E_last };
 
 enum server_states_enum  { ZWO_CLOSED,
@@ -430,7 +449,7 @@ static int handle_asi(const char* command,char* answer,int buflen)
   } else
   if (!strcmp(cmd,"ASIGetDataAfterExp")) {
     asi_size = atoi(par1);
-    asi_data = (u_char*)realloc(asi_data,asi_size);
+    asi_data = (u_char*)realloc(asi_data,asi_size+SDK_BUF_PAD);
     int ret = ASIGetDataAfterExp(asi_id,asi_data,asi_size);
     // double t2 = walltime(0);
     // double dt = t2 - asi_startTime - asi_expTime;
@@ -445,7 +464,7 @@ static int handle_asi(const char* command,char* answer,int buflen)
   } else
   if (!strcmp(cmd,"ASIGetVideoData")) {
     asi_size = atoi(par1);
-    asi_data = (u_char*)realloc(asi_data,asi_size);
+    asi_data = (u_char*)realloc(asi_data,asi_size+SDK_BUF_PAD);
     int wait_ms = atoi(par2);
     double t1 = walltime(0);
     int ret = ASIGetVideoData(asi_id,asi_data,asi_size,wait_ms);
@@ -593,6 +612,24 @@ static int handle_command(const char* command,char* answer,size_t buflen)
     }
     if (!err) sprintf(answer,"%d",asi_offset);
   } else
+  if (!strcasecmp(cmd,"usb")) {        /* ASI_BANDWIDTHOVERLOAD 40..100 */
+    if (zwo_state == ZWO_CLOSED) err = E_not_open;
+    if (!err && (n > 1)) {
+      asi_usb = atoi(par1);
+      sprintf(buf,"ASISetControlValue %d %d",ASI_BANDWIDTHOVERLOAD,asi_usb);
+      err = handle_asi(buf,answer,buflen);
+    }
+    if (!err) sprintf(answer,"%d",asi_usb);
+  } else
+  if (!strcasecmp(cmd,"highspeed")) {  /* ASI_HIGH_SPEED_MODE 0/1 */
+    if (zwo_state == ZWO_CLOSED) err = E_not_open;
+    if (!err && (n > 1)) {
+      asi_highspeed = atoi(par1);
+      sprintf(buf,"ASISetControlValue %d %d",ASI_HIGH_SPEED_MODE,asi_highspeed);
+      err = handle_asi(buf,answer,buflen);
+    }
+    if (!err) sprintf(answer,"%d",asi_highspeed);
+  } else
   if (!strcasecmp(cmd,"status")) {
     if (zwo_state == ZWO_EXPOSING) { int a,b;
       handle_asi("ASIGetExpStatus",answer,buflen);
@@ -649,16 +686,18 @@ static int handle_command(const char* command,char* answer,size_t buflen)
       double t1 = walltime(0);
       while (video_seq <= video_last) {     /* b0025 */
 	if (walltime(0)-t1 >= timeout) break;
-        msleep(5); 
+        msleep(1);   /* 5ms quantum capped video at ~194 fps */
       }
-      if (video_seq > video_last) {      
+      if (video_seq > video_last) {
+        __sync_synchronize(); /* frame data written before seq (arm64) */
         video_last = video_seq;
         u_char *data = (video_last % 2) ? video_data2 : video_data1;
         asi_size = zwo_w * zwo_h * zwo_bits/8;
         asi_data = (u_char*)realloc(asi_data,asi_size);
         memcpy(asi_data,data,asi_size); // don't shift here v0028 
-        sprintf(answer,"%u %.1f %.0f",video_last,
-                asi_temperature,asi_cooler_power);
+        sprintf(answer,"%u %.1f %.0f %llu",video_last,
+                asi_temperature,asi_cooler_power,
+                video_ts[(video_last % 2) ? 1 : 0]);
       } else {
         strcpy(answer,"-Enodata");
       }
@@ -666,20 +705,34 @@ static int handle_command(const char* command,char* answer,size_t buflen)
   } else
   if (!strcasecmp(cmd,"start")) {
     if (zwo_state != ZWO_IDLE) err = E_not_idle;
-    if (!err) {
+    if (!err) { int i;   /* previous thread must be gone before its */
+                         /* buffers are realloc'ed for the new one  */
+      for (i=0; video_running && (i<300); i++) msleep(10);
       err = handle_asi("ASIStartVideoCapture",answer,buflen);
-      if (!err) {
+      if (!err) { size_t vsize = (size_t)zwo_w*zwo_h*zwo_bits/8;
+        /* buffers are (re)allocated HERE, on the thread that also   */
+        /* serves 'next': aarch64 reorders cross-thread stores, so a */
+        /* consumer must never read pointers written by run_video    */
+        video_data1 = (u_char*)realloc(video_data1,vsize+SDK_BUF_PAD);
+        video_data2 = (u_char*)realloc(video_data2,vsize+SDK_BUF_PAD);
         zwo_state = ZWO_VIDEO;
+        video_running = 1;
+        __sync_synchronize();
         thread_detach(run_video,NULL);  /* v0024 */
       }
     }
   } else
   if (!strcasecmp(cmd,"stop")) {
-    if (zwo_state == ZWO_VIDEO) {
+    if (zwo_state == ZWO_VIDEO) { int i;
       zwo_state = ZWO_IDLE;
+      /* wait for run_video to leave ASIGetVideoData() first: the SDK */
+      /* is not thread-safe and StopVideoCapture during GetVideoData  */
+      /* corrupts the heap (SEGV in a later realloc)                  */
+      for (i=0; video_running && (i<3000); i++) msleep(10);
       err = handle_asi("ASIStopVideoCapture",answer,buflen);
+      msleep(350);   /* let SDK worker threads settle, cf. 'start' */
     }
-  } else 
+  } else
   if (!strcasecmp(cmd,"write")) { 
     handle_command("data 0",answer,buflen);
     assert(asi_size == 0);
@@ -944,6 +997,9 @@ static void* run_tcpip(void* param)
     int on=1;
     (void)setsockopt(msgsock,SOL_SOCKET,SO_NOSIGPIPE,&on,sizeof(on));
 #endif
+    { int nd=1;      /* no Nagle delay on header+data sends of 'next' */
+      (void)setsockopt(msgsock,IPPROTO_TCP,TCP_NODELAY,&nd,sizeof(nd));
+    }
     sprintf(host,"%u.%u.%u.%u",
             (u_char)sadr.sa_data[2],(u_char)sadr.sa_data[3],
             (u_char)sadr.sa_data[4],(u_char)sadr.sa_data[5]);
@@ -973,6 +1029,16 @@ static void* run_tcpip(void* param)
 
 /* ---------------------------------------------------------------- */
 
+static unsigned long long time_ns(void) /* TS_CLOCK in nanoseconds */
+{
+  struct timespec tp;
+  clock_gettime(TS_CLOCK,&tp);
+  return (unsigned long long)tp.tv_sec*1000000000ull
+       + (unsigned long long)tp.tv_nsec;
+}
+
+/* ---------------------------------------------------------------- */
+
 static void* run_video(void* param)
 {
   int    wait,ret,size=zwo_w*zwo_h*zwo_bits/8;
@@ -980,9 +1046,8 @@ static void* run_video(void* param)
   u_char *data;
   char   buf[128];
 
-  video_data1 = (u_char*)realloc(video_data1,size);
-  video_data2 = (u_char*)realloc(video_data2,size);
-  
+  /* video_data1/2 are allocated by 'start' before this thread spawns */
+
   while (zwo_state == ZWO_VIDEO) {
     if (cor_time(0) < next) {   // v0026
       msleep(5);
@@ -990,16 +1055,24 @@ static void* run_video(void* param)
       handle_command("tempcon",buf,sizeof(buf));
       next = cor_time(0)+30; // TODO every 30 seconds
     }
-    wait = 350+(int)(1000.0*asi_expTime); 
+    /* keep the GetVideoData timeout short: the SDK's CirBuf::ReadBuff
+     * occasionally misses a wakeup and sleeps the FULL timeout even
+     * though the frame is ready (366ms stalls with the old 350ms
+     * floor; stall length tracks this value) */
+    wait = 50+(int)(1000.0*asi_expTime);
     // printf("wait=%d, size=%u, seq=%u\n",wait,size,video_seq);
     data = (video_seq % 2) ? video_data1 : video_data2;
     // printf("writing to buffer %d\n",(data==video_data1) ? 1 : 2);
     ret = ASIGetVideoData(asi_id,data,size,wait);
     if (ret == ASI_SUCCESS) {
+      video_ts[(video_seq % 2) ? 0 : 1] = time_ns(); /* slot of 'data' */
+      __sync_synchronize();  /* frame data+ts visible before seq (arm64) */
       video_seq++;
     }
   }
   printf("%s done\n",PREFUN); //xxx
+  __sync_synchronize();
+  video_running = 0;
 
   return (void*)0;
 }

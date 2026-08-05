@@ -10,9 +10,8 @@
  * sweep loop are complete. The per-configuration warmup +
  * measurement window is a stub and will be filled in next.
  *
- * TODO: sweep ASI_BANDWIDTHOVERLOAD once zwoserver.c exposes a
- *       command to set it (currently only EXPOSURE/GAIN/OFFSET/
- *       COOLER/TARGET_TEMP/FAN are wired through handle_asi()).
+ * ASI_BANDWIDTHOVERLOAD is set via the server's 'usb' command
+ * (--usb N, 40..100); sweep it by running once per value.
  *
  * ---------------------------------------------------------------- */
 
@@ -34,6 +33,7 @@
 #define MAX_EXPS   32
 #define MAX_BINS    8
 #define MAX_BITS    4
+#define MAX_ROIS    8
 #define CMD_BUF   512
 #define LINE_BUF 1024
 
@@ -49,8 +49,10 @@ typedef struct {
   int         bins[MAX_BINS];
   int         n_bit;
   int         bitdepths[MAX_BITS];
-  int         gain, offset;
-  int         have_gain, have_offset;
+  int         n_roi;
+  double      rois[MAX_ROIS];      /* window size, percent of full frame */
+  int         gain, offset, usb, highspeed;
+  int         have_gain, have_offset, have_usb, have_highspeed;
   const char *csv_path;
   int         verbose;
 } BenchCfg;
@@ -58,6 +60,8 @@ typedef struct {
 typedef struct {
   double exptime;
   int    bin, bits;
+  double roi_pct;
+  int    x, y;
   int    w, h;
   int    frames;
   double elapsed;
@@ -175,12 +179,14 @@ static int recv_exact(int sock, u_char *buf, size_t nbytes, int timeout_s)
 }
 
 /* Fetch one video frame.
- *   return  0 : ok (seq/temp/power/buf populated)
+ *   return  0 : ok (seq/temp/power/ts_ns/buf populated)
  *   return  1 : server replied -Enodata (no frame within its own timeout)
  *   return <0 : error
- */
+ * ts_ns is the server-side CLOCK_REALTIME receive stamp (0 when the
+ * server predates protocol 1.0.5). */
 static int next_frame(int sock, double server_timeout_s,
                       unsigned int *seq, double *temp, double *power,
+                      unsigned long long *ts_ns,
                       u_char *buf, size_t nbytes, int recv_timeout_s)
 {
   char cmd[CMD_BUF], resp[LINE_BUF];
@@ -192,7 +198,9 @@ static int next_frame(int sock, double server_timeout_s,
     return -3;
   }
   int per = 0;
-  if (sscanf(resp, "%u %lf %d", seq, temp, &per) != 3) {
+  *ts_ns = 0;
+  int nf = sscanf(resp, "%u %lf %d %llu", seq, temp, &per, ts_ns);
+  if (nf < 3) {
     fprintf(stderr, "next: bad header '%s'\n", resp);
     return -4;
   }
@@ -250,6 +258,8 @@ static void set_defaults(BenchCfg *c)
   int dbt[] = {8, 16};
   c->n_bit = (int)(sizeof(dbt) / sizeof(dbt[0]));
   memcpy(c->bitdepths, dbt, sizeof(dbt));
+  c->n_roi = 1;
+  c->rois[0] = 100.0;
 }
 
 static void usage(const char *prog)
@@ -261,11 +271,15 @@ static void usage(const char *prog)
 "  --exptimes CSV          (default: 0.001,0.005,0.01,0.05,0.1,0.5,1.0)\n"
 "  --bins CSV              (default: 1,2,4)\n"
 "  --bits CSV              (default: 8,16)\n"
+"  --rois CSV              window size as %% of full frame, centered\n"
+"                          (default: 100; e.g. 10,50,80,100)\n"
 "  --duration SEC          (default: 10.0)\n"
 "  --warmup SEC            (default: 3.0)\n"
 "  --next-timeout SEC      (default: 2.0)\n"
 "  --gain N                (optional)\n"
 "  --offset N              (optional)\n"
+"  --usb N                 ASI_BANDWIDTHOVERLOAD 40..100 (optional)\n"
+"  --highspeed N           ASI_HIGH_SPEED_MODE 0/1, 10-bit ADC (optional)\n"
 "  --csv PATH              (optional)\n"
 "  -v, --verbose\n"
 "  -h, --help\n", prog, SERVER_PORT);
@@ -280,11 +294,14 @@ static int parse_args(int argc, char **argv, BenchCfg *c)
     {"exptimes",     required_argument, 0, 'e'},
     {"bins",         required_argument, 0, 'b'},
     {"bits",         required_argument, 0, 'B'},
+    {"rois",         required_argument, 0, 'r'},
     {"duration",     required_argument, 0, 'd'},
     {"warmup",       required_argument, 0, 'w'},
     {"next-timeout", required_argument, 0, 't'},
     {"gain",         required_argument, 0, 'g'},
     {"offset",       required_argument, 0, 'o'},
+    {"usb",          required_argument, 0, 'u'},
+    {"highspeed",    required_argument, 0, 'S'},
     {"csv",          required_argument, 0, 'c'},
     {"verbose",      no_argument,       0, 'v'},
     {"help",         no_argument,       0, 'h'},
@@ -310,11 +327,24 @@ static int parse_args(int argc, char **argv, BenchCfg *c)
       if (n <= 0) { fprintf(stderr, "bad --bits\n"); return -1; }
       c->n_bit = n; break;
     }
+    case 'r': {
+      int n = parse_double_csv(optarg, c->rois, MAX_ROIS);
+      if (n <= 0) { fprintf(stderr, "bad --rois\n"); return -1; }
+      for (int i = 0; i < n; i++) {
+        if (c->rois[i] <= 0.0 || c->rois[i] > 100.0) {
+          fprintf(stderr, "bad --rois: %g not in (0,100]\n", c->rois[i]);
+          return -1;
+        }
+      }
+      c->n_roi = n; break;
+    }
     case 'd': c->duration_s = atof(optarg); break;
     case 'w': c->warmup_s = atof(optarg); break;
     case 't': c->next_timeout_s = atof(optarg); break;
     case 'g': c->gain = atoi(optarg); c->have_gain = 1; break;
     case 'o': c->offset = atoi(optarg); c->have_offset = 1; break;
+    case 'u': c->usb = atoi(optarg); c->have_usb = 1; break;
+    case 'S': c->highspeed = atoi(optarg); c->have_highspeed = 1; break;
     case 'c': c->csv_path = optarg; break;
     case 'v': c->verbose = 1; break;
     case 'h':
@@ -339,22 +369,32 @@ static int parse_args(int argc, char **argv, BenchCfg *c)
  * on demand so we don't pay malloc cost per config. */
 static int run_one(int sock, const BenchCfg *cfg,
                    int W, int H, double exptime, int bin, int bits,
+                   double roi_pct,
                    u_char **buf, size_t *buf_cap, BenchRow *row)
 {
   memset(row, 0, sizeof(*row));
   row->exptime = exptime; row->bin = bin; row->bits = bits;
+  row->roi_pct = roi_pct;
   row->expected_fps = 1.0 / exptime;
 
-  int want_w = (W / bin) & ~7;
-  int want_h = (H / bin) & ~1;
+  /* Window of roi_pct % of the (binned) full frame, centered on the
+   * sensor.  Same 8/2 rounding as the server; offsets aligned too. */
+  int full_w = (W / bin) & ~7;
+  int full_h = (H / bin) & ~1;
+  int want_w = (int)(full_w * roi_pct / 100.0) & ~7;
+  int want_h = (int)(full_h * roi_pct / 100.0) & ~1;
+  if (want_w < 8) want_w = 8;
+  if (want_h < 2) want_h = 2;
+  int want_x = ((full_w - want_w) / 2) & ~7;
+  int want_y = ((full_h - want_h) / 2) & ~1;
 
   int ox, oy, ow, oh, obin, obits;
-  if (setup_roi(sock, 0, 0, want_w, want_h, bin, bits,
+  if (setup_roi(sock, want_x, want_y, want_w, want_h, bin, bits,
                 &ox, &oy, &ow, &oh, &obin, &obits) != 0) {
     snprintf(row->note, sizeof(row->note), "setup fail");
     return -1;
   }
-  row->w = ow; row->h = oh; row->bits = obits;
+  row->x = ox; row->y = oy; row->w = ow; row->h = oh; row->bits = obits;
   size_t nbytes = (size_t)ow * (size_t)oh * (size_t)(obits / 8);
   row->bytes_per_frame = nbytes;
 
@@ -376,6 +416,7 @@ static int run_one(int sock, const BenchCfg *cfg,
   int recv_timeout_s = (int)ceil(cfg->next_timeout_s + exptime + 1.0);
   unsigned int seq = 0, last_seq = 0;
   double temp = 0, power = 0;
+  unsigned long long ts_ns = 0, last_ts = 0;
 
   /* Warmup: discard frames for max(warmup_s, 5*exptime) AND >= 5 frames.
    * Covers TCP slow-start and any initial camera ramp. */
@@ -385,7 +426,7 @@ static int run_one(int sock, const BenchCfg *cfg,
   int warm = 0;
   while (!g_stop && (walltime(0) < t_warm_end || warm < 5)) {
     int r = next_frame(sock, cfg->next_timeout_s, &seq, &temp, &power,
-                       *buf, nbytes, recv_timeout_s);
+                       &ts_ns, *buf, nbytes, recv_timeout_s);
     if (r == 0) warm++;
     else if (r == 1) msleep(5);
     else {
@@ -400,9 +441,10 @@ static int run_one(int sock, const BenchCfg *cfg,
   int frames = 0, drops = 0, enodata = 0;
   double t0 = walltime(0);
   double t_end = t0 + cfg->duration_s;
+  double t_last = t0;
   while (!g_stop && walltime(0) < t_end) {
     int r = next_frame(sock, cfg->next_timeout_s, &seq, &temp, &power,
-                       *buf, nbytes, recv_timeout_s);
+                       &ts_ns, *buf, nbytes, recv_timeout_s);
     if (r == 1) { enodata++; msleep(5); continue; }
     if (r < 0) {
       snprintf(row->note, sizeof(row->note), "recv fail (%d)", r);
@@ -411,7 +453,13 @@ static int run_one(int sock, const BenchCfg *cfg,
     if (!first && seq > last_seq + 1) drops += (int)(seq - last_seq - 1);
     last_seq = seq; first = 0; frames++;
     if (cfg->verbose) {
-      fprintf(stderr, "  seq=%u temp=%.1f power=%.0f\n", seq, temp, power);
+      /* dt = client-side arrival interval (protocol+network included),
+       * dts = server-side ASIGetVideoData interval (camera timing) */
+      double t_now = walltime(0);
+      double dts = (last_ts && ts_ns) ? (double)(ts_ns - last_ts)/1e9 : 0.0;
+      fprintf(stderr, "  seq=%u dt=%.4f dts=%.4f ts=%llu temp=%.1f power=%.0f\n",
+              seq, t_now - t_last, dts, ts_ns, temp, power);
+      t_last = t_now; last_ts = ts_ns;
     }
   }
   double elapsed = walltime(0) - t0;
@@ -437,8 +485,11 @@ static void print_session_banner(const BenchCfg *cfg, const char *model,
                                  int W, int H, int cooler, int color,
                                  int bitDepth)
 {
-  printf("ZWO benchmark   host=%s:%d   duration=%.1fs   warmup=%.1fs\n",
+  printf("ZWO benchmark   host=%s:%d   duration=%.1fs   warmup=%.1fs",
          cfg->host, cfg->port, cfg->duration_s, cfg->warmup_s);
+  if (cfg->have_usb) printf("   usb=%d", cfg->usb);
+  if (cfg->have_highspeed) printf("   highspeed=%d", cfg->highspeed);
+  printf("\n");
   printf("camera: %s  %dx%d  cooler=%d color=%d bitDepth=%d\n\n",
          model, W, H, cooler, color, bitDepth);
   fflush(stdout);
@@ -448,8 +499,8 @@ static void print_session_banner(const BenchCfg *cfg, const char *model,
  * (allows `zwo_benchmark ... > results.txt` without losing feedback). */
 static void print_progress_start(int idx, int total, const BenchRow *r)
 {
-  fprintf(stderr, "[%2d/%2d] exptime=%.4f bin=%d bits=%d ... ",
-          idx, total, r->exptime, r->bin, r->bits);
+  fprintf(stderr, "[%2d/%2d] exptime=%.4f bin=%d bits=%d roi=%.0f%% ... ",
+          idx, total, r->exptime, r->bin, r->bits, r->roi_pct);
   fflush(stderr);
 }
 
@@ -469,25 +520,25 @@ static void print_progress_done(const BenchRow *r)
 static void print_table_separator(FILE *fp)
 {
   fprintf(fp,
-    "+--------+-----+------+------+------+--------+---------+---------"
+    "+--------+-----+------+-------+------+------+--------+---------+---------"
     "+---------+-------+------+---------+--------+--------------------+\n");
 }
 
 static void print_table_header(FILE *fp)
 {
   fprintf(fp,
-    "| %-6s | %-3s | %-4s | %-4s | %-4s | %-6s | %-7s | %-7s | %-7s | "
+    "| %-6s | %-3s | %-4s | %-5s | %-4s | %-4s | %-6s | %-7s | %-7s | %-7s | "
     "%-5s | %-4s | %-7s | %-6s | %-18s |\n",
-    "exptim", "bin", "bits", "W", "H", "frames", "elapsed", "fps",
+    "exptim", "bin", "bits", "roi%", "W", "H", "frames", "elapsed", "fps",
     "expFPS", "eff%", "drop", "enodata", "MB/s", "note");
 }
 
 static void print_table_row(FILE *fp, const BenchRow *r)
 {
   fprintf(fp,
-    "| %6.4f | %3d | %4d | %4d | %4d | %6d | %7.2f | %7.2f | %7.2f | "
+    "| %6.4f | %3d | %4d | %5.1f | %4d | %4d | %6d | %7.2f | %7.2f | %7.2f | "
     "%5.1f | %4d | %7d | %6.1f | %-18.18s |\n",
-    r->exptime, r->bin, r->bits, r->w, r->h,
+    r->exptime, r->bin, r->bits, r->roi_pct, r->w, r->h,
     r->frames, r->elapsed, r->fps, r->expected_fps,
     r->efficiency_pct, r->drops, r->enodata_count, r->mbps,
     r->note[0] ? r->note : "");
@@ -510,12 +561,12 @@ static int write_csv(const BenchRow *rows, int n, const char *path)
     fprintf(stderr, "csv: cannot open '%s': %s\n", path, strerror(errno));
     return -1;
   }
-  fprintf(fp, "exptime,bin,bits,w,h,frames,elapsed,fps,expected_fps,"
+  fprintf(fp, "exptime,bin,bits,roi_pct,x,y,w,h,frames,elapsed,fps,expected_fps,"
               "efficiency_pct,drops,enodata,bytes_per_frame,mbps,note\n");
   for (int i = 0; i < n; i++) {
     const BenchRow *r = &rows[i];
-    fprintf(fp, "%.6f,%d,%d,%d,%d,%d,%.4f,%.4f,%.4f,%.2f,%d,%d,%zu,%.3f,\"%s\"\n",
-            r->exptime, r->bin, r->bits, r->w, r->h,
+    fprintf(fp, "%.6f,%d,%d,%.2f,%d,%d,%d,%d,%d,%.4f,%.4f,%.4f,%.2f,%d,%d,%zu,%.3f,\"%s\"\n",
+            r->exptime, r->bin, r->bits, r->roi_pct, r->x, r->y, r->w, r->h,
             r->frames, r->elapsed, r->fps, r->expected_fps,
             r->efficiency_pct, r->drops, r->enodata_count,
             r->bytes_per_frame, r->mbps, r->note);
@@ -551,27 +602,32 @@ int main(int argc, char **argv)
 
   if (cfg.have_gain)   set_int_control(sock, "gain",   cfg.gain);
   if (cfg.have_offset) set_int_control(sock, "offset", cfg.offset);
+  if (cfg.have_usb)    set_int_control(sock, "usb",    cfg.usb);
+  if (cfg.have_highspeed) set_int_control(sock, "highspeed", cfg.highspeed);
 
   print_session_banner(&cfg, model, W, H, cooler, color, bitDepth);
 
-  int n_rows = cfg.n_bit * cfg.n_bin * cfg.n_exp;
+  int n_rows = cfg.n_bit * cfg.n_bin * cfg.n_roi * cfg.n_exp;
   BenchRow *rows = calloc((size_t)n_rows, sizeof(BenchRow));
   u_char *frame_buf = NULL;
   size_t  frame_cap = 0;
   int idx = 0, completed = 0;
   for (int bi = 0; bi < cfg.n_bit && !g_stop; bi++) {
     for (int ni = 0; ni < cfg.n_bin && !g_stop; ni++) {
-      for (int ei = 0; ei < cfg.n_exp && !g_stop; ei++) {
-        BenchRow *row = &rows[idx];
-        row->exptime = cfg.exptimes[ei];
-        row->bin     = cfg.bins[ni];
-        row->bits    = cfg.bitdepths[bi];
-        print_progress_start(idx + 1, n_rows, row);
-        (void)run_one(sock, &cfg, W, H,
-                      row->exptime, row->bin, row->bits,
-                      &frame_buf, &frame_cap, row);
-        print_progress_done(row);
-        completed = ++idx;
+      for (int ri = 0; ri < cfg.n_roi && !g_stop; ri++) {
+        for (int ei = 0; ei < cfg.n_exp && !g_stop; ei++) {
+          BenchRow *row = &rows[idx];
+          row->exptime = cfg.exptimes[ei];
+          row->bin     = cfg.bins[ni];
+          row->bits    = cfg.bitdepths[bi];
+          row->roi_pct = cfg.rois[ri];
+          print_progress_start(idx + 1, n_rows, row);
+          (void)run_one(sock, &cfg, W, H,
+                        row->exptime, row->bin, row->bits, row->roi_pct,
+                        &frame_buf, &frame_cap, row);
+          print_progress_done(row);
+          completed = ++idx;
+        }
       }
     }
   }
