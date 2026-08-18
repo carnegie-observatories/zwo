@@ -753,6 +753,33 @@ xterm&gt; nc localhost 52201
 <dd>returns "OK". </dd>
 <dt><b>version</b> </dt>
 <dd>returns "0.322" </dd>
+<dt><b>status</b> </dt>
+<dd>returns the current guider state as a single line of
+<tt>key=value</tt> pairs, separated by blanks, e.g.<br>
+<tt>init=1 loop=1 guiding=3 gm=1 fm=1 mm=1 exptime=0.100 av=0 gain=300
+offset=50 send=0 temp=-15.0 setp=-15 cooler=42 cfps=9.98 gfps=9.87
+fwhm=1.23 flux=123456 peak=45678 back=1234 dx=+0.12 dy=-0.34 az=+0.051
+el=-0.024 x=256.0 y=256.0 bx=15 px=196 pa=45.0 sn=1.0</tt> </dd>
+<dd><tt>init</tt>: camera initialized (0/1) &ndash;
+<tt>loop</tt>: acquisition loop running (0/1) &ndash;
+<tt>guiding</tt>: 0=off, 2..5 = active mode (&lt;F2&gt;..&lt;F5&gt;),
+negative while the first correction is still pending &ndash;
+<tt>gm</tt>/<tt>fm</tt>/<tt>mm</tt>: guide/function/mouse mode &ndash;
+<tt>av</tt>: rolling average &ndash;
+<tt>send</tt>: send flag &ndash;
+<tt>temp</tt>/<tt>setp</tt>/<tt>cooler</tt>: last values read by the
+housekeeping thread (stale if the cooler is off) &ndash;
+<tt>cfps</tt>: camera frame rate, <tt>gfps</tt>: guider loop rate &ndash;
+<tt>peak</tt>: peak pixel &ndash;
+<tt>dx</tt>/<tt>dy</tt>: centroid offset [pixels] &ndash;
+<tt>az</tt>/<tt>el</tt>: last guider correction [arcsec] &ndash;
+<tt>x</tt>/<tt>y</tt>: guide box center [pixels], <tt>bx</tt>: box size &ndash;
+<tt>px</tt>: pixel scale [mas] &ndash; <tt>pa</tt>: position angle &ndash;
+<tt>sn</tt>: sensitivity. </dd>
+<dd>The photometry fields (<tt>fwhm</tt>, <tt>flux</tt>, <tt>peak</tt>,
+<tt>back</tt>, <tt>dx</tt>, <tt>dy</tt>, <tt>az</tt>, <tt>el</tt>,
+<tt>gfps</tt>) hold the last measurement; they are only updated while
+guiding. </dd>
 </dl>
 
 <p>

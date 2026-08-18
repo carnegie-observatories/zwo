@@ -1624,6 +1624,35 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     }
 #endif
   } else 
+  if (!strcasecmp(cmd,"status")) {     /* report guider state */
+    QlTool *q = g->qltool;
+    double fps,flux,ppix,back,fwhm,dx,dy,azg,elg;
+    float  gx,gy;
+    int    guiding;
+    pthread_mutex_lock(&g->mutex);     /* latch -- do not clear update_flag */
+    fps  = g->fps;  flux = g->flux; ppix = g->ppix;
+    back = g->back; fwhm = g->fwhm;
+    dx   = g->dx;   dy   = g->dy;      /* relative to the guide box */
+    azg  = g->azg;  elg  = g->elg;
+    guiding = q->guiding;              /* also set under 'mutex' */
+    gx = q->curx[QLT_BOX];             /* box follows the star in gm4/gm5 */
+    gy = q->cury[QLT_BOX];
+    pthread_mutex_unlock(&g->mutex);
+    snprintf(msgstr,sizeof(g->command_msg),
+      "init=%d loop=%d guiding=%d gm=%d fm=%d mm=%d "
+      "exptime=%.3f av=%d gain=%d offset=%d send=%d "
+      "temp=%.1f setp=%.0f cooler=%.0f cfps=%.2f gfps=%.2f "
+      "fwhm=%.2f flux=%.0f peak=%.0f back=%.0f dx=%+.2f dy=%+.2f "
+      "az=%+.3f el=%+.3f x=%.1f y=%.1f bx=%d px=%.0f pa=%.1f sn=%.1f",
+      g->init_flag,(int)g->loop_running,guiding,g->gmode,g->fmode,g->msmode,
+      g->status.exptime,g->server->rolling,g->server->gain,g->server->offset,
+      g->send_flag,
+      g->server->tempSensor,g->server->tempSetpoint,g->server->coolerPercent,
+      g->server->fps,fps,
+      fwhm,flux,ppix,back,dx,dy,
+      azg,elg,gx,gy,1+2*q->vrad,
+      1000.0*g->px,g->pa,g->sens);
+  } else
   if (!strncasecmp(cmd,"start",4)) {   /* start exposure loop */
     int r = do_start(g,0);
     if (r < 0) err = -r;
@@ -1709,7 +1738,10 @@ static int handle_command(Guider* g,const char* command,int showMsg)
   }
   if (err == 0) {                      /* no error */
     if (showMsg) {             /* show messages on display v0333 */
-      if (*msgstr) message(g,msgstr,MSS_WINDOW);
+      if (*msgstr) { char line[96];   /* EditWindow text is limited */
+        snprintf(line,sizeof(line),"%s",msgstr);
+        message(g,line,MSS_WINDOW);
+      }
       strcpy(g->lastCommand,command);
     }
   } else {                             /* error occured */
@@ -2793,6 +2825,8 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
 
 /* ---------------------------------------------------------------- */
 
+/* 'answer' must hold at least sizeof(g->command_msg)+4 bytes */
+
 static int handle_tcpip(Guider *g,const char* command,char* answer)
 {
   char cmd[128]="",par[128]="";
@@ -2850,7 +2884,7 @@ static void* run_tcpip(void* param)
   Guider *g = (Guider*)param;
   int    port = TCPIP_PORT + g->gnum;
   int    err,msgsock,rval;
-  char   cmd[128],buf[128];
+  char   cmd[128],buf[sizeof(g->command_msg)+4];
   IP_Address ip;
 #if (DEBUG > 0)
   fprintf(stderr,"%s:%s(%d)\n",__FILE__,PREFUN,port);
