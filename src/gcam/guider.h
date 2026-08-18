@@ -30,7 +30,7 @@ typedef struct guider_tag {
   float         stored_tf1,stored_tf3; /* v0329 */
   int           stored_send,stored_av,stored_mode;
   char          lastCommand[256];
-  char          command_msg[128];      /* v0333 */
+  char          command_msg[512];      /* v0333, enlarged for "status" */
   int           slitW;                 /* v0408 */
   double        north;                 /* v0419 */
   /* GUI */
