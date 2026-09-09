@@ -162,34 +162,54 @@ matrix:
   data needed for PSD work directly.
 - The stall-recovery timeout (now 50 ms) can be tuned lower if needed.
 
-## Cross-camera timestamp validation — to do
+## Cross-camera timestamp validation — measured
 
 The 59 µs jitter above is single-camera *precision*. Using the two
 guiders together for ground-layer PSDs requires their timestamps to be
-mutually *aligned*, which the host-side stamp does not by itself
-guarantee (unknown mode-dependent readout+USB offset; host-clock
-alignment between the two Pis). The literature is unanimous that
-NTP host timestamps cannot be trusted at the ms level without an
-independent optical check — see the plan and precedent (incl.
-proto-Lightspeed on Magellan Clay, ≤30 µs) in
-[camera-time-sync-verification.md](camera-time-sync-verification.md).
-Open questions to close before trusting cross-camera correlation:
+mutually *aligned*. We measured this directly on 2026-07-16 with two
+matched ASI294MM Pro guiders imaging the same blinking LED, captured
+simultaneously from one client and cross-correlated (full method and
+data in [camera-time-sync-verification.md](camera-time-sync-verification.md)).
 
-1. Relative timestamp accuracy of the ASI294MM Pro when stamped
-   server-side at USB delivery vs a hardware trigger — no published
-   number exists for this chip.
-2. Rolling-shutter row-dependent exposure offset across the small ROI
-   at 5 ms: fixed per-ROI constant or a row-by-row effect?
-3. Does PTP (vs NTP) between the two Pis actually deliver sub-ms
-   alignment in the field, and validated how? (Pi 4 = software PTP
-   only; CM4/Pi 5 have hardware timestamping.)
-4. Is relative alignment sufficient for the science, or is absolute
-   UTC also required?
+**Result (best config, 30-min run at ~100 fps): the two cameras' server
+timestamps cross-align to −0.05 ms (~sub-100 µs median), with no drift
+(−35 µs/min) and zero stalls** — comfortably inside the ≲1 ms goal for
+relative cross-camera correlation. The ~1 ms per-flash spread is a
+flasher/sampling beat, not the clocks. At ~200 fps the alignment is the
+same but the measurement degrades to ~3 ms MAD because the SDK
+lost-wakeup stalls (~30 ms, ~16/min) contaminate the flash edges. (A
+first run with two *different* camera models gave +1.75 ms — that
+offset was the fixed readout-timing difference between sensors, which
+vanished with a matched pair.)
 
-Recommended validator: a single GPS-PPS-driven LED imaged
-simultaneously by both cameras, phase-folded on the 1 s edge — cheap,
-measures relative alignment directly, and validates the clock
-discipline end-to-end. Full procedure in the companion doc.
+![Two ASI294MM Pro guiders on a common bracket imaging a blinking
+headlamp LED.](images/two-camera-sync-setup.jpg)
+
+**Figure 1.** Lab setup: two matched ASI294MM Pro guiders imaging the
+same blinking headlamp LED (the shared timing fiducial).
+
+![100 fps 30-min: inter-camera delay flat around zero, zero stalls —
+server-clock delay (red) tighter than client arrival
+(blue).](images/sync-100fps.png)
+
+**Figure 2.** Cross-camera timestamp validation, best config at
+~100 fps over 30 min: per-flash inter-camera delay flat around zero
+(median −0.05 ms, drift −35 µs/min), zero stalls; server-clock delay
+(red) tighter than client arrival (blue). Full method and the 200 fps
+case in [camera-time-sync-verification.md](camera-time-sync-verification.md).
+
+Notes and remaining refinements:
+
+- **No hardware triggering:** these cameras have no external
+  sync-trigger input, so frames are free-running and stamped in
+  software — the optical flash is the only sync check available (and
+  the reason for server-side timestamping).
+- Both Pis are NTP clients of the client host, so the ~tens-of-µs
+  residual is NTP-over-LAN alignment; per-host GPS or PTP would tighten
+  it further (see the companion doc's clock-architecture section).
+- Still open: absolute-UTC accuracy (needs the GPS-PPS LED) and the
+  rolling-shutter row-dependent offset across the ROI. For *relative*
+  cross-camera correlation, the requirement is already met.
 
 ## Server fixes made during this test (already deployed)
 

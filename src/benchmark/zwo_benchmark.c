@@ -24,6 +24,7 @@
 #include <getopt.h>
 #include <signal.h>
 #include <assert.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 #include "tcpip.h"
@@ -54,6 +55,9 @@ typedef struct {
   int         gain, offset, usb, highspeed;
   int         have_gain, have_offset, have_usb, have_highspeed;
   const char *csv_path;
+  const char *frame_log_path;      /* per-frame CSV: seq,ts,wall,flux */
+  FILE       *frame_log;           /* open handle, or NULL */
+  const char *label;               /* tag written into the frame log */
   int         verbose;
 } BenchCfg;
 
@@ -281,6 +285,9 @@ static void usage(const char *prog)
 "  --usb N                 ASI_BANDWIDTHOVERLOAD 40..100 (optional)\n"
 "  --highspeed N           ASI_HIGH_SPEED_MODE 0/1, 10-bit ADC (optional)\n"
 "  --csv PATH              (optional)\n"
+"  --frame-log PATH        per-frame CSV: label,seq,server_ts_ns,\n"
+"                          client_epoch_s,mean_count (for sync tests)\n"
+"  --label STR             tag written in the frame-log 'label' column\n"
 "  -v, --verbose\n"
 "  -h, --help\n", prog, SERVER_PORT);
 }
@@ -303,6 +310,8 @@ static int parse_args(int argc, char **argv, BenchCfg *c)
     {"usb",          required_argument, 0, 'u'},
     {"highspeed",    required_argument, 0, 'S'},
     {"csv",          required_argument, 0, 'c'},
+    {"frame-log",    required_argument, 0, 'F'},
+    {"label",        required_argument, 0, 'L'},
     {"verbose",      no_argument,       0, 'v'},
     {"help",         no_argument,       0, 'h'},
     {0,0,0,0}
@@ -346,6 +355,8 @@ static int parse_args(int argc, char **argv, BenchCfg *c)
     case 'u': c->usb = atoi(optarg); c->have_usb = 1; break;
     case 'S': c->highspeed = atoi(optarg); c->have_highspeed = 1; break;
     case 'c': c->csv_path = optarg; break;
+    case 'F': c->frame_log_path = optarg; break;
+    case 'L': c->label = optarg; break;
     case 'v': c->verbose = 1; break;
     case 'h':
     default:  usage(argv[0]); return -1;
@@ -367,6 +378,23 @@ static int parse_args(int argc, char **argv, BenchCfg *c)
 /* Warmup + measurement window for one (exptime, bin, bits) configuration.
  * Caller owns a reusable frame buffer (`buf`, `buf_cap`) that is grown
  * on demand so we don't pay malloc cost per config. */
+/* Mean pixel value over a frame (8- or 16-bit little-endian, native
+ * byte order on x86-64/aarch64). Used for the flash cross-correlation
+ * test — a blinking light shows up as a step in this signal. */
+static double mean_flux(const u_char *buf, size_t nbytes, int bits)
+{
+  if (nbytes == 0) return 0.0;
+  unsigned long long sum = 0;
+  if (bits <= 8) {
+    for (size_t i = 0; i < nbytes; i++) sum += buf[i];
+    return (double)sum / (double)nbytes;
+  }
+  const uint16_t *p = (const uint16_t *)buf;
+  size_t n = nbytes / 2;
+  for (size_t i = 0; i < n; i++) sum += p[i];
+  return n ? (double)sum / (double)n : 0.0;
+}
+
 static int run_one(int sock, const BenchCfg *cfg,
                    int W, int H, double exptime, int bin, int bits,
                    double roi_pct,
@@ -452,6 +480,16 @@ static int run_one(int sock, const BenchCfg *cfg,
     }
     if (!first && seq > last_seq + 1) drops += (int)(seq - last_seq - 1);
     last_seq = seq; first = 0; frames++;
+    if (cfg->frame_log) {
+      /* server_ts_ns = camera-host CLOCK_REALTIME at USB delivery;
+       * client_epoch_s = this client's wall clock at frame receipt
+       * (common time base when two cameras run on one client);
+       * mean_count = mean ROI pixel value (the flash signal). */
+      double wall = walltime(0);
+      double flux = mean_flux(*buf, nbytes, obits);
+      fprintf(cfg->frame_log, "%s,%u,%llu,%.6f,%.3f\n",
+              cfg->label ? cfg->label : "", seq, ts_ns, wall, flux);
+    }
     if (cfg->verbose) {
       /* dt = client-side arrival interval (protocol+network included),
        * dts = server-side ASIGetVideoData interval (camera timing) */
@@ -607,6 +645,16 @@ int main(int argc, char **argv)
 
   print_session_banner(&cfg, model, W, H, cooler, color, bitDepth);
 
+  if (cfg.frame_log_path) {
+    cfg.frame_log = fopen(cfg.frame_log_path, "w");
+    if (!cfg.frame_log) {
+      fprintf(stderr, "frame-log: cannot open '%s': %s\n",
+              cfg.frame_log_path, strerror(errno));
+      close(sock); return 4;
+    }
+    fprintf(cfg.frame_log, "label,seq,server_ts_ns,client_epoch_s,mean_count\n");
+  }
+
   int n_rows = cfg.n_bit * cfg.n_bin * cfg.n_roi * cfg.n_exp;
   BenchRow *rows = calloc((size_t)n_rows, sizeof(BenchRow));
   u_char *frame_buf = NULL;
@@ -639,6 +687,11 @@ int main(int argc, char **argv)
     if (write_csv(rows, completed, cfg.csv_path) == 0) {
       fprintf(stderr, "wrote %d rows to %s\n", completed, cfg.csv_path);
     }
+  }
+
+  if (cfg.frame_log) {
+    fclose(cfg.frame_log);
+    fprintf(stderr, "wrote per-frame log to %s\n", cfg.frame_log_path);
   }
 
   close_camera(sock);
