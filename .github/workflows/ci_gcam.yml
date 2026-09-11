@@ -110,13 +110,28 @@ jobs:
             CFLAGS="-DMACOSX -DNDEBUG -Wall -I../cxt/src/ -I/opt/X11/include" \
             LIBS="" LIBX="-L../cxt/src/ -lcxt -L/opt/X11/lib -lX11"
           file gcamzwo getimages
+      # Unlike the Linux installer this one does not extract into "/": on
+      # macOS "/", "/usr" and the "/tmp" symlink live on the sealed system
+      # volume, so tar cannot touch them even as root.  makeself extracts
+      # into a temp dir and install.sh copies the binaries into
+      # $PREFIX/bin (default /usr/local, needs sudo on Apple Silicon).
       - name: Make self-extracting installer
         run: |
-          mkdir -p installer/usr/local/bin installer/tmp
-          cp src/gcam/gcamzwo src/gcam/getimages installer/usr/local/bin/
-          printf '#!/bin/bash\nset -xe\nrm -- "$0" # remove this script\n' > installer/tmp/install_gcamzwo.sh
-          chmod +x installer/tmp/install_gcamzwo.sh
-          makeself --target / installer ${{ steps.get_artifact_name.outputs.artifact_name }} "ZWO GCAM" /tmp/install_gcamzwo.sh
+          mkdir -p installer
+          cp src/gcam/gcamzwo src/gcam/getimages installer/
+          cat > installer/install.sh <<'EOS'
+          #!/bin/bash
+          set -e
+          PREFIX="${PREFIX:-/usr/local}"
+          if ! mkdir -p "$PREFIX/bin" 2>/dev/null || [ ! -w "$PREFIX/bin" ]; then
+            echo "Cannot write to $PREFIX/bin: re-run with sudo, or set PREFIX=<dir>" >&2
+            exit 1
+          fi
+          install -m 755 gcamzwo getimages "$PREFIX/bin/"
+          echo "Installed gcamzwo and getimages into $PREFIX/bin"
+          EOS
+          chmod +x installer/install.sh
+          makeself --nox11 installer ${{ steps.get_artifact_name.outputs.artifact_name }} "ZWO GCAM" ./install.sh
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
