@@ -71,3 +71,64 @@ jobs:
             cd $GITHUB_WORKSPACE
             gh release upload ${{github.event.release.tag_name}} ${{ steps.get_artifact_name.outputs.artifact_name }}
           fi
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Get artifact name
+        id: get_artifact_name
+        run: |
+          short_sha=$(git rev-parse --short ${{ github.sha }})
+          if [ -z "${{ github.event.release.tag_name }}" ]; then
+            artifact_name=gcamzwo-macos-${short_sha}.run
+          else
+            artifact_name=gcamzwo-macos-${{ github.event.release.tag_name }}-${short_sha}.run
+          fi
+          echo artifact_name="$artifact_name" >> $GITHUB_OUTPUT
+      - name: Install dependencies (XQuartz for X11, makeself)
+        run: |
+          brew install --cask xquartz
+          brew install makeself
+      # The committed makefiles select the Linux toolchain; override the
+      # variables on the command line instead of editing them.  XQuartz ships
+      # universal libX11, so build a fat arm64+x86_64 binary.
+      - name: Build cxt library
+        working-directory: src/cxt/src
+        run: |
+          make clean
+          make libcxt.a CC="/usr/bin/gcc -arch arm64 -arch x86_64" \
+            CFLAGS="-DMACOSX -DNDEBUG -Wall -DFONTSIZE=18 -I/opt/X11/include"
+      - name: Build gcam
+        working-directory: src/gcam
+        run: |
+          make clean
+          make CC="/usr/bin/gcc -arch arm64 -arch x86_64" \
+            CFLAGS="-DMACOSX -DNDEBUG -Wall -I../cxt/src/ -I/opt/X11/include" \
+            LIBS="" LIBX="-L../cxt/src/ -lcxt -L/opt/X11/lib -lX11"
+          file gcamzwo getimages
+      - name: Make self-extracting installer
+        run: |
+          mkdir -p installer/usr/local/bin installer/tmp
+          cp src/gcam/gcamzwo src/gcam/getimages installer/usr/local/bin/
+          printf '#!/bin/bash\nset -xe\nrm -- "$0" # remove this script\n' > installer/tmp/install_gcamzwo.sh
+          chmod +x installer/tmp/install_gcamzwo.sh
+          makeself --target / installer ${{ steps.get_artifact_name.outputs.artifact_name }} "ZWO GCAM" /tmp/install_gcamzwo.sh
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.get_artifact_name.outputs.artifact_name }}
+          include-hidden-files: true
+          path: ${{ steps.get_artifact_name.outputs.artifact_name }}
+          if-no-files-found: error
+      - name: Upload artifact to release (if available)
+        run: |
+          if [ -z "${{ github.event.release.tag_name }}" ]; then
+            echo "No release tag found, skipping release artifact upload"
+          else
+            cd $GITHUB_WORKSPACE
+            gh release upload ${{github.event.release.tag_name}} ${{ steps.get_artifact_name.outputs.artifact_name }}
+          fi
