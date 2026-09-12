@@ -267,7 +267,7 @@ class ZwoEmulator:
         
         with self.lock:
             if cmd == "version":
-                response = f"1.0.4 {self.cookie} {self.startup_time}"
+                response = f"1.0.7 {self.cookie} {self.startup_time}"
                 
             elif cmd == "offtime":
                 # Set/get time offset for synchronization
