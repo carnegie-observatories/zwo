@@ -90,7 +90,6 @@ static void tcpip_mutex_unlock(void)
 
 int TCPIP_CreateServerSocket(u_short port,int *err)
 {
-  char   hostname[256];
   int    sock,protocol=0,result;
   struct sockaddr_in saddr;
 
@@ -98,26 +97,13 @@ int TCPIP_CreateServerSocket(u_short port,int *err)
   memset((void*)&saddr,0,sizeof(saddr));
   saddr.sin_family = AF_INET; 
   saddr.sin_port = htons(port);
-
-  if (gethostname(hostname,sizeof(hostname))) *err = E_tcpip_hostname;
+  saddr.sin_addr.s_addr = INADDR_ANY;  /* listen on any interface */
 
   result = tcpip_mutex_lock(5); 
   if (*err == 0) { struct  protoent *proto;
     proto = getprotobyname("tcp");       /* get protocol by name */
     if (proto == NULL) *err = E_tcpip_protocol;
     else               protocol = proto->p_proto;
-  }
-  if (*err == 0) { struct  hostent *hostp;
-    hostp = gethostbyname(hostname);     /* get host IP address */
-    if (hostp == NULL) {
-      *err = E_tcpip_hostbyname;
-    } else {
-#if 0 /* 1st interface */
-      memcpy(&saddr.sin_addr,hostp->h_addr_list[0],hostp->h_length);
-#else /* allow any interface */
-      saddr.sin_addr.s_addr = INADDR_ANY;
-#endif
-    }
   }
   if (!result) tcpip_mutex_unlock();
 
