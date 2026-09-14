@@ -8,6 +8,7 @@ on:
       - src/server/**
       - Dockerfile
       - .github/workflows/ci_server.yml
+      - etc/scripts/stamp-version.sh
 
   pull_request:
     branches: [main]
@@ -15,6 +16,7 @@ on:
       - src/server/**
       - Dockerfile
       - .github/workflows/ci_server.yml
+      - etc/scripts/stamp-version.sh
 
   release:
     types: [published]
@@ -41,6 +43,11 @@ jobs:
             artifact_name=zwoserver-${{ github.event.release.tag_name }}-${short_sha}.run
           fi
           echo artifact_name="$artifact_name" >> $GITHUB_OUTPUT
+      - name: Stamp P_VERSION with version + commit hash
+        run: |
+          etc/scripts/stamp-version.sh src/server/zwo.h \
+            "$(git rev-parse --short ${{ github.sha }})" \
+            "${{ github.event.release.tag_name }}"
       - name: Build
         uses: docker/build-push-action@v6
         with:
