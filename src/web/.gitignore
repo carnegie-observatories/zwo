@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.egg-info/
+
+# the repo root ignores *.lock (CocoaPods-era); uv.lock must be tracked
+!uv.lock
