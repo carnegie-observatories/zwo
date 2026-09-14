@@ -9,6 +9,7 @@ on:
       - src/cxt/**
       - Dockerfile.gcam
       - .github/workflows/ci_gcam.yml
+      - etc/scripts/stamp-version.sh
 
   pull_request:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - src/cxt/**
       - Dockerfile.gcam
       - .github/workflows/ci_gcam.yml
+      - etc/scripts/stamp-version.sh
 
   release:
     types: [published]
@@ -45,6 +47,11 @@ jobs:
             artifact_name=gcamzwo-${{ github.event.release.tag_name }}-${short_sha}.run
           fi
           echo artifact_name="$artifact_name" >> $GITHUB_OUTPUT
+      - name: Stamp P_VERSION with version + commit hash
+        run: |
+          etc/scripts/stamp-version.sh src/gcam/zwogcam.h \
+            "$(git rev-parse --short ${{ github.sha }})" \
+            "${{ github.event.release.tag_name }}"
       - name: Build
         uses: docker/build-push-action@v6
         with:
@@ -89,6 +96,11 @@ jobs:
             artifact_name=gcamzwo-macos-${{ github.event.release.tag_name }}-${short_sha}.run
           fi
           echo artifact_name="$artifact_name" >> $GITHUB_OUTPUT
+      - name: Stamp P_VERSION with version + commit hash
+        run: |
+          etc/scripts/stamp-version.sh src/gcam/zwogcam.h \
+            "$(git rev-parse --short ${{ github.sha }})" \
+            "${{ github.event.release.tag_name }}"
       - name: Install dependencies (XQuartz for X11, makeself)
         run: |
           brew install --cask xquartz
