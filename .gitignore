@@ -55,3 +55,40 @@ DerivedData/
 # NB: slash on the end, so we only remove the FOLDER, not any files that were badly named "build"
 
 build/
+
+####
+# Build products (the makefiles build in-tree)
+
+src/gcam/gcamzwo
+src/gcam/getimages
+src/server/zwoserver
+
+####
+# Vendor SDK drops, unpacked locally for the macOS builds.
+# The Linux SDK tarballs the Dockerfiles need are committed under
+# docs/ZWO/Setup/; these are working copies, not sources.
+
+external/
+
+####
+# Python
+
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+####
+# Xcode per-user state.  A "birk" xcuserdata was committed long ago and
+# stays tracked -- being tracked already, it is unaffected by this; the
+# rule keeps further per-user directories from appearing.
+
+xcuserdata/
+*.xcuserstate
+
+####
+# Editor / agent scratch
+
+.vscode/
+.idea/
+.claude/
