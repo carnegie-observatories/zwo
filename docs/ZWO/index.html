@@ -867,7 +867,7 @@ The same header is written by the <b>write</b> command, served by the
 <b>send</b> push &ndash; they share one builder.
 
 <p>
-<b>Note (v1.0.6)</b>: the header grew from two 2880-byte blocks to three
+<b>Note (v1.1)</b>: the header grew from two 2880-byte blocks to three
 (5760 &rarr; 8640 bytes) to make room for the guider keywords below.
 Readers that scan for the <tt>END</tt> card &ndash; any FITS library, and
 <tt>getimages</tt> &ndash; are unaffected. A reader that assumes a
@@ -875,7 +875,7 @@ fixed-size header, or seeks to the data at a hardcoded offset, must be
 updated.
 
 <p>
-Guider keywords, added in v1.0.6. They mirror the
+Guider keywords, added in v1.1. They mirror the
 <a href="#status"><b>status</b></a> command and are filled from the same
 snapshot, so the two cannot disagree:
 
