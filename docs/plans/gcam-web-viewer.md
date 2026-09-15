@@ -2,10 +2,9 @@
 
 **Status:** Parts 1 and 2 implemented in [`src/web/`](../../src/web/)
 and verified on the emulator rig (2026-08-29); mountain trial pending.
-Depends
-on the image server PR (`feature/gcam-image-server`, open — see
-[gcam-image-server.md](gcam-image-server.md)); this plan codes against
-that branch's wire contract and follows it if review changes it.
+The image server this builds on (PR #22, see
+[gcam-image-server.md](gcam-image-server.md)) is **merged** and ships
+in v1.1, so the wire contract coded against here is the released one.
 
 ## What this is
 
