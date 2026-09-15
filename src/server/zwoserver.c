@@ -147,7 +147,7 @@ static void*   run_video         (void*);
 
 int main(int argc,char **argv)
 {
-  int  i;
+  int  i,rval;
   char buf[128],buf2[128],buffer[1024];
 #if (DEBUG > 0)
   fprintf(stderr,"%s-%s\n",P_TITLE,P_VERSION);
@@ -209,7 +209,7 @@ int main(int argc,char **argv)
 
   /* -------------------------------------------------------------- */
 
-  run_tcpip(NULL);                     /* blocking this thread */
+  rval = (int)(long)run_tcpip(NULL);   /* blocking this thread */
 
   /* -------------------------------------------------------------- */
 
@@ -225,7 +225,9 @@ int main(int argc,char **argv)
 #endif
   message(NULL,NULL,MSS_CLOSE);        /* v0017 */
  
-  return 0;
+  /* exit non-zero when run_tcpip() failed, so that a supervisor
+   * (systemd 'Restart=on-failure') actually sees the failure */
+  return (rval) ? 1 : 0;
 }
 
 /* ---------------------------------------------------------------- */
