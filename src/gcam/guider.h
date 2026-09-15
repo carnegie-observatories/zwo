@@ -63,9 +63,16 @@ typedef struct guider_tag {
   pthread_mutex_t mutex;
   volatile int update_flag;
   volatile double fps,flux,ppix,back,fwhm,dx,dy;
+  /* image server -- independent of the legacy push below */
+  int           image_port;
+  double        tcs_age;               /* TCS cache lifetime [s] */
+  volatile int  image_clients;
+  volatile Bool image_running;
   /* setup parameters (.ini file) */
+  /* --- legacy push, scheduled for removal (docs/plans/gcam-image-server.md) */
   char        send_host[128];
   int         send_port;
+  /* --- end legacy push */
   int         rPort;                   /* rotator port */
   int         lmag,bx;
   int         pct,bkg,span;            /* default scaling */
