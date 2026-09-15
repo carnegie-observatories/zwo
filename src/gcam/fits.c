@@ -146,7 +146,7 @@ static char* fitsi(char **line,int id,int value,const char *comment)
 /* ---------------------------------------------------------------- */
 
 static char* fitsll(char **line,int id,unsigned long long value,
-                    const char *comment)         /* 64-bit v1.0.6 */
+                    const char *comment)         /* 64-bit */
 {
   char number[32];
 
@@ -290,7 +290,7 @@ char** fits_setup(char** fits,FITSpars* st)
   fitsi(fits,F_ROTN,st->rotn,"rotator port");
   fitsi(fits,F_GAIN,st->gain,"gain");
 
-  /* guider state -- mirrors the 'status' command v1.0.6 */
+  /* guider state -- mirrors the 'status' command */
   fitsi(fits,F_GDINIT,st->gd.init,"camera initialized");
   fitsi(fits,F_GDLOOP,st->gd.loop,"acquisition loop running");
   fitsi(fits,F_GDGUIDE,st->gd.guiding,"0=off, 2..5=mode, <0=first pass");

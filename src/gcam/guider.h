@@ -63,7 +63,7 @@ typedef struct guider_tag {
   pthread_mutex_t mutex;
   volatile int update_flag;
   volatile double fps,flux,ppix,back,fwhm,dx,dy;
-  /* image server v1.0.6 -- independent of the legacy push below */
+  /* image server -- independent of the legacy push below */
   int           image_port;
   double        tcs_age;               /* TCS cache lifetime [s] */
   volatile int  image_clients;

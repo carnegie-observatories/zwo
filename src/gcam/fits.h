@@ -23,7 +23,7 @@
 
 #define FITSRECORD    80                      /* FITS record length */
 #define FITSBLOCK     (36*FITSRECORD)         /* FITS block length */
-#define FITSNBLKS     3                       /* # of FITS blocks v1.0.6 */
+#define FITSNBLKS     3                       /* # of FITS blocks */
 #define FITSLINES     (FITSNBLKS*36)          /* # of header-lines */
 #define FITSLEN       (FITSLINES*FITSRECORD)  /* length of FITS-header */
 
@@ -45,7 +45,7 @@ typedef struct fitskey_tag {
 } FITSKey;
 
 /* guider state, filled by guider_state() -- single source of truth for  */
-/* both the 'status' command and the FITS header v1.0.6                  */
+/* both the 'status' command and the FITS header                         */
 
 typedef struct guider_state_tag {
   int    init,loop,guiding;            /* latched under Guider.mutex */
@@ -76,7 +76,7 @@ typedef struct system_parameters_tag { // IDEA combine with Guider struct
   float  temp_ccd;
   char   origin[64];
   int    gain;
-  GuiderState gd;                      /* guider state v1.0.6 */
+  GuiderState gd;                      /* guider state */
   unsigned long long ts_ns;            /* frame timestamp [ns], 0=unknown */
   /* telescope stuff v0328*/
   double alpha,delta,equinox;
@@ -133,7 +133,7 @@ enum fits_headers {
   F_ROTN,                    /* v0317 */
   F_GAIN,
 
-  /* guider state -- mirrors the 'status' command v1.0.6 */
+  /* guider state -- mirrors the 'status' command */
   F_GDINIT,F_GDLOOP,F_GDGUIDE,
   F_GDMODE,F_GDFMODE,F_GDMMODE,
   F_GDAVG,F_CCDOFFS,F_GDSEND,
@@ -210,7 +210,7 @@ static FITSKey fitskeys[] = {
   { F_ROTN,      "ROTATORN" },
   { F_GAIN,      "GAIN" },
 
-  { F_GDINIT,    "GDINIT" },           /* guider state v1.0.6 */
+  { F_GDINIT,    "GDINIT" },           /* guider state */
   { F_GDLOOP,    "GDLOOP" },
   { F_GDGUIDE,   "GDGUIDE" },
   { F_GDMODE,    "GDMODE" },

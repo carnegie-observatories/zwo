@@ -363,7 +363,7 @@ static void* run_cycle(void* param)
   ZwoStruct *self=(ZwoStruct*)param;
   int     i,n=0,err=0,per,last_err=0;
   u_int   seq=0;
-  unsigned long long ts=0;             /* frame timestamp [ns] v1.0.6 */
+  unsigned long long ts=0;             /* frame timestamp [ns] */
   double  t1,t2,tmp=0;
   char    cmd[128],buf[256];
   u_short *roll_buf=NULL;
@@ -500,7 +500,7 @@ static void* run_cycle(void* param)
         ZwoFrame *frame = zwo_frame4writing(self,seq);
         if (frame) {
           frame->seqNumber = seq;
-          frame->ts_ns = ts;           /* newest contributing frame v1.0.6 */
+          frame->ts_ns = ts;           /* newest contributing frame */
           register u_short *d=(u_short*)data;
           if (self->rolling == 0) {    /* rolling average */
             register u_short *p=frame->data;

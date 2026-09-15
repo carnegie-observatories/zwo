@@ -139,7 +139,7 @@
 #define DEF_FONT        "lucidatypewriter"
 
 #define TCPIP_PORT      (50000+(100*PROJECT_ID))
-#define IMAGE_PORT      (TCPIP_PORT+100)   /* image server v1.0.6 */
+#define IMAGE_PORT      (TCPIP_PORT+100)   /* image server */
 #define IMAGE_TCSAGE    1.0                /* [s] TCS cache lifetime */
 
 #define PREFUN          __func__
@@ -254,7 +254,7 @@ static int     do_stop           (Guider*,int);
 static void    guider_state      (Guider*,GuiderState*);
 static void    update_status     (FITSpars*,Guider*,ZwoFrame*);
 static void    update_tcs        (FITSpars*);
-static void*   run_image_server  (void*);              /* v1.0.6 */
+static void*   run_image_server  (void*);
 static int     receive_string    (int,char*,size_t);
 static void    push_frame        (Guider*,ZwoFrame*);  /* legacy push */
 
@@ -331,7 +331,7 @@ int main(int argc,char **argv)
     .span = 0,
     .send_host = "localhost",
     .send_port = 0,
-    .image_port = IMAGE_PORT,          /* v1.0.6 */
+    .image_port = IMAGE_PORT,
     .tcs_age = IMAGE_TCSAGE,
     .host = "localhost",
     .rPort = 0,
@@ -477,7 +477,7 @@ int main(int argc,char **argv)
     g->gid = 0;                        /* guiding thread ID */
     g->qltool = NULL;
     g->loop_running = g->house_running = g->tcpip_running = False;
-    g->image_running = False; g->image_clients = 0;   /* v1.0.6 */
+    g->image_running = False; g->image_clients = 0;
     g->stop_flag = False;
     g->init_flag = g->send_flag = g->write_flag = 0;
     pthread_mutex_init(&g->mutex,NULL);
@@ -1888,7 +1888,7 @@ static void* run_init(void* param)
     if (!g->tcpip_running) {           /* NEW v0424 */
       thread_detach(run_tcpip,(void*)g);
     }
-    if ((g->image_port > 0) && !g->image_running) {  /* v1.0.6 */
+    if ((g->image_port > 0) && !g->image_running) {
       thread_detach(run_image_server,(void*)g);
     }
   }
@@ -2015,7 +2015,7 @@ static void push_frame(Guider* g,ZwoFrame* frame)
 /* ---------------------------------------------------------------- */
 
 /* Latch the guider state. Single source of truth for the 'status'    */
-/* command and the FITS header, so the two cannot drift apart. v1.0.6 */
+/* command and the FITS header, so the two cannot drift apart.        */
 /* Fills a caller-owned struct -- never shared state -- so concurrent */
 /* readers (command port, image server) do not stomp each other.      */
 
@@ -2058,8 +2058,8 @@ static void guider_state(Guider* g,GuiderState* s)
 
 static void update_status(FITSpars* st,Guider* g,ZwoFrame* f) /* v0317 */
 {
-  guider_state(g,&st->gd);             /* guider block v1.0.6 */
-  st->ts_ns = f->ts_ns;                /* server frame time v1.0.6 */
+  guider_state(g,&st->gd);             /* guider block */
+  st->ts_ns = f->ts_ns;                /* server frame time */
   st->seqNumber = f->seqNumber;
   st->stop_int  = walltime(0);
   st->start_int = st->stop_int - st->exptime;
@@ -2076,7 +2076,7 @@ static void update_status(FITSpars* st,Guider* g,ZwoFrame* f) /* v0317 */
 
 /* The TCS block. Blocking network I/O -- one 'telio' connection and  */
 /* eight-plus queries -- so it must never run per client per frame;   */
-/* the image server refreshes it on a timer instead. v1.0.6           */
+/* the image server refreshes it on a timer instead.                  */
 
 static void update_tcs(FITSpars* st)
 {
@@ -2161,7 +2161,7 @@ static void* run_cycle(void* param)
       frame = zwo_frame4reading(server,seqNumber);
       if (frame) {                     /* a new frame has arrived */
         seqNumber = frame->seqNumber;  /* most recent frame */
-        /* --- legacy push, scheduled for removal v1.0.6 --------------- */
+        /* --- legacy push, scheduled for removal --------------------- */
         if ((g->send_flag) && (cnt <= 0.0)) {
           push_frame(g,frame);
           tSend = tNow-0.175;          /* time of last send */
@@ -2879,8 +2879,8 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"port")) g->rPort = atoi(val); 
       else if (!strcmp(key,"send_host")) strcpy(g->send_host,val);
       else if (!strcmp(key,"send_port")) g->send_port = atoi(val);
-      else if (!strcmp(key,"image_port")) g->image_port = atoi(val); /* v1.0.6 */
-      else if (!strcmp(key,"tcs_age")) g->tcs_age = fmax(0.0,atof(val)); /* v1.0.6 */ 
+      else if (!strcmp(key,"image_port")) g->image_port = atoi(val);
+      else if (!strcmp(key,"tcs_age")) g->tcs_age = fmax(0.0,atof(val));
       else if (!strcmp(key,"gain")) strcpy(g->gain,val);
       else if (!strcmp(key,"mode")) setup_m_switch(val[0]);
       else if (!strcmp(key,"gnum")) g->gnum = atoi(val);
@@ -3021,7 +3021,7 @@ static void* run_tcpip(void* param)
 }
 
 /* ---------------------------------------------------------------- */
-/* image server (v1.0.6) -- docs/plans/gcam-image-server.md           */
+/* image server -- docs/plans/gcam-image-server.md                    */
 /* ---------------------------------------------------------------- */
 
 /* One verb:                                                          */
