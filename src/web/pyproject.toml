@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "gcamweb"
 version = "0.1.0"
-description = "gcam -> browser bridge: CHZ1 frame streaming and the web guider viewer"
+description = "gcam -> browser proxy: gcamzwo frames as CHZ1 over WebSocket"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

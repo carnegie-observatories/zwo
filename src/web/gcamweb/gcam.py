@@ -95,9 +95,6 @@ class GcamSource:
     replayed the newest one. Disconnects from gcam while nobody is viewing,
     freeing one of its 4 client slots."""
 
-    MAX_EVERY = 32
-    MAX_ROI = 16
-
     def __init__(self, name: str, gnum: int, host: str, port: int,
                  fits_timeout: float = 2.0, every: int = 1, roi: int = 1):
         self.name, self.gnum, self.host, self.port = name, gnum, host, port
@@ -115,16 +112,6 @@ class GcamSource:
         self._task = None
 
     # -- settings and status --------------------------------------------------
-
-    def set_every(self, n: int) -> int:
-        self.every = max(1, min(self.MAX_EVERY, int(n)))
-        log.info("%s: serving every %d frame(s)", self.name, self.every)
-        return self.every
-
-    def set_roi(self, n: int) -> int:
-        self.roi = max(1, min(self.MAX_ROI, int(n)))
-        log.info("%s: serving the central 1/%d of the frame side", self.name, self.roi)
-        return self.roi
 
     def status(self) -> dict:
         """What the bridge knows without a frame -- all of it from the image port."""

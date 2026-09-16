@@ -6,6 +6,8 @@ The image server this builds on (PR #22, see
 [gcam-image-server.md](gcam-image-server.md)) is **merged** and ships
 in v1.1, so the wire contract coded against here is the released one.
 
+**Update (2026-09-16):** PR #35 is trimmed to the proxy alone — `gcamweb` serves `ws`, `status` and the JSON guider list, no pages. The viewer page (the Part 2 assembly and guider panel) ships with the instrument SPA / astro-ph viewer instead of this repository.
+
 ## What this is
 
 A WebSocket bridge and a browser app that show the guider live, built
