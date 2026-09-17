@@ -113,6 +113,19 @@ class GcamSource:
 
     # -- settings and status --------------------------------------------------
 
+    MAX_EVERY = 32
+    MAX_ROI = 16
+
+    def set_every(self, n: int) -> int:
+        self.every = max(1, min(self.MAX_EVERY, int(n)))
+        log.info("%s: serving every %d frame(s)", self.name, self.every)
+        return self.every
+
+    def set_roi(self, n: int) -> int:
+        self.roi = max(1, min(self.MAX_ROI, int(n)))
+        log.info("%s: serving the central 1/%d of the frame side", self.name, self.roi)
+        return self.roi
+
     def status(self) -> dict:
         """What the bridge knows without a frame -- all of it from the image port."""
         last = self.last

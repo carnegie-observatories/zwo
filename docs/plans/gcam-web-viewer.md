@@ -6,7 +6,7 @@ The image server this builds on (PR #22, see
 [gcam-image-server.md](gcam-image-server.md)) is **merged** and ships
 in v1.1, so the wire contract coded against here is the released one.
 
-**Update (2026-09-16):** PR #35 is trimmed to the proxy alone — `gcamweb` serves `ws`, `status` and the JSON guider list, no pages. The viewer page (the Part 2 assembly and guider panel) ships with the instrument SPA / astro-ph viewer instead of this repository.
+**Update (2026-09-17):** PR #35 is trimmed to the proxy alone — `gcamweb` serves `ws`, `status`, the JSON guider list, and the runtime `every`/`roi` setters (source-level, so shared by a guider's viewers; per-client versions belong in chz1's per-connection `config`, which is an astro-ph change). The viewer is being rebuilt in carnegie-observatories/lco-instrument-web — see its `docs/plans/guider-viewer-plan.md`; the Part 2 page that used to live here was its prototype.
 
 ## What this is
 
