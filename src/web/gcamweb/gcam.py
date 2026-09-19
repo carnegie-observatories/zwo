@@ -95,36 +95,19 @@ class GcamSource:
     replayed the newest one. Disconnects from gcam while nobody is viewing,
     freeing one of its 4 client slots."""
 
-    def __init__(self, name: str, gnum: int, host: str, port: int,
-                 fits_timeout: float = 2.0, every: int = 1, roi: int = 1):
+    def __init__(self, name: str, gnum: int, host: str, port: int, fits_timeout: float = 2.0):
         self.name, self.gnum, self.host, self.port = name, gnum, host, port
         self.fits_timeout = fits_timeout
-        self.every = every  # publish every Nth frame
-        self.roi = roi      # publish the central 1/roi of each side
         self.state = "idle (no viewers yet)"
         self.last = None    # {"seq", "ts_ns", "at"} of the newest published frame
         self._cond = asyncio.Condition()
         self._frame = None
         self._n = 0          # frames published
-        self._rx = 0         # frames pulled from gcam, published or not
         self._wanted = asyncio.Event()
         self._clients = 0
         self._task = None
 
-    # -- settings and status --------------------------------------------------
-
-    MAX_EVERY = 32
-    MAX_ROI = 16
-
-    def set_every(self, n: int) -> int:
-        self.every = max(1, min(self.MAX_EVERY, int(n)))
-        log.info("%s: serving every %d frame(s)", self.name, self.every)
-        return self.every
-
-    def set_roi(self, n: int) -> int:
-        self.roi = max(1, min(self.MAX_ROI, int(n)))
-        log.info("%s: serving the central 1/%d of the frame side", self.name, self.roi)
-        return self.roi
+    # -- status -----------------------------------------------------------------
 
     def status(self) -> dict:
         """What the bridge knows without a frame -- all of it from the image port."""
@@ -134,8 +117,6 @@ class GcamSource:
             "gnum": self.gnum,
             "gcam": self.state,
             "clients": self._clients,
-            "every": self.every,
-            "roi": self.roi,
             "last_seq": last["seq"] if last else None,
             "last_ts_ns": last["ts_ns"] if last else None,
             "age_s": round(time.time() - last["at"], 1) if last else None,
@@ -153,18 +134,14 @@ class GcamSource:
     # -- the pump -------------------------------------------------------------
 
     def _parse(self, seq: int, ts_ns: int, blob: bytes) -> Frame:
-        """FITS bytes -> Frame (cropped) with the header cards as ``extra``.
-        astropy returns uint16 for BITPIX=16/BZERO=32768, which the encoder eats."""
+        """FITS bytes -> Frame with the header cards as ``extra``. The frame is whole:
+        each client cuts its own region and stride in its chz1 pipeline (``config``
+        ``roi`` / ``every``). astropy returns uint16 for BITPIX=16/BZERO=32768."""
         t0 = time.perf_counter()
         cards, comments = {}, {}
         with pyfits.open(io.BytesIO(blob)) as hl:
             hdu = hl[0]
             data = hdu.data.astype(np.uint16, copy=False)
-            src_h, src_w = data.shape
-            n = self.roi
-            cw, ch = max(16, src_w // n), max(16, src_h // n)
-            x0, y0 = (src_w - cw) // 2, (src_h - ch) // 2
-            data = np.ascontiguousarray(data[y0:y0 + ch, x0:x0 + cw])
             for key in hdu.header:
                 if key in STRUCTURAL_CARDS:
                     continue
@@ -177,7 +154,6 @@ class GcamSource:
             read_ms=(time.perf_counter() - t0) * 1e3,
             extra={
                 "guider": {"seq": seq, "ts_ns": str(ts_ns), "cards": cards, "comments": comments},
-                "crop": {"x0": x0, "y0": y0, "w": cw, "h": ch, "src_w": src_w, "src_h": src_h, "n": n},
             },
         )
 
@@ -217,9 +193,6 @@ class GcamSource:
                 await asyncio.sleep(1.0)
                 continue
             if got is None:  # nothing newer within the timeout
-                continue
-            self._rx += 1
-            if self._rx % self.every:  # dropped: never parsed, encoded or sent
                 continue
             seq, ts_ns, blob = got
             frame = await loop.run_in_executor(None, self._parse, seq, ts_ns, blob)
