@@ -7,8 +7,6 @@ paths unchanged (ingress ``path: ^/guider(/.*)?$``)::
     /guider/                 which guiders this proxy serves (JSON; also guiders.json)
     /guider/gcam41/ws        one guider's CHZ1 frame stream
     /guider/gcam41/status    its status channel (JSON, once a second)
-    /guider/gcam41/every     frame stride   (GET / POST ?n=N; shared by its viewers)
-    /guider/gcam41/roi       centre crop    (GET / POST ?n=N; shared by its viewers)
 
 Guiders are named as their .ini files and camera hosts are: ``gcam`` +
 rotator port digit + guider number. The frames carry the guider's FITS
@@ -52,8 +50,6 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--gcam-host", default="127.0.0.1", help="gcam host for guiders given without @HOST")
     ap.add_argument("--prefix", default="/guider", help="path prefix (default /guider)")
     ap.add_argument("--fits-timeout", type=float, default=2.0, help="seconds gcam waits per request")
-    ap.add_argument("--every", type=int, default=1, help="serve every Nth frame (default 1)")
-    ap.add_argument("--roi", type=int, default=1, help="serve the central 1/N of the frame side (default 1)")
     ap.add_argument("--host", default="127.0.0.1", help="listen address")
     ap.add_argument("--port", type=int, default=8765, help="listen port")
     enc = ap.add_argument_group("encoder (chz1)")
@@ -76,26 +72,13 @@ def parse_args(argv=None) -> argparse.Namespace:
 
 
 def guider_app(name: str, gnum: int, host: str, port: int, args: argparse.Namespace) -> web.Application:
-    """One guider: its own source, pipeline and settings, so the tier, stride and crop are per guider."""
+    """One guider: its own source and encoder defaults. Tier, region and stride are per client (chz1)."""
     app = web.Application()
     settings = Settings(bands=args.bands, level=args.level, encoders=args.encoders,
                         inflight=args.inflight, bin=args.bin, q=args.q, dither=args.dither)
-    source = GcamSource(name, gnum, host, port, args.fits_timeout, every=args.every, roi=args.roi)
+    source = GcamSource(name, gnum, host, port, args.fits_timeout)
     app["settings"], app["source"] = settings, source
     status_clients: set[web.WebSocketResponse] = set()
-
-    def setting(attr: str, setter):
-        # Source-level, so SHARED by every viewer of this guider: `every` gates
-        # the pull before parse/encode, `roi` crops before publish. Per-client
-        # versions belong in chz1's per-connection `config` (an astro-ph change).
-        async def handler(request):
-            if request.method == "POST":
-                try:
-                    setter(int(request.query.get("n", "1")))
-                except ValueError:
-                    raise web.HTTPBadRequest(text="n must be an integer")
-            return web.json_response({attr: getattr(source, attr)})
-        return handler
 
     async def status_ws(request):
         ws = web.WebSocketResponse(heartbeat=20)
@@ -131,8 +114,6 @@ def guider_app(name: str, gnum: int, host: str, port: int, args: argparse.Namesp
 
     app.router.add_get("/ws", ws_handler)
     app.router.add_get("/status", status_ws)
-    app.router.add_route("*", "/every", setting("every", source.set_every))
-    app.router.add_route("*", "/roi", setting("roi", source.set_roi))
     app.on_startup.append(on_start)
     app.on_cleanup.append(on_stop)
     return app
