@@ -1,0 +1,90 @@
+name: CI - ZWO Finder
+
+# Builds the ZWOFinder macOS app (src/finder), following the shared CI for
+# the LCO macOS instrument apps (Swope, MIKE, MagE, ...): stamp the source
+# Info.plist, xcodebuild, upload the .app.
+#
+# Version stamping differs from those apps in one way: branch builds keep the
+# declared CFBundleShortVersionString as the base instead of a 0.0.0
+# placeholder, because the finder writes "Version <short> (<build>)" into the
+# SOFTWARE card of every frame (see etc/scripts/stamp-version.sh for the same
+# rule on the C programs).  CFBundleVersion becomes the short SHA.
+#
+# The SDK dylibs in src/finder are arm64-only, so this is an Apple-Silicon
+# Debug build (ONLY_ACTIVE_ARCH); a Release build would also try x86_64 and
+# fail to link.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, gh-action]
+    paths:
+      - src/finder/**
+      - .github/workflows/ci_finder.yml
+
+  pull_request:
+    branches: [main]
+    paths:
+      - src/finder/**
+      - .github/workflows/ci_finder.yml
+
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  PROJECT_PATH: src/finder/ZWOFinder.xcodeproj
+  SCHEME: ZWOFinder
+  INFO_PLIST: src/finder/ZWOFinder/Info.plist
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Get artifact name
+        id: get_artifact_name
+        run: |
+          short_sha=$(git rev-parse --short ${{ github.sha }})
+          if [ -z "${{ github.event.release.tag_name }}" ]; then
+            artifact_name=ZWOFinder-${short_sha}.app
+          else
+            artifact_name=ZWOFinder-${{ github.event.release.tag_name }}-${short_sha}.app
+          fi
+          echo artifact_name="$artifact_name" >> $GITHUB_OUTPUT
+      - name: Stamp Info.plist with version + commit hash
+        run: |
+          short_sha=$(git rev-parse --short ${{ github.sha }})
+          version="${{ github.event.release.tag_name }}"
+          if [ -z "$version" ]; then
+            version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST")
+          fi
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $short_sha"           "$INFO_PLIST"
+          echo "Stamped CFBundleShortVersionString=$version, CFBundleVersion=$short_sha"
+      - name: Build
+        run: |
+          xcodebuild -project "$PROJECT_PATH" -scheme "$SCHEME" \
+            -configuration Debug -destination platform=macOS \
+            -derivedDataPath build build
+          file build/Build/Products/Debug/ZWOFinder.app/Contents/MacOS/ZWOFinder
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.get_artifact_name.outputs.artifact_name }}
+          include-hidden-files: true
+          path: build/Build/Products/Debug/
+          if-no-files-found: error
+      - name: Upload artifact to release (if available)
+        run: |
+          if [ -z "${{ github.event.release.tag_name }}" ]; then
+            echo "No release tag found, skipping release artifact upload"
+          else
+            ditto -c -k --keepParent build/Build/Products/Debug/ZWOFinder.app \
+              ${{ steps.get_artifact_name.outputs.artifact_name }}.zip
+            gh release upload ${{ github.event.release.tag_name }} ${{ steps.get_artifact_name.outputs.artifact_name }}.zip
+          fi
