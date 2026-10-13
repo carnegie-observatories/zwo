@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>gcam-launch</string>
+	<key>CFBundleIconFile</key>
+	<string>gcamzwo</string>
+	<key>CFBundleIdentifier</key>
+	<string>edu.carnegiescience.obs.gcamzwo</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>gcamzwo</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.0</string>
+	<key>CFBundleVersion</key>
+	<string>0</string>
+	<!-- gcamzwo is an X11 client: its window belongs to XQuartz, and it
+	     never checks in with the window server.  As an agent it gets no
+	     Dock icon, which would only bounce and then sit there. -->
+	<key>LSUIElement</key>
+	<true/>
+</dict>
+</plist>
