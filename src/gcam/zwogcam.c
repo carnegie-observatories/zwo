@@ -289,7 +289,7 @@ int main(int argc,char **argv)
 {
   int        i,j;
   int        sleeptime=0,winpos=CBX_TOPLEFT;
-  int        x,y,w,h,d,tmode=0,err;
+  int        x,y,w,h,d,err;
   char       buffer[1024],buf[128];
   char       xserver[256];
   XEvent     event;
@@ -384,7 +384,7 @@ int main(int argc,char **argv)
         sGuider.rPort = atoi(optarg);   
         break;
       case 't':                        /* TCSIS */
-        tmode = atoi(optarg);
+        sGuider.tmode = atoi(optarg);
         break;
       case 'v':                        /* vertical layout */
         vertical = 1;
@@ -424,7 +424,7 @@ int main(int argc,char **argv)
 
   /* -------------------------------------------------------------- */
 
-  switch (tmode) {
+  switch (sGuider.tmode) {
   case 0:                              /* offline */
     err = telio_init(TELIO_NONE,0);
     break;
@@ -442,7 +442,7 @@ int main(int argc,char **argv)
     fprintf(stderr,"%s: failed to connect to TCSIS (err=%d)\n",P_TITLE,err);
     exit(3);
   }
-  (void)eds_init(telio_host,tmode);
+  (void)eds_init(telio_host,sGuider.tmode);
 
   /* initialize X-stuff ------------------------------------------- */
 
@@ -2920,6 +2920,7 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       n++;
       if      (!strcmp(key,"host")) strcpy(g->host,val);
       else if (!strcmp(key,"port")) g->rPort = atoi(val); 
+      else if (!strcmp(key,"tcs")) g->tmode = atoi(val);
       else if (!strcmp(key,"send_host")) strcpy(g->send_host,val);
       else if (!strcmp(key,"send_port")) g->send_port = atoi(val);
       else if (!strcmp(key,"image_port")) g->image_port = atoi(val);
