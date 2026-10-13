@@ -61,6 +61,7 @@ build/
 
 src/gcam/gcamzwo
 src/gcam/getimages
+src/gcam/gcamzwo.app/
 src/server/zwoserver
 
 ####
