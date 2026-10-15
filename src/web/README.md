@@ -33,7 +33,6 @@ fixes its ports, so the image port defaults to `52300+G`.
 | `/guider/` | which guiders this proxy serves (JSON; also `/guider/guiders.json`) |
 | `/guider/gcam41/ws` | that guider's CHZ1 frame stream |
 | `/guider/gcam41/status` | its status channel (JSON, once a second) |
-| `/guider/gcam41/every`, `…/roi` | stride and crop, `GET` / `POST ?n=N` — **shared** by that guider's viewers |
 
 The prefix (`--prefix`, default `/guider`) exists so the proxy can sit
 behind a router that forwards paths unchanged — e.g. a Cloudflare Tunnel
@@ -58,18 +57,16 @@ published frame, a late joiner is replayed the newest one, and the tier
 (`bin`/`q`) is per client. A client that never sends a `config` gets
 lossless. Every non-structural FITS card travels verbatim in the frame
 header (`guider.cards` + gcam's card comments in `guider.comments`;
-integers beyond 2⁵³, like `FRAMETS`, as strings), plus the bridge's
-`crop` geometry — nothing is renamed or derived, in either direction.
+integers beyond 2⁵³, like `FRAMETS`, as strings) — nothing is renamed
+or derived, in either direction.
 
-Two knobs cut frames before encoding, per guider: `--every N` (every
-Nth frame) and `--roi N` (the central 1/N of the side — ½ is a quarter
-of the data, ⅛ a sixty-fourth), settable at runtime via `POST
-/guider/<name>/every?n=N` and `…/roi?n=N`. Both act at the *source* —
-`every` gates the pull, `roi` crops before publish — so they are
-**shared by every viewer of that guider** (`status()` reports the
-current values); per-client versions belong in chz1's per-connection
-`config`, like `bin`/`q`. Measured on 1512² frames at bin 2 + q 0.5:
-full 0.16 MB, ½ 0.04 MB, ¼ ~9 KB, ⅛ ~7 KB per frame.
+The frame is published whole. A viewer that wants less asks in its own
+`config`: `roi: [x0, y0, w, h]` (camera pixels) has chz1 cut that
+rectangle before binning and encoding, `every: N` sends it every Nth
+frame; both are per client, so one operator's region is nobody else's.
+The rectangle as applied rides in the header as `roi` with
+`src_w`/`src_h`. Measured on 1512² frames at bin 2 + q 0.5: full
+0.16 MB, a quarter of the side ~9 KB per frame.
 
 `status` carries what the proxy knows without a frame: its connection
 state to gcam, the last frame's seq and timestamp, its age — from the
