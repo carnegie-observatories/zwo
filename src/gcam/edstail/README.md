@@ -121,8 +121,10 @@ text passed to a hook is valid only during the call.
 - **Threads.** The hooks run in the reader thread, so a hook that takes time
   delays the reading; the socket buffers the stream meanwhile (about 270 bytes
   per second). `edstail_stop` may be called from a hook. After it, the reader
-  calls no further hook (one already running finishes) and exits within a
-  second; the latch reads `-1`.
+  calls no further hook (one already running finishes) and leaves any wait at
+  once, the connect included, through a pipe that every wait also polls; only
+  a name lookup (`getaddrinfo`) under way runs to its end. The latch then
+  reads `-1`.
 
 ## Sharing: the `edstail` branch
 
