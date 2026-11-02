@@ -25,7 +25,7 @@
 #include <errno.h>
 #include <fcntl.h>                     /* fcntl() */
 #include <poll.h>                      /* poll() */
-#include <unistd.h>                    /* close(),sleep() */
+#include <unistd.h>                    /* close(),pipe(),write() */
 #include <time.h>                      /* clock_gettime() */
 #include <pthread.h>
 #include <netdb.h>                     /* getaddrinfo() */
@@ -62,8 +62,7 @@ static char            tail_regexp[EDSTAIL_LINE_MAX];
 static volatile int    telroi=-1;      /* latched rotator of interest */
 static volatile int    tail_on=0;      /* the reader should run */
 static volatile int    reader_up=0;    /* the reader thread exists */
-static int             tail_sock=-1;   /* the reader's socket, under 'lock' */
-static pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
+static int             wake[2]={-1,-1}; /* a pipe: edstail_stop() -> waits */
 
 /* ---------------------------------------------------------------- */
 /* LOCAL */
@@ -74,7 +73,7 @@ static void say(int level,const char* fmt,...)
   char    buf[512];
   va_list ap;
 
-  if (!tail.on_log) return;
+  if (!tail.on_log || !tail_on) return;/* silent after a stop */
   va_start(ap,fmt);
   (void)vsnprintf(buf,sizeof(buf),fmt,ap);
   va_end(ap);
@@ -94,9 +93,27 @@ static void latch(int now)             /* the rotator of interest */
 
 /* ---------------------------------------------------------------- */
 
+static double uptime(void)             /* monotonic seconds */
+{
+  struct timespec ts;
+
+  (void)clock_gettime(CLOCK_MONOTONIC,&ts);
+  return (double)ts.tv_sec + 1e-9*(double)ts.tv_nsec;
+}
+
+/* ---------------------------------------------------------------- */
+
 static void nap(int seconds)           /* sleep, wake up for a stop */
 {
-  while ((seconds-- > 0) && tail_on) sleep(1);
+  struct pollfd p;
+  double        end=uptime()+seconds;
+  int           ms;
+
+  p.fd = wake[0]; p.events = POLLIN;
+  while (tail_on && ((ms=(int)(1000.0*(end-uptime()))) > 0)) {
+    p.revents = 0;
+    if (poll(&p,1,ms) > 0) break;      /* edstail_stop() */
+  }
 }
 
 /* ---------------------------------------------------------------- */
@@ -109,25 +126,17 @@ static void fail_wait(int* backoff)    /* nap, then double the next nap */
 
 /* ---------------------------------------------------------------- */
 
-static double uptime(void)             /* monotonic seconds */
-{
-  struct timespec ts;
-
-  (void)clock_gettime(CLOCK_MONOTONIC,&ts);
-  return (double)ts.tv_sec + 1e-9*(double)ts.tv_nsec;
-}
-
-/* ---------------------------------------------------------------- */
-
 static int wait_fd(int sock,short events,int seconds)
-{                                      /* 1 ready, 0 timeout, -1 error */
-  struct pollfd p;
+{                                      /* 1 ready, 0 timeout, -1 error or stop */
+  struct pollfd p[2];
   int           r;
 
-  p.fd = sock; p.events = events; p.revents = 0;
+  p[0].fd = sock;    p[0].events = events; p[0].revents = 0;
+  p[1].fd = wake[0]; p[1].events = POLLIN; p[1].revents = 0;
   do {
-    r = poll(&p,1,1000*seconds);
-  } while ((r < 0) && (errno == EINTR));
+    r = poll(p,2,1000*seconds);
+  } while ((r < 0) && (errno == EINTR) && tail_on);
+  if (!tail_on) { errno = ECANCELED; return -1; }  /* edstail_stop() */
   return (r > 0) ? 1 : r;
 }
 
@@ -148,7 +157,7 @@ static int dial(const char* host,int port,char* why,size_t n)
     snprintf(why,n,"%s",gai_strerror(r));
     return -1;
   }
-  for (a=list; a!=NULL; a=a->ai_next) {
+  for (a=list; (a!=NULL) && tail_on; a=a->ai_next) {
     if ((sock=socket(a->ai_family,a->ai_socktype,a->ai_protocol)) < 0) {
       e = errno; continue;
     }
@@ -213,6 +222,25 @@ static ssize_t recv_tout(int sock,char* buf,size_t n,int seconds)
 
 /* ---------------------------------------------------------------- */
 
+static int wake_open(void)             /* the stop pipe: made once, emptied */
+{
+  char c;
+  int  fd[2],i;
+
+  if (wake[0] < 0) {
+    if (pipe(fd) < 0) return errno;
+    for (i=0; i<2; i++) {
+      (void)fcntl(fd[i],F_SETFD,FD_CLOEXEC);
+      (void)fcntl(fd[i],F_SETFL,fcntl(fd[i],F_GETFL,0) | O_NONBLOCK);
+    }
+    wake[0] = fd[0]; wake[1] = fd[1];
+  }
+  while (read(wake[0],&c,1) > 0) ;     /* an old stop's byte */
+  return 0;
+}
+
+/* ---------------------------------------------------------------- */
+
 static void* reader(void* param)       /* the EDS reader thread */
 {
   int     sock,i,li,lines,closed,silent,down=0,backoff=BACKOFF_MIN;
@@ -237,7 +265,6 @@ static void* reader(void* param)       /* the EDS reader thread */
       down = 1; fail_wait(&backoff);
       continue;
     }
-    pthread_mutex_lock(&lock); tail_sock = sock; pthread_mutex_unlock(&lock);
 
     li = lines = closed = silent = 0;
     while (tail_on) {                  /* read records */
@@ -266,13 +293,12 @@ static void* reader(void* param)       /* the EDS reader thread */
         } else if (li < EDSTAIL_LINE_MAX-1) line[li++] = rbuf[i];
       }
     }
-    pthread_mutex_lock(&lock); tail_sock = -1; pthread_mutex_unlock(&lock);
     (void)close(sock);
     if (!tail_on) break;
 
     if (lines > 0) {                   /* the stream was up */
       say(1,"stream from %s lost (%s), reconnecting",tail_host,why);
-      latch(-1);                       /* unknown until the next Z802 */
+      if (tail_on) latch(-1);          /* unknown until the next Z802 */
       if (uptime()-up >= UP_MIN) {     /* it lasted: start over */
         backoff = BACKOFF_MIN; nap(RETRY_MIN);
       } else fail_wait(&backoff);      /* it died young: no loop */
@@ -342,6 +368,7 @@ int edstail_start(const EdsTail* t)
   tail.host = tail_host; tail.regexp = tail_regexp;
   telroi = -1;
   if (*tail_host == '\0') return 0;    /* tail off: edstail_line() works */
+  if ((err=wake_open()) != 0) return err;
 
   tail_on = reader_up = 1;
   (void)pthread_attr_init(&attr);
@@ -356,10 +383,13 @@ int edstail_start(const EdsTail* t)
 
 void edstail_stop(void)
 {
+  ssize_t r;
+
   tail_on = 0;
-  pthread_mutex_lock(&lock);
-  if (tail_sock >= 0) (void)shutdown(tail_sock,SHUT_RDWR);  /* wake up */
-  pthread_mutex_unlock(&lock);
+  if (wake[1] >= 0) {                  /* wake every wait at once */
+    r = write(wake[1],"x",1);
+    (void)r;
+  }
 }
 
 /* ---------------------------------------------------------------- */
