@@ -7,6 +7,7 @@
  * layout, behaviour and the split branch: README.md.
  *
  * 2026-10-31  first version: the core of IMACS v3.23's gpc.c
+ * 2026-11-02  edstail_active() fails closed, edstail_start() checks the regexp
  *
  * ---------------------------------------------------------------- */
 
@@ -35,10 +36,10 @@ typedef struct {
 
 /* function prototype(s) ------------------------------------------ */
 
-int  edstail_start (const EdsTail*);   /* 0 = reader running, or tail off */
+int  edstail_start (const EdsTail*);   /* 0 = running or tail off, else errno */
 void edstail_stop  (void);             /* end the reader, wake it up */
 int  edstail_telroi(void);             /* latched rotator, -1 = unknown */
-int  edstail_active(void);             /* no tail, or telroi == rotator */
+int  edstail_active(void);             /* no host, or telroi == rotator */
 void edstail_line  (const char*);      /* one record; the benches' entry */
 
 #endif /* INCLUDE_EDSTAIL_H */
