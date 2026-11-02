@@ -13,6 +13,7 @@
  * Record layout and behaviour: README.md.
  *
  * 2026-10-31  first version: the core of IMACS v3.23's gpc.c
+ * 2026-11-02  zwo#41 review: back-off, stop, fail closed, regexp check
  *
  * ---------------------------------------------------------------- */
 
@@ -29,6 +30,7 @@
 #include <time.h>                      /* clock_gettime() */
 #include <pthread.h>
 #include <netdb.h>                     /* getaddrinfo() */
+#include <regex.h>                     /* regcomp(), as tcsif does */
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -49,9 +51,14 @@
 #define SENDER_COL      17             /* Z81x: 0 console .. 4 network */
 #define TEXT_COL        20             /* Z81x: echoed command, cols 20-72 */
 #define TEXT_LEN        53
+#define REGEXP_MAX      99             /* tcsif reads 100 bytes with the NUL */
+#define HOSTS_HINT      " (is this host in tcsif's hosts5601?)"
 
 #ifndef MSG_NOSIGNAL                   /* macOS: SO_NOSIGPIPE instead */
 #define MSG_NOSIGNAL    0
+#endif
+#ifndef SOCK_CLOEXEC                   /* macOS: fcntl() after socket() */
+#define SOCK_CLOEXEC    0
 #endif
 
 /* STATICs -------------------------------------------------------- */
@@ -158,10 +165,10 @@ static int dial(const char* host,int port,char* why,size_t n)
     return -1;
   }
   for (a=list; (a!=NULL) && tail_on; a=a->ai_next) {
-    if ((sock=socket(a->ai_family,a->ai_socktype,a->ai_protocol)) < 0) {
+    if ((sock=socket(a->ai_family,a->ai_socktype|SOCK_CLOEXEC,a->ai_protocol)) < 0) {
       e = errno; continue;
     }
-    (void)fcntl(sock,F_SETFD,FD_CLOEXEC);
+    (void)fcntl(sock,F_SETFD,FD_CLOEXEC);  /* without SOCK_CLOEXEC */
 #ifdef SO_NOSIGPIPE
     { int on=1; (void)setsockopt(sock,SOL_SOCKET,SO_NOSIGPIPE,&on,sizeof(on)); }
 #endif
@@ -259,8 +266,9 @@ static void* reader(void* param)       /* the EDS reader thread */
     }
     /* subscribe: the regexp followed by a NUL byte (tcscl handshake) */
     if (send_all(sock,tail_regexp,strlen(tail_regexp)+1) < 0) {
-      if (!down) say(1,"subscription to %s:%d failed (%s), retrying",
-                     tail_host,port,strerror(errno));
+      closed = (errno == EPIPE) || (errno == ECONNRESET);
+      if (!down) say(1,"subscription to %s:%d failed (%s)%s, retrying",
+                     tail_host,port,strerror(errno),(closed) ? HOSTS_HINT : "");
       (void)close(sock);
       down = 1; fail_wait(&backoff);
       continue;
@@ -305,7 +313,7 @@ static void* reader(void* param)       /* the EDS reader thread */
     } else {                           /* nothing came */
       if (!down) say(1,"stream from %s:%d %s before the first record%s, retrying",
                      tail_host,port,why,
-                     (closed) ? " (is this host in tcsif's hosts5601?)" : "");
+                     (closed) ? HOSTS_HINT : "");
       down = 1;
       if (!silent) fail_wait(&backoff);  /* silent: the 30 s were the wait */
     }
@@ -340,7 +348,8 @@ void edstail_line(const char* line)    /* handle one EDS record */
   sender = (isdigit((unsigned char)line[SENDER_COL])) ? line[SENDER_COL]-'0' : -1;
   n = (len > TEXT_COL) ? len-TEXT_COL : 0;
   if (n > TEXT_LEN) n = TEXT_LEN;
-  memcpy(text,line+TEXT_COL,n); text[n] = '\0';
+  if (n > 0) memcpy(text,line+TEXT_COL,n);  /* else past the record's end */
+  text[n] = '\0';
   while ((n > 0) && isspace((unsigned char)text[n-1])) text[--n] = '\0';
   for (p=text; isspace((unsigned char)*p); p++) ;
   if (*p == '\0') return;
@@ -358,10 +367,17 @@ int edstail_start(const EdsTail* t)
 {
   pthread_t      tid;
   pthread_attr_t attr;
+  regex_t        re;
   int            err;
 
   if (t == NULL) return EINVAL;
   if (reader_up) return EBUSY;         /* one reader per program */
+  if ((t->host) && (*t->host)) {       /* what tcsif would close on */
+    if ((t->regexp == NULL) || (*t->regexp == '\0') ||
+        (strlen(t->regexp) > REGEXP_MAX)) return EINVAL;
+    if (regcomp(&re,t->regexp,REG_EXTENDED|REG_NOSUB) != 0) return EINVAL;
+    regfree(&re);
+  }
   tail = *t;
   snprintf(tail_host,sizeof(tail_host),"%s",(t->host) ? t->host : "");
   snprintf(tail_regexp,sizeof(tail_regexp),"%s",(t->regexp) ? t->regexp : "");
@@ -403,8 +419,8 @@ int edstail_telroi(void)
 
 int edstail_active(void)               /* may the host act now ? */
 {
-  if (!tail_on) return 1;              /* no tail: nothing to gate on */
-  return (telroi == tail.rotator);
+  if (*tail_host == '\0') return 1;    /* no tail: nothing to gate on */
+  return (telroi == tail.rotator);     /* down or stopped: closed */
 }
 
 /* ---------------------------------------------------------------- */

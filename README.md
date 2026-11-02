@@ -14,7 +14,7 @@ Two programs compile this pair of files, unchanged:
 | gcamzwo, the ZWO guide-camera GUI ([zwo](https://github.com/carnegie-observatories/zwo)) | `src/gcam/edstail/`, compiled in place | `src/gcam/gcamtail.c`: runs `g<p><cmd>` as a camera command, `fone` on `slew`, `ca` from `cnca`, exits when the rotator leaves its port |
 | mechgui, the IMACS GUI ([imacs](https://github.com/carnegie-observatories/imacs), private) | `src/edstail/`, a git submodule on this repository's `edstail` branch | `src/gpc.c`: queues the `gp` guider-probe verbs on its worker |
 
-The files use standard headers only (POSIX sockets, `poll`, pthreads) and
+The files use standard headers only (POSIX sockets, `poll`, pthreads, regex) and
 nothing from either program, so they compile in any consumer. Nothing else
 belongs in this directory: the benches, the replay tool and the fixtures live
 with the consumers.
@@ -74,18 +74,26 @@ typedef struct {
   void (*on_log) (int level,const char* text);   /* 0 news, 1 trouble */
 } EdsTail;
 
-int  edstail_start (const EdsTail*);   /* 0 = reader running, or tail off */
+int  edstail_start (const EdsTail*);   /* 0 = running or tail off, else errno */
 void edstail_stop  (void);             /* end the reader, wake it up */
 int  edstail_telroi(void);             /* latched rotator, -1 = unknown */
-int  edstail_active(void);             /* no tail, or telroi == rotator */
+int  edstail_active(void);             /* no host, or telroi == rotator */
 void edstail_line  (const char*);      /* one record; the benches' entry */
 ```
 
 `edstail_start` copies the struct and its two strings. With no host it starts
 no thread, but `edstail_line` still parses, latches and calls the hooks, which
-is how the benches feed fixtures. One reader runs per program: a second
-`edstail_start` while one runs returns `EBUSY`. Every hook may be `NULL`. The
-text passed to a hook is valid only during the call.
+is how the benches feed fixtures. With a host it first checks the regexp the
+way tcsif will, and returns `EINVAL` for one that is empty, longer than 99
+characters (tcsif reads the subscription into 100 bytes, NUL included) or not
+an extended regular expression: tcsif would close such a connection, which
+looks like a refusal. One reader runs per program: a second `edstail_start`
+while one runs returns `EBUSY`. Every hook may be `NULL`. The text passed to a
+hook is valid only during the call.
+
+`edstail_active` is 1 when no host is configured. With a host it is 1 only
+while the latch equals the rotator, so a tail that could not start, was
+stopped or lost its stream closes the gate.
 
 ## Behaviour
 
@@ -114,10 +122,10 @@ text passed to a hook is valid only during the call.
 - **Log lines** (`on_log`; level 0 is good news, 1 trouble):
   `tailing H:5601, own rotator R` (at the first record of each connection),
   `cannot reach H:5601 (reason), retrying`,
-  `subscription to H:5601 failed (reason), retrying`,
+  `subscription to H:5601 failed (reason) (is this host in tcsif's hosts5601?), retrying`,
   `stream from H lost (closed by the server | reset by the server | silent for 30 s | reason), reconnecting`,
   `stream from H:5601 closed by the server before the first record (is this host in tcsif's hosts5601?), retrying`
-  (the hint only for a close or a reset).
+  (the hint only for a close, a reset or a broken pipe).
 - **Threads.** The hooks run in the reader thread, so a hook that takes time
   delays the reading; the socket buffers the stream meanwhile (about 270 bytes
   per second). `edstail_stop` may be called from a hook. After it, the reader
