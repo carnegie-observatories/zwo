@@ -11,8 +11,8 @@ Two programs compile this pair of files, unchanged:
 
 | Program | Where the files sit | What it does with the echoes |
 |---|---|---|
-| gcamzwo, the ZWO guide-camera GUI ([zwo](https://github.com/carnegie-observatories/zwo)) | `src/gcam/edstail/`, compiled in place | `src/gcam/gcamtail.c`: runs `g<p><cmd>` as a camera command, `fone` on `slew`, `ca` from `cnca`, exits when the rotator leaves its port |
-| mechgui, the IMACS GUI ([imacs](https://github.com/carnegie-observatories/imacs), private) | `src/edstail/`, a git submodule on this repository's `edstail` branch | `src/gpc.c`: queues the `gp` guider-probe verbs on its worker |
+| gcamzwo, the ZWO guide-camera GUI ([zwo](https://github.com/carnegie-observatories/zwo)) | `src/gcam/edstail/`, compiled in place | `src/gcam/gcamtail.c` (comes with the gcamzwo pull request): runs `g<p><cmd>` as a camera command, `fone` on `slew`, `ca` from `cnca`, exits when the rotator leaves its port |
+| mechgui, the IMACS GUI ([imacs](https://github.com/carnegie-observatories/imacs), private) | `src/edstail/`, a git submodule on this repository's `edstail` branch | `src/gpc.c`: queues the `gp` guider-probe verbs on its worker, and re-sends the guider cameras' angles (`cnca`) on every `slew` |
 
 The files use standard headers only (POSIX sockets, `poll`, pthreads, regex) and
 nothing from either program, so they compile in any consumer. Nothing else
@@ -57,7 +57,7 @@ Subscriptions in use:
 ```
 ^~Z2............8(02|1...ga|1...slew|1...cnca).*     gcamzwo, camera 1 (probe a), with ini cnca 1
 ^~Z2............8(02|1...gb|1...slew).*              gcamzwo, camera 2 (probe b), with ini cnca 0
-^~Z2............8(02|1...gp).*                       IMACS mechgui
+^~Z2............8(02|1...(gp|slew)).*                IMACS mechgui
 ```
 
 ## API
@@ -127,12 +127,12 @@ stopped or lost its stream closes the gate.
   `stream from H:5601 closed by the server before the first record (is this host in tcsif's hosts5601?), retrying`
   (the hint only for a close, a reset or a broken pipe).
 - **Threads.** The hooks run in the reader thread, so a hook that takes time
-  delays the reading; the socket buffers the stream meanwhile (about 270 bytes
-  per second). `edstail_stop` may be called from a hook. After it, the reader
-  calls no further hook (one already running finishes) and leaves any wait at
-  once, the connect included, through a pipe that every wait also polls; only
-  a name lookup (`getaddrinfo`) under way runs to its end. The latch then
-  reads `-1`.
+  delays the reading; the socket buffers the stream meanwhile (about 380 bytes
+  per second: `802` at 5 Hz, 76 bytes a record). `edstail_stop` may be called
+  from a hook. After it, the reader calls no further hook (one already running
+  finishes) and leaves any wait at once, the connect included, through a pipe
+  that every wait also polls; only a name lookup (`getaddrinfo`) under way runs
+  to its end. The latch then reads `-1`.
 
 ## Sharing: the `edstail` branch
 
@@ -178,7 +178,8 @@ fetches only the branch and is the alternative to a submodule.
 ## Changing the core
 
 1. Change the files here, in a zwo pull request; run zwo's bench
-   (`make test` in `src/gcam`) and, if the change can affect IMACS, IMACS's
-   `tools/gpcbench.sh` against the branch.
+   (`make test` in `src/gcam`, which comes with the gcamzwo pull request)
+   and, if the change can affect IMACS, IMACS's `tools/gpcbench.sh` against
+   the branch.
 2. After the merge, regenerate the `edstail` branch from `main` and push it.
 3. Each consumer bumps its pointer when it wants the change.
