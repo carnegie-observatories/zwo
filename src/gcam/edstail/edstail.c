@@ -26,6 +26,7 @@
 #include <fcntl.h>                     /* fcntl() */
 #include <poll.h>                      /* poll() */
 #include <unistd.h>                    /* close(),sleep() */
+#include <time.h>                      /* clock_gettime() */
 #include <pthread.h>
 #include <netdb.h>                     /* getaddrinfo() */
 #include <sys/types.h>
@@ -41,6 +42,8 @@
 #define CONN_TOUT       10             /* s for connect() */
 #define BACKOFF_MIN     5              /* s between failed attempts */
 #define BACKOFF_MAX     120
+#define UP_MIN          30             /* s a stream lasts to reset that */
+#define RETRY_MIN       1              /* s before reconnecting after it */
 
 #define ROI_COL         51             /* Z802: rotator of interest */
 #define SENDER_COL      17             /* Z81x: 0 console .. 4 network */
@@ -94,6 +97,24 @@ static void latch(int now)             /* the rotator of interest */
 static void nap(int seconds)           /* sleep, wake up for a stop */
 {
   while ((seconds-- > 0) && tail_on) sleep(1);
+}
+
+/* ---------------------------------------------------------------- */
+
+static void fail_wait(int* backoff)    /* nap, then double the next nap */
+{
+  nap(*backoff);
+  *backoff = (2*(*backoff) < BACKOFF_MAX) ? 2*(*backoff) : BACKOFF_MAX;
+}
+
+/* ---------------------------------------------------------------- */
+
+static double uptime(void)             /* monotonic seconds */
+{
+  struct timespec ts;
+
+  (void)clock_gettime(CLOCK_MONOTONIC,&ts);
+  return (double)ts.tv_sec + 1e-9*(double)ts.tv_nsec;
 }
 
 /* ---------------------------------------------------------------- */
@@ -194,8 +215,9 @@ static ssize_t recv_tout(int sock,char* buf,size_t n,int seconds)
 
 static void* reader(void* param)       /* the EDS reader thread */
 {
-  int     sock,i,li,lines,closed,down=0,backoff=BACKOFF_MIN;
+  int     sock,i,li,lines,closed,silent,down=0,backoff=BACKOFF_MIN;
   int     port=(tail.port > 0) ? tail.port : EDSTAIL_PORT;
+  double  up=0;
   ssize_t r;
   char    rbuf[RBUF],line[EDSTAIL_LINE_MAX],why[128];
 
@@ -204,8 +226,7 @@ static void* reader(void* param)       /* the EDS reader thread */
   while (tail_on) {
     if ((sock=dial(tail_host,port,why,sizeof(why))) < 0) {
       if (!down) say(1,"cannot reach %s:%d (%s), retrying",tail_host,port,why);
-      down = 1; nap(backoff);
-      backoff = (2*backoff < BACKOFF_MAX) ? 2*backoff : BACKOFF_MAX;
+      down = 1; fail_wait(&backoff);
       continue;
     }
     /* subscribe: the regexp followed by a NUL byte (tcscl handshake) */
@@ -213,20 +234,20 @@ static void* reader(void* param)       /* the EDS reader thread */
       if (!down) say(1,"subscription to %s:%d failed (%s), retrying",
                      tail_host,port,strerror(errno));
       (void)close(sock);
-      down = 1; nap(backoff);
-      backoff = (2*backoff < BACKOFF_MAX) ? 2*backoff : BACKOFF_MAX;
+      down = 1; fail_wait(&backoff);
       continue;
     }
     pthread_mutex_lock(&lock); tail_sock = sock; pthread_mutex_unlock(&lock);
 
-    li = lines = closed = 0;
+    li = lines = closed = silent = 0;
     while (tail_on) {                  /* read records */
       r = recv_tout(sock,rbuf,sizeof(rbuf),READ_TOUT);
       if (r <= 0) {                    /* refused peers see a close or reset */
         closed = (r == 0) || (errno == ECONNRESET);
+        silent = (r < 0) && (errno == ETIMEDOUT);
         if      (r == 0)              snprintf(why,sizeof(why),"closed by the server");
         else if (errno == ECONNRESET) snprintf(why,sizeof(why),"reset by the server");
-        else if (errno == ETIMEDOUT)  snprintf(why,sizeof(why),"silent for %d s",READ_TOUT);
+        else if (silent)              snprintf(why,sizeof(why),"silent for %d s",READ_TOUT);
         else                          snprintf(why,sizeof(why),"%s",strerror(errno));
         break;
       }
@@ -237,7 +258,7 @@ static void* reader(void* param)       /* the EDS reader thread */
           if (li > 0) {
             if (lines++ == 0) {        /* the stream is up */
               say(0,"tailing %s:%d, own rotator %d",tail_host,port,tail.rotator);
-              down = 0; backoff = BACKOFF_MIN;
+              down = 0; up = uptime();
             }
             edstail_line(line);
           }
@@ -249,18 +270,18 @@ static void* reader(void* param)       /* the EDS reader thread */
     (void)close(sock);
     if (!tail_on) break;
 
-    if (lines > 0) {                   /* reconnect at once */
+    if (lines > 0) {                   /* the stream was up */
       say(1,"stream from %s lost (%s), reconnecting",tail_host,why);
-    } else {                           /* refused: count as a failure */
+      latch(-1);                       /* unknown until the next Z802 */
+      if (uptime()-up >= UP_MIN) {     /* it lasted: start over */
+        backoff = BACKOFF_MIN; nap(RETRY_MIN);
+      } else fail_wait(&backoff);      /* it died young: no loop */
+    } else {                           /* nothing came */
       if (!down) say(1,"stream from %s:%d %s before the first record%s, retrying",
                      tail_host,port,why,
                      (closed) ? " (is this host in tcsif's hosts5601?)" : "");
       down = 1;
-    }
-    latch(-1);                         /* unknown until the next Z802 */
-    if (lines == 0) {
-      nap(backoff);
-      backoff = (2*backoff < BACKOFF_MAX) ? 2*backoff : BACKOFF_MAX;
+      if (!silent) fail_wait(&backoff);  /* silent: the 30 s were the wait */
     }
   }
   telroi = -1;                         /* stopped: unknown, no hook */

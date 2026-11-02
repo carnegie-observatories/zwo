@@ -101,11 +101,16 @@ text passed to a hook is valid only during the call.
   The first `802` after a (re)connect only latches, which the host sees as
   `old == -1`.
 - **Reconnect.** Connect (10 s timeout) and subscribe; read with a 30 s
-  timeout. When a stream that delivered records ends, `on_log` reports the
-  loss, `on_roi(old, -1)` runs and the next connect is tried at once. A failed
-  connect, a failed subscription, or a connection that closes or stays silent
-  before its first record waits 5 s, doubling to 120 s, and is reported once
-  per outage. The back-off resets with the first record.
+  timeout. A failed connect, a failed subscription, or a connection that is
+  closed or reset before its first record waits 5 s, doubling to 120 s, and is
+  reported once per outage. When a stream that delivered records ends,
+  `on_log` reports the loss and `on_roi(old, -1)` runs. If the stream had
+  lasted 30 s, the next connect follows 1 s later and the back-off starts over;
+  a shorter one waits the back-off like a failure, so a peer that accepts,
+  sends and closes is not retried in a loop. A connection that stays silent for
+  30 s before its first record is retried at once and reported once per
+  outage: tcsif closes a refused peer at once, so silence means it accepted
+  this host but the TCS feeds nothing, and the 30 s were the wait.
 - **Log lines** (`on_log`; level 0 is good news, 1 trouble):
   `tailing H:5601, own rotator R` (at the first record of each connection),
   `cannot reach H:5601 (reason), retrying`,
