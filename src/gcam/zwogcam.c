@@ -1414,7 +1414,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       sprintf(g->gdbox.text,"gd move"); CBX_UpdateEditWindow(&g->gdbox);
     } else err = E_NOTACQ;
   } else
-  if (!strcasecmp(cmd,"fnin")) {       /* F9 remove SH v0329/v0331 */
+  if (!strcasecmp(cmd,"fnin") || !strcasecmp(cmd,"fnine")) {  /* F9 remove SH v0329/v0331; fnine: the twopgcam scripts */
     sprintf(buf,"gpfld%d",g->gnum);    /* bug-fix v0418 */
     err = telio_command(buf);
     if (err) err = E_TELIO;
