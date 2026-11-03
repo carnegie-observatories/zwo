@@ -319,6 +319,9 @@ int main(int argc,char **argv)
     .elsign = -1.0,
     .rosign = 0.0,
     .parity = -1.0,
+    .mount = 0.0,                 /* ini "mount": added to a received ca */
+    .aperx = -1.0,                /* ini "aperx", "apery": where 'xya' puts */
+    .apery = -1.0,                /* a cursor; < 0: the image centre */
     .parit2 = 1.0,
     .offx = 0,                    /* PFS:-10+85, MIKE:+45+230 */
     .offy = 0,
@@ -1413,7 +1416,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       sprintf(g->gdbox.text,"gd move"); CBX_UpdateEditWindow(&g->gdbox);
     } else err = E_NOTACQ;
   } else
-  if (!strcasecmp(cmd,"fnin")) {       /* F9 remove SH v0329/v0331 */
+  if (!strcasecmp(cmd,"fnin") || !strcasecmp(cmd,"fnine")) {  /* F9 remove SH v0329/v0331; fnine: the twopgcam scripts */
     sprintf(buf,"gpfld%d",g->gnum);    /* bug-fix v0418 */
     err = telio_command(buf);
     if (err) err = E_TELIO;
@@ -1574,6 +1577,43 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       float x = g->qltool->curx[g->qltool->cursor_mode];
       float y = g->qltool->cury[g->qltool->cursor_mode];
       eds_send82i(g->gnum,1+g->qltool->cursor_mode,x,y); /* v0347 */
+    }
+  } else
+  if (!strcasecmp(cmd,"xyo")) {        /* offset guide box by sky arcsec */
+    /* cursor 5 by the pixels whose sky offset is (daz,del) arcsec, the
+     * inverse of mouse mode 2: callers need no scale, angle or parity */
+    if (n > 2) {
+      if (!cursor_blocked(g,QLT_BOX,1)) {
+        if (g->pamode) {
+          err = telio_open(2);
+          if (!err) { err = set_pa(g,g->pa,1); telio_close(); }
+        }
+        if (!err) { double daz=atof(par1),del=atof(par2),radpa,xi,yi;
+          radpa = fabs(g->pa)/RADS;
+          xi =  g->parity*(daz*cos(radpa) - del*sin(radpa));  /* arcsec */
+          yi = -(daz*sin(radpa) + del*cos(radpa));
+          g->qltool->curx[QLT_BOX] += (float)(xi/g->px);
+          g->qltool->cury[QLT_BOX] += (float)(yi/g->px);
+          g->qltool->cursor_mode = QLT_BOX;
+          redraw_gwin(g);
+          qltool_redraw(g->qltool,False);
+          eds_send82i(g->gnum,1+QLT_BOX,g->qltool->curx[QLT_BOX],
+                                        g->qltool->cury[QLT_BOX]);
+        }
+      }
+    } else err = E_MISSPAR;
+  } else
+  if (!strcasecmp(cmd,"xya")) {        /* cursor to the aperture */
+    /* cursor 'c' (default 5, the guide box) to the ini's aperx,apery, so
+     * a probe controller can place the box without knowing the pixel */
+    int j = (n > 1) ? imax(0,imin(QLT_NCURSORS-1,atoi(par1)-1)) : QLT_BOX;
+    if (!cursor_blocked(g,j,1)) {
+      g->qltool->curx[j] = (float)((g->aperx < 0) ? g->qltool->dimx/2 : g->aperx);
+      g->qltool->cury[j] = (float)((g->apery < 0) ? g->qltool->dimy/2 : g->apery);
+      g->qltool->cursor_mode = j;      /* make active */
+      redraw_gwin(g);
+      qltool_redraw(g->qltool,False);
+      eds_send82i(g->gnum,1+j,g->qltool->curx[j],g->qltool->cury[j]);
     }
   } else
   /* --- extended commmand set ------------------------------------ */
@@ -2518,6 +2558,7 @@ static int set_ca(Guider* g,double f)
   fprintf(stderr,"%s(%s,%f)\n",PREFUN,g->name,f);
 #endif
 
+  f += g->mount;                       /* camera mounting offset (ini) */
   if (f == 0.0) f = 360.0;
   while (f >  360.0) f -= 360.0;
   while (f <    0.0) f += 360.0;
@@ -2934,6 +2975,9 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"elsign")) g->elsign = atof(val);
       else if (!strcmp(key,"rosign")) g->rosign = atof(val);
       else if (!strcmp(key,"parity")) g->parity = (atof(val) < 0) ? -1.0 : 1.0;
+      else if (!strcmp(key,"mount")) g->mount = atof(val);
+      else if (!strcmp(key,"aperx")) g->aperx = atof(val);
+      else if (!strcmp(key,"apery")) g->apery = atof(val);
       else if (!strcmp(key,"offx")) g->offx = atoi(val);
       else if (!strcmp(key,"offy")) g->offy = atoi(val);
       else if (!strcmp(key,"px")) g->px = atof(val)/1000.0;
