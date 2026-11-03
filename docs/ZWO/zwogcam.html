@@ -497,6 +497,9 @@ TELGUIDE= '10'
 <dd><i>mount 0</i>: camera mounting offset [deg], added to every angle
     received with the <i>ca</i> command; the IMACS cameras on Baade use
     -90.0 (gcam01) and -90.4 (gcam02) [default=0]  </dd>
+<dd><i>aperx 1017</i>, <i>apery 1081</i>: the aperture [pixels], where
+    <i>xya</i> puts a cursor; the IMACS Shack-Hartmann camera (gcam02) has
+    its aperture there [default: the image centre]  </dd>
 <dd><i>offx -10</i>: "-o"  </dd>
 <dd><i>offy 85</i>: "-o"  </dd>
 <dd><i>px 53</i>: pixel scale [milli-arcsec] ('px')   </dd>
@@ -649,6 +652,9 @@ TELGUIDE= '10'
 <dd>move the guide box (cursor 5) by the pixel displacement whose sky
     equivalent is 'daz,del' arcsec, the inverse of mouse mode 2; the
     caller needs no camera scale, angle or parity  </dd>
+<dt><b>xya [<i>c</i>]</b> </dt>
+<dd>set cursor 'c' (default 5, the guide box) to the aperture, the ini's
+    'aperx,apery'; the caller needs no pixel position  </dd>
 <dt><b></b> </dt>
 <dd>  </dd>
 <p>

@@ -320,6 +320,8 @@ int main(int argc,char **argv)
     .rosign = 0.0,
     .parity = -1.0,
     .mount = 0.0,                 /* ini "mount": added to a received ca */
+    .aperx = -1.0,                /* ini "aperx", "apery": where 'xya' puts */
+    .apery = -1.0,                /* a cursor; < 0: the image centre */
     .parit2 = 1.0,
     .offx = 0,                    /* PFS:-10+85, MIKE:+45+230 */
     .offy = 0,
@@ -1600,6 +1602,19 @@ static int handle_command(Guider* g,const char* command,int showMsg)
         }
       }
     } else err = E_MISSPAR;
+  } else
+  if (!strcasecmp(cmd,"xya")) {        /* cursor to the aperture */
+    /* cursor 'c' (default 5, the guide box) to the ini's aperx,apery, so
+     * a probe controller can place the box without knowing the pixel */
+    int j = (n > 1) ? imax(0,imin(QLT_NCURSORS-1,atoi(par1)-1)) : QLT_BOX;
+    if (!cursor_blocked(g,j,1)) {
+      g->qltool->curx[j] = (float)((g->aperx < 0) ? g->qltool->dimx/2 : g->aperx);
+      g->qltool->cury[j] = (float)((g->apery < 0) ? g->qltool->dimy/2 : g->apery);
+      g->qltool->cursor_mode = j;      /* make active */
+      redraw_gwin(g);
+      qltool_redraw(g->qltool,False);
+      eds_send82i(g->gnum,1+j,g->qltool->curx[j],g->qltool->cury[j]);
+    }
   } else
   /* --- extended commmand set ------------------------------------ */
   if (!strncasecmp(cmd,"lmag",3)) {    /* lupe magnification */
@@ -2961,6 +2976,8 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"rosign")) g->rosign = atof(val);
       else if (!strcmp(key,"parity")) g->parity = (atof(val) < 0) ? -1.0 : 1.0;
       else if (!strcmp(key,"mount")) g->mount = atof(val);
+      else if (!strcmp(key,"aperx")) g->aperx = atof(val);
+      else if (!strcmp(key,"apery")) g->apery = atof(val);
       else if (!strcmp(key,"offx")) g->offx = atoi(val);
       else if (!strcmp(key,"offy")) g->offy = atoi(val);
       else if (!strcmp(key,"px")) g->px = atof(val)/1000.0;

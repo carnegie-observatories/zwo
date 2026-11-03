@@ -59,6 +59,7 @@ typedef struct guider_tag {
   float       px;                      /* eff. pixscale (incl. binning) */
   double      angle,elsign,rosign,parity;
   double      mount;                   /* camera mounting offset, added to a received ca [deg] */
+  double      aperx,apery;             /* the aperture [px] for 'xya'; < 0: the image centre */
   double      parit2; // todo remove 'parit2' v0417
   double      pa,azerp,elerp,sens,azg,elg;
   pthread_mutex_t mutex;
