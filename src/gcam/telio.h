@@ -117,6 +117,7 @@ int   telio_init     (int,int);
 int   telio_open     (int);
 void  telio_close    (void);
 int   telio_command  (const char*);
+int   telio_server   (char*,int,int*);
 
 int   telio_pos      (double*,double*,double*);
 int   telio_slew     (double,double,double);

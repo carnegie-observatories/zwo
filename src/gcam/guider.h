@@ -74,6 +74,8 @@ typedef struct guider_tag {
   int         send_port;
   /* --- end legacy push */
   int         rPort;                   /* rotator port */
+  int         cmdpoll;                 /* poll tcsis's gcmd for the TCS's echoes */
+  int         cnca,portexit;           /* echoes: 'cnca' -> 'ca', exit on port change */
   int         lmag,bx;
   int         pct,bkg,span;            /* default scaling */
   char        host[128],gain[32];
