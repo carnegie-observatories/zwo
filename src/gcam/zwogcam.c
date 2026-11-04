@@ -113,6 +113,7 @@
 #include "telio.h"
 #include "random.h"
 #include "eds.h"
+#include "gcamtail.h"                  /* the TCS's echoes, polled */
 
 /* DEFINEs -------------------------------------------------------- */
 
@@ -336,6 +337,7 @@ int main(int argc,char **argv)
     .tcs_age = IMAGE_TCSAGE,
     .host = "localhost",
     .rPort = 0,
+    .portexit = 1,                /* ini "portexit": exit when the rotator leaves 'port' */
     .sens = 0.5f,
     .status.exptime = 1.0f,
 #ifdef ENG_MODE
@@ -717,6 +719,19 @@ int main(int argc,char **argv)
     }
   }
   eds_close(); 
+
+  /* the TCS's command echoes, polled from tcsis: the camera half of
+   * gcam2zwo.py -- docs/plans/gcam-gcmd-poll.md */
+  { char host[128]="";
+    GcamTail t = { "",0,sGuider.gnum,sGuider.rPort,
+                   sGuider.cnca,sGuider.portexit,&sGuider };
+    if (sGuider.cmdpoll) {
+      if (telio_server(host,sizeof(host),&t.tport) == 0) t.host = host;
+      else message(&sGuider,"eds: cmdpoll 1 but no TCSIS (offline), no poll",
+                   MSS_FLUSH | MSS_WARN);
+    }
+    (void)gcamtail_start(&t);          /* no host: no poll */
+  }
 
   /* this loop drives the program --------------------------------- */
 
@@ -1649,14 +1664,15 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       "temp=%.1f setp=%.0f cooler=%.0f cfps=%.2f gfps=%.2f "
       "fwhm=%.2f flux=%.0f peak=%.0f back=%.0f dx=%+.2f dy=%+.2f "
       "az=%+.3f el=%+.3f x=%.1f y=%.1f bx=%d px=%.0f pa=%.1f sn=%.1f "
-      "iport=%d iclients=%d",
+      "iport=%d iclients=%d eds=%d roi=%d",
       s.init,s.loop,s.guiding,s.mode,s.fmode,s.mmode,
       g->status.exptime,s.av,g->server->gain,s.offset,s.send,
       g->server->tempSensor,s.setp,s.cooler,s.camfps,s.fps,
       s.fwhm,s.flux,s.peak,s.back,s.dx,s.dy,
       s.az,s.el,s.boxx,s.boxy,s.boxsz,
       1000.0*g->px,s.pa,s.sens,
-      g->image_port,g->image_clients);
+      g->image_port,g->image_clients,
+      gcamtail_on(),gcamtail_telroi());
   } else
   if (!strncasecmp(cmd,"start",4)) {   /* start exposure loop */
     int r = do_start(g,0);
@@ -2873,6 +2889,7 @@ static void my_shutdown(Bool force)
     if (sGuider.loop_running) force = False;
   }
   if (force) { Bool wait=False;
+    gcamtail_stop();                   /* no more echoes acted on */
     if (sGuider.loop_running) {
       wait = True;
       do_stop(&sGuider,0);
@@ -2945,6 +2962,9 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"sw")) g->slitW = atoi(val); 
       else if (!strcmp(key,"sn")) g->sens = fmin(4.0,fmax(0.1,atof(val)));
       else if (!strcmp(key,"exptime")) g->status.exptime = atof(val);
+      else if (!strcmp(key,"cmdpoll")) g->cmdpoll = atoi(val);
+      else if (!strcmp(key,"cnca")) g->cnca = atoi(val);
+      else if (!strcmp(key,"portexit")) g->portexit = atoi(val);
       else n--;
 
     }
@@ -2952,6 +2972,34 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
   fclose(fp);
   printf("%d items read from %s\n",n,file);
   return n;
+}
+
+/* ---------------------------------------------------------------- */
+
+/* commands from the network: the command port (handle_tcpip) and the  */
+/* TCS's echoes (gcamtail.c), one at a time; the keyboard calls         */
+/* handle_command() directly                                             */
+
+static pthread_mutex_t cmdMutex=PTHREAD_MUTEX_INITIALIZER;
+
+int remote_command(const char* cmd,char* reply,size_t n)
+{
+  int err;
+
+  pthread_mutex_lock(&cmdMutex);
+  err = handle_command(&sGuider,cmd,0);
+  if (reply && (n > 0)) snprintf(reply,n,"%s",sGuider.command_msg);
+  pthread_mutex_unlock(&cmdMutex);
+  return err;
+}
+
+/* --- */
+
+void remote_exit(void)                 /* the port exit (gcamtail.c) */
+{
+  pthread_mutex_lock(&cmdMutex);       /* what the 'exit' command does */
+  my_shutdown(True);
+  pthread_mutex_unlock(&cmdMutex);
 }
 
 /* ---------------------------------------------------------------- */
@@ -2975,12 +3023,13 @@ static int handle_tcpip(Guider *g,const char* command,char* answer)
   if (!strncmp(cmd,"!",1)) {           /* ! */
     strcpy(answer,"-Einvalid command");
   } else {                             /* v0332,v0333 */
-    int err = handle_command(g,command,0);  /* pass on */
+    char msg[sizeof(g->command_msg)];
+    int err = remote_command(command,msg,sizeof(msg));  /* pass on */
     if (err) { 
-      sprintf(answer,"-E%s",g->command_msg);
+      sprintf(answer,"-E%s",msg);
       msleep(850);
     } else { 
-      if (*g->command_msg) strcpy(answer,g->command_msg);
+      if (*msg) strcpy(answer,msg);
     }
   }
   strcat(answer,"\n");

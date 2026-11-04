@@ -1,0 +1,33 @@
+# The gcmd exchanges of imacs docs/plans/guider-architecture.md, Appendix A,
+# as data.  Both copies of the client (zwo src/gcam/gcmd.c, imacs src/gcmd.c)
+# feed the answers, in order, to gcmd_line() in their benches (to
+# gcmd_hello() for a bare 'gcmd', the first request on each connection) and
+# must end each one with this cursor (the next request's <after>), this
+# rotator of interest (-1 unknown; taken from the answers without an echo
+# only) and this result (1 an echo, 0 none newer, -1 not an answer; for a
+# bare 'gcmd' 0 when tcsis knows gcmd, -1 when not), handing the echo, if
+# any, to on_cmd as "<sender> <text>".  Each request after the first is the
+# one the client sends with the cursor it has: a bare 'gcmd' on a new
+# connection, else 'gcmd 0 <cursor>'.  A bare 'gcmd' after the start (a
+# reconnect) changes neither the cursor nor the rotator, unless its
+# <latest> is below the cursor: the ring started again (edsshm on a new
+# segment), and the cursor goes to 0 to take all of it; the rotator is
+# still not taken.  An echo longer than tcsis ever sends (64 characters or
+# more) is passed over: the cursor taken, nothing handed to on_cmd.
+#
+# request|answer|cursor|roi|result|echo
+gcmd|0 4711 -|4711|0|0|-
+gcmd 0 4711|0 4712 4 gaxys 5 1000.0 1175.6|4712|0|1|4 gaxys 5 1000.0 1175.6
+gcmd 0 4712|0 4712 -|4712|0|0|-
+gcmd|0 4712 -|4712|0|0|-
+gcmd|4 4714 -|4712|0|0|-
+gcmd 0 4712|4 4713 0 gafone|4713|0|1|0 gafone
+gcmd 0 4713|4 4714 -|4714|4|0|-
+gcmd 0 4714|-1|4714|4|-1|-
+gcmd 0 4714|- 4714 -|4714|-1|0|-
+gcmd 0 4714|0 12 -|12|0|0|-
+gcmd 0 12|0 13 0 slew|13|0|1|0 slew
+gcmd 0 13|0 14 4 gaxys 5 1000.0 111111111111111111111111111111111111111111111111111111111111|14|0|1|-
+gcmd||14|0|-1|-
+gcmd|4 2 -|0|0|0|-
+gcmd 0 0|4 1 0 gafone|1|0|1|0 gafone

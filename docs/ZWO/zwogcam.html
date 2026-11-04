@@ -485,7 +485,8 @@ TELGUIDE= '10'
     per line; e.g.  
     <a href="./pfs.ini">pfs.ini</a>: </dd>
 <dd><i>host lab-pi-01</i>: RaspberryPi host name ("-h") </dd>
-<dd><i>port 1</i>: rotator port ("-p") </dd>
+<dd><i>port 1</i>: rotator port ("-p"); also the rotator whose TCS
+    commands the <a href="#cmdpoll">command poll</a> asks for </dd>
 <dd><i>mode 2</i>: image geometry mode: 1000x1000 ("-m") <img src="./new.gif">  </dd>
 <dd><i>gnum 3</i>: guider number ("-g")  </dd>
 <dd><i>gmode 4</i>: guider mode ('gm')  </dd>
@@ -521,6 +522,20 @@ TELGUIDE= '10'
 <dd><i>send_host lab-pi-01</i>, <i>send_port 5000</i>: destination of the
     <b>deprecated</b> 'send' push. Superseded by the image server and
     scheduled for removal.  </dd>
+<dd><i>cmdpoll 1</i>: poll the TCSIS for the TCS's echoes of the commands
+    meant for this camera (the <a href="#cmdpoll">command poll</a>); the
+    TCSIS is the one of "-t" and <i>port</i>. Only where magsoft has the
+    echo ring (Baade; not Clay yet). [default=0]  </dd>
+<dd><i>cnca 1</i>: let the command poll turn the TCS's
+    <tt>cnca &lt;gnum&gt; &lt;deg&gt;</tt> into <tt>ca &lt;deg&gt;</tt>;
+    only the IMACS cameras on Baade (gcam01, gcam02). <tt>&lt;deg&gt;</tt>
+    is IMACS's plain probe angle: the camera's own <i>mount</i> offset
+    (zwo#40; -90.0 on gcam01, -90.4 on gcam02) makes it the position
+    angle, so set <i>cnca 1</i> only together with those lines, or the
+    angle is 90&deg; off. [default=0]  </dd>
+<dd><i>portexit 0</i>: keep running when the TCS's rotator of interest
+    leaves <i>port</i>; by default the command poll ends the program then
+    [default=1]  </dd>
 </dl>
 <p>
 <dt>"-h" host: <dt>
@@ -793,7 +808,7 @@ xterm&gt; nc localhost 52201
 offset=50 send=0 temp=-15.0 setp=-15 cooler=42 cfps=9.98 gfps=9.87
 fwhm=1.23 flux=123456 peak=45678 back=1234 dx=+0.12 dy=-0.34 az=+0.051
 el=-0.024 x=256.0 y=256.0 bx=15 px=196 pa=45.0 sn=1.0
-iport=52300 iclients=0</tt> </dd>
+iport=52300 iclients=0 eds=1 roi=0</tt> </dd>
 <dd><tt>init</tt>: camera initialized (0/1) &ndash;
 <tt>loop</tt>: acquisition loop running (0/1) &ndash;
 <tt>guiding</tt>: 0=off, 2..5 = active mode (&lt;F2&gt;..&lt;F5&gt;),
@@ -811,11 +826,97 @@ housekeeping thread (stale if the cooler is off) &ndash;
 <tt>px</tt>: pixel scale [mas] &ndash; <tt>pa</tt>: position angle &ndash;
 <tt>sn</tt>: sensitivity &ndash;
 <tt>iport</tt>/<tt>iclients</tt>: image-server port and connected
-clients (see below). </dd>
+clients (see below) &ndash;
+<tt>eds</tt>: the <a href="#cmdpoll">command poll</a> runs (0/1),
+<tt>roi</tt>: the TCS's rotator of interest it last heard, -1 while
+unknown. </dd>
 <dd>The photometry fields (<tt>fwhm</tt>, <tt>flux</tt>, <tt>peak</tt>,
 <tt>back</tt>, <tt>dx</tt>, <tt>dy</tt>, <tt>az</tt>, <tt>el</tt>,
 <tt>gfps</tt>) hold the last measurement; they are only updated while
 guiding. </dd>
+</dl>
+
+<p>
+<hr> <!-- ===================================================== -->
+<p>
+
+<a name="cmdpoll"></a>
+<h3>Command Poll</h3>
+
+With <i>cmdpoll 1</i> in the ini, gcamzwo asks the TCSIS four times a
+second for the TCS's echoes of the commands it took while the camera's
+rotator (<i>port</i>) was the rotator of interest, and acts on the ones
+meant for its camera: <tt>gcmd &lt;port&gt; &lt;after&gt;</tt>, on a
+socket of its own to the TCSIS it already uses, as a DOS camera asks
+the TCS. This is the camera half of magsoft's <i>gcam2zwo.py</i>; the
+daemon must not forward to the same camera too, or every command runs
+twice. Its switch, <tt>GCAM2ZWO_FORWARD=0</tt>, is one for the whole
+telescope: with it the daemon forwards to no camera and tells none to
+exit, so every camera it serves changes to <i>cmdpoll 1</i> (and
+<i>portexit 1</i>) at the same time, on Baade gcam01, gcam02, gcam41,
+gcam42 and the MagE camera. A camera left at <i>cmdpoll 0</i> then gets
+no commands and is not told to exit, so it keeps its ports.
+<p>
+<dl>
+<dt><b>Acted on</b> (<i>p</i> is a, b, c for <i>gnum</i> 1, 2, 3): </dt>
+<dd><tt>g<i>p</i>&lt;command&gt;</tt> (e.g. <tt>gafone</tt>,
+<tt>gbxys 5 100 200</tt>): runs &lt;command&gt; as a
+<a href="#tcpip">TCP/IP</a> command would. </dd>
+<dd><tt>slew</tt>: runs <tt>fone</tt>. </dd>
+<dd><tt>cnca &lt;gnum&gt; &lt;deg&gt;</tt>, with <i>cnca 1</i> in the
+ini: runs <tt>ca &lt;deg&gt;</tt>. </dd>
+<dd>Every other echo (the camera's own <tt>aeg</tt> corrections, the
+other probes' commands) is passed over. The TCSIS keeps the last 64
+echoes, so a camera that was busy for a moment misses nothing, nor one
+that reconnects: it goes on from the last echo it had, so it also runs
+what the TCS took while the TCSIS was away (after a restart of the TCSIS's
+echo ring, from the new ring's first echo, unless the new ring has already
+numbered past the camera's last echo: those first echoes are passed over).
+A camera that starts takes only what comes after. </dd>
+<dt><b>The exit</b>: </dt>
+<dd>when the rotator of interest moves from <i>port</i> to another
+rotator, also across a TCSIS outage, gcamzwo ends as with the
+<tt>exit</tt> command, after the commands the TCS took before the
+change, and frees its ports for the other rotator's instance on the
+same host. The first rotator heard after the start never ends it, so an
+instance started for an inactive port keeps working. <i>portexit 0</i>
+keeps it running. </dd>
+<dt><b>The TCSIS</b>: </dt>
+<dd>on each connection the camera first asks a bare <tt>gcmd</tt>. A
+TCSIS older than <tt>gcmd</tt> (magsoft before the ring; Clay today)
+takes it for a status it does not know and answers an empty line, so
+nothing reaches the TCS; the camera says so once (<tt>no gcmd</tt>) and
+asks the bare <tt>gcmd</tt> again every 5 s. A TCSIS with <tt>gcmd</tt>
+but an older <i>edsshm</i> answers <tt>-1</tt> (<tt>no echo ring</tt>),
+likewise. Meanwhile the camera receives no commands: set <i>cmdpoll
+1</i> only where magsoft has the ring. A lost TCSIS is shown in the
+message window; the camera reconnects by itself after 1 s, doubling to
+30 s, back to 1 s once the TCSIS answers, and its <tt>roi</tt> is -1
+until then.
+</dd>
+<dt><b>The log</b> (<tt>gcamzwo&lt;gnum&gt;.log</tt>), one line per
+event, all starting <tt>eds:</tt>: </dt>
+<dd><tt>
+eds: cmdpoll mag1tcs.lco.cl:5801, probe a, port 0, cnca 1, portexit 1<br>
+eds: polling mag1tcs.lco.cl:5801 for port 0<br>
+eds: roi -1 -&gt; 0, gate open<br>
+eds: 'fone' (slew) from 4<br>
+eds: 'xys 5 1000.0 1175.6' from 4<br>
+eds: 'ca -30.925' (cnca) from 4<br>
+eds: roi 0 -&gt; 4, gate closed<br>
+eds: port 0 left for 4, exiting<br>
+eds: tcsis mag1tcs.lco.cl:5801 lost, retrying
+</tt></dd>
+<dd>The number after <i>from</i> is the TCS's sender: 0 console, 1-3
+the GCAM links, 4 the network (TCSIS). Nothing is logged while the
+camera polls and nothing new arrives. </dd>
+<dt><b>Testing</b>: </dt>
+<dd><tt>make test</tt> in <tt>src/gcam</tt> runs the bench
+(<tt>src/py/gcmd_bench.py</tt>): recorded nights as the TCSIS's answers,
+and the real poll against <tt>src/py/tcsis_sim.py</tt>, which keeps the
+TCSIS's ring from recorded nights (<tt>--fixture</tt>, <tt>--stdin</tt>).
+<tt>make ledger</tt> runs its outage and idle checks at full length. The
+client itself is <tt>src/gcam/gcmd.c</tt>, of which IMACS has a copy. </dd>
 </dl>
 
 <p>
