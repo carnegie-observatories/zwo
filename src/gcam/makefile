@@ -62,6 +62,8 @@ Ogui	= zwogcam.o zwotcp.o qltool.o graph.o tcpip.o utils.o \
 
 Oget   	= getimages.o
 
+Otest	= gcamtail_test.o gcamtail.o gcmd.o
+
 # targets ---------------------------------------------------------
 
 all: 	zwo getimages
@@ -69,7 +71,7 @@ all: 	zwo getimages
 zwo:	gcamzwo
 
 clean: 
-	rm -f gcamzwo getimages *.o
+	rm -f gcamzwo getimages gcamtail_test *.o
 
 install: all
 	cp *gcam* $(BINDIR)
@@ -85,6 +87,18 @@ gcamzwo: $(Ogui)
 getimages: $(Oget)
 	$(CC) -o getimages $(Oget) 
 	@echo getimages done
+
+# the bench of the poll (docs/plans/gcam-gcmd-poll.md): no X, no camera;
+# 'ledger' runs the ledger tests with the plan's full outage and idle times
+
+gcamtail_test: $(Otest)
+	$(CC) -o gcamtail_test $(Otest) $(LIBS)
+
+test:	gcamtail_test
+	python3 ../py/gcmd_bench.py --bin ./gcamtail_test
+
+ledger:	gcamtail_test
+	python3 ../py/gcmd_bench.py --bin ./gcamtail_test --ledger
 
 recompile: 
 	@make clean
@@ -110,6 +124,9 @@ gcmd.o:		gcmd.c gcmd.h
 
 gcamtail.o:	gcamtail.c gcamtail.h gcmd.h zwogcam.h
 		$(CC) $(CFLAGS) $(OPT) -c gcamtail.c
+
+gcamtail_test.o: gcamtail_test.c gcamtail.h gcmd.h zwogcam.h
+		$(CC) $(CFLAGS) $(OPT) -c gcamtail_test.c
 
 fits.o:		fits.c fits.h utils.h
 		$(CC) $(CFLAGS) $(OPT) -c fits.c
