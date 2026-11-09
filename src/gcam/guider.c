@@ -26,6 +26,7 @@
 #include "telio.h"
 #include "eds.h"
 #include "utils.h"
+#include "gframe/gframe.h"           /* G frames, Swope TCS */
 
 /* ---------------------------------------------------------------- */
 
@@ -282,7 +283,7 @@ static void run_guider1(void* param)
         if ((qltool->guiding == 3) || (qltool->guiding == 5)) { int err=0;
           if (!tcsOpen) err = tcs_recon(g);
           if (!err) {
-            err = telio_aeg(g->azg,g->elg); /* v0417 */
+            err = send_correction(g->azg,g->elg); /* v0417 */
             if (err) tcs_error(g,err);
           }
         } 
@@ -348,7 +349,7 @@ static void run_guider3(void* param)          /* v0350 */
             if (!tcsOpen) err = tcs_recon(g);
             if (!err) { 
               if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg);  /* v0354 */
-              err = telio_aeg(g->azg,g->elg);
+              err = send_correction(g->azg,g->elg);
               if (err) tcs_error(g,err);
             }
           } /* endif(guiding) */
@@ -472,7 +473,7 @@ static void run_guider4(void* param)          /* v0404 */
             if (!tcsOpen) err = tcs_recon(g);
             if (!err) {  
               if (g->gmpar == 'p') telio_gpaer(3,-g->azg,-g->elg); 
-              err = telio_aeg(g->azg,g->elg);
+              err = send_correction(g->azg,g->elg);
               if (err) tcs_error(g,err);
             }
           } /* endif(guiding) */
@@ -482,6 +483,21 @@ static void run_guider4(void* param)          /* v0404 */
       pthread_mutex_unlock(&g->mutex);
     } // endif(frame)
   } // endwhile(loop-doing && guiding)
+}
+
+/* ---------------------------------------------------------------- */
+
+/* Every telescope correction goes through here: to the TCS as 'aeg', */
+/* or, with gframe_port in the .ini, to the Swope TCS as G frames      */
+/* instead (gframe/README.md).                                         */
+
+int send_correction(float az,float el)
+{
+  if (gframe_enabled()) {
+    gframe_add(az,el);
+    return 0;
+  }
+  return telio_aeg(az,el);
 }
 
 /* ---------------------------------------------------------------- */
