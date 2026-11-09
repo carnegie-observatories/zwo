@@ -82,6 +82,7 @@ typedef struct guider_tag {
 /* --- */
 
 extern void* run_guider(void* param);  /* --> guider.c */
+extern int   send_correction(float,float); /* --> guider.c */
 
 extern void  redraw_gwin(Guider*);     /* --> zwogcam.c */
 
