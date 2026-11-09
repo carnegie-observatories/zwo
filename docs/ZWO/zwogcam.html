@@ -521,6 +521,18 @@ TELGUIDE= '10'
 <dd><i>send_host lab-pi-01</i>, <i>send_port 5000</i>: destination of the
     <b>deprecated</b> 'send' push. Superseded by the image server and
     scheduled for removal.  </dd>
+<dd><i>gframe_port 10001</i>: serve the guide corrections on this TCP port
+    as the 7-byte <tt>G</tt> frames the Swope TCS reads (the DOS guider
+    PC's serial format), instead of sending them to a TCSIS as
+    <tt>aeg</tt>; the TCS connects to it. Read at start-up.
+    <tt>0</tt> disables it. [default=0]
+    <i>gframe_period</i> (1.5 s between frames, at least),
+    <i>gframe_unit</i> (0.05&quot; per count),
+    <i>gframe_max</i> (2.4&quot; per frame),
+    <i>gframe_min</i> (0.1&quot;: smaller waits for more),
+    <i>gframe_xsign</i>, <i>gframe_ysign</i> (&plusmn;1) tune it:
+    <a href="https://github.com/carnegie-observatories/zwo/blob/main/src/gcam/gframe/README.md">src/gcam/gframe/README.md</a>.
+    </dd>
 </dl>
 <p>
 <dt>"-h" host: <dt>
@@ -812,6 +824,14 @@ housekeeping thread (stale if the cooler is off) &ndash;
 <tt>sn</tt>: sensitivity &ndash;
 <tt>iport</tt>/<tt>iclients</tt>: image-server port and connected
 clients (see below). </dd>
+<dd>With <i>gframe_port</i> set the line ends with
+<tt>gframe=1 gpend=+0.12,-0.05 gsent=123 gdrop=4</tt>:
+<tt>gframe</tt>: connected clients (the TCS) &ndash;
+<tt>gpend</tt>: correction not sent yet [arcsec] &ndash;
+<tt>gsent</tt>: frames sent &ndash;
+<tt>gdrop</tt>: times a pending correction was dropped because no client
+was connected or 3&nbsp;s passed without a correction (F1 empties it too,
+uncounted). </dd>
 <dd>The photometry fields (<tt>fwhm</tt>, <tt>flux</tt>, <tt>peak</tt>,
 <tt>back</tt>, <tt>dx</tt>, <tt>dy</tt>, <tt>az</tt>, <tt>el</tt>,
 <tt>gfps</tt>) hold the last measurement; they are only updated while
