@@ -113,6 +113,7 @@
 #include "telio.h"
 #include "random.h"
 #include "eds.h"
+#include "gframe/gframe.h"           /* G frames, Swope TCS */
 
 /* DEFINEs -------------------------------------------------------- */
 
@@ -1173,7 +1174,7 @@ static int handle_msmode(void* param,XEvent* event)
       if (!err) { double dx,dy,da,de;
         qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
         rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
-        err = telio_aeg(da,de);
+        err = send_correction(da,de);
       }
       telio_close();
     }
@@ -1348,6 +1349,7 @@ static int handle_command(Guider* g,const char* command,int showMsg)
     pthread_mutex_lock(&g->mutex);
     g->qltool->guiding = 0;
     pthread_mutex_unlock(&g->mutex);
+    gframe_clear();                    /* nothing more to the TCS */
     if (g->gid) { pthread_join(g->gid,NULL); g->gid = 0; }
     sprintf(g->gdbox.text,"gd  off"); 
     g->gdbox.fg = app->black;
@@ -1657,6 +1659,8 @@ static int handle_command(Guider* g,const char* command,int showMsg)
       s.az,s.el,s.boxx,s.boxy,s.boxsz,
       1000.0*g->px,s.pa,s.sens,
       g->image_port,g->image_clients);
+    if (gframe_enabled()) { size_t k=strlen(msgstr);  /* gframe/README.md */
+      gframe_status(msgstr+k,(int)(sizeof(g->command_msg)-k)); }
   } else
   if (!strncasecmp(cmd,"start",4)) {   /* start exposure loop */
     int r = do_start(g,0);
@@ -1847,6 +1851,13 @@ static void* run_setup(void* param)
 
 /* ---------------------------------------------------------------- */
 
+static void gframe_log(int level,const char* text) /* gframe/README.md */
+{
+  message(&sGuider,text,(level) ? (MSS_WARN | MSS_FLUSH) : MSS_INFO);
+}
+
+/* --- */
+
 static void* run_init(void* param)
 {
   long err=0;
@@ -1895,6 +1906,7 @@ static void* run_init(void* param)
     if ((g->image_port > 0) && !g->image_running) {
       thread_detach(run_image_server,(void*)g);
     }
+    if (gframe_enabled()) (void)gframe_start(gframe_log);
   }
   g->init_flag = (err) ? 0 : 1;
 
@@ -2945,6 +2957,7 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"sw")) g->slitW = atoi(val); 
       else if (!strcmp(key,"sn")) g->sens = fmin(4.0,fmax(0.1,atof(val)));
       else if (!strcmp(key,"exptime")) g->status.exptime = atof(val);
+      else if (gframe_ini(key,val)) {}  /* gframe/README.md */
       else n--;
 
     }
