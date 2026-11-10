@@ -57,8 +57,7 @@ HEADER	= utils.h ptlib.h tcpip.h
 # main modules
 
 Ogui	= zwogcam.o zwotcp.o qltool.o graph.o tcpip.o utils.o \
-	  fits.o ptlib.o random.o gcpho.o telio.o eds.o guider.o \
-	  edstail.o
+	  fits.o ptlib.o random.o gcpho.o telio.o eds.o guider.o
 
 Oget   	= getimages.o
 
@@ -101,9 +100,6 @@ zwogcam.o:	zwogcam.c zwogcam.h $(HEADER) zwotcp.h guider.h \
 
 eds.o:		eds.c eds.h tcpip.h utils.h
 		$(CC) $(CFLAGS) $(OPT) -c eds.c
-
-edstail.o:	edstail/edstail.c edstail/edstail.h
-		$(CC) $(CFLAGS) $(OPT) -c edstail/edstail.c
 
 fits.o:		fits.c fits.h utils.h
 		$(CC) $(CFLAGS) $(OPT) -c fits.c
