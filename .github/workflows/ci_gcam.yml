@@ -6,6 +6,7 @@ on:
     branches: [main, gh-action]
     paths:
       - src/gcam/**
+      - docs/ZWO/gcamzwo.png
       - src/cxt/**
       - Dockerfile.gcam
       - .github/workflows/ci_gcam.yml
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - src/gcam/**
+      - docs/ZWO/gcamzwo.png
       - src/cxt/**
       - Dockerfile.gcam
       - .github/workflows/ci_gcam.yml
@@ -122,27 +124,25 @@ jobs:
             CFLAGS="-DMACOSX -DNDEBUG -Wall -I../cxt/src/ -I/opt/X11/include" \
             LIBS="" LIBX="-L../cxt/src/ -lcxt -L/opt/X11/lib -lX11"
           file gcamzwo getimages
+      # gcamzwo.app: the launcher, the binary, the icon and an Info.plist
+      # carrying the version stamped above.  A site makes its guiders by
+      # copying the bundle under the name of an .ini (gcam-pfs-sv.app loads
+      # pfs-sv.ini), so nothing about a guider is built in here.
+      - name: Make the application bundle
+        run: |
+          mkdir -p installer
+          src/gcam/macos/make-app.sh installer
+          plutil -p installer/gcamzwo.app/Contents/Info.plist
+          file installer/gcamzwo.app/Contents/MacOS/*
       # Unlike the Linux installer this one does not extract into "/": on
       # macOS "/", "/usr" and the "/tmp" symlink live on the sealed system
       # volume, so tar cannot touch them even as root.  makeself extracts
-      # into a temp dir and install.sh copies the binaries into
-      # $PREFIX/bin (default /usr/local, needs sudo on Apple Silicon).
+      # into a temp dir and install.sh copies the bundle into $APPDIR
+      # (default /Applications) and the binaries into $PREFIX/bin (default
+      # /usr/local, needs sudo on Apple Silicon).
       - name: Make self-extracting installer
         run: |
-          mkdir -p installer
-          cp src/gcam/gcamzwo src/gcam/getimages installer/
-          cat > installer/install.sh <<'EOS'
-          #!/bin/bash
-          set -e
-          PREFIX="${PREFIX:-/usr/local}"
-          if ! mkdir -p "$PREFIX/bin" 2>/dev/null || [ ! -w "$PREFIX/bin" ]; then
-            echo "Cannot write to $PREFIX/bin: re-run with sudo, or set PREFIX=<dir>" >&2
-            exit 1
-          fi
-          install -m 755 gcamzwo getimages "$PREFIX/bin/"
-          echo "Installed gcamzwo and getimages into $PREFIX/bin"
-          EOS
-          chmod +x installer/install.sh
+          cp src/gcam/getimages src/gcam/macos/install.sh installer/
           makeself --nox11 installer ${{ steps.get_artifact_name.outputs.artifact_name }} "ZWO GCAM" ./install.sh
       - name: Upload artifact
         uses: actions/upload-artifact@v4

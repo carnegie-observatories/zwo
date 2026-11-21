@@ -74,6 +74,7 @@ typedef struct guider_tag {
   int         send_port;
   /* --- end legacy push */
   int         rPort;                   /* rotator port */
+  int         tmode;                   /* telescope ("-t") */
   int         lmag,bx;
   int         pct,bkg,span;            /* default scaling */
   char        host[128],gain[32];

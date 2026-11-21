@@ -486,6 +486,7 @@ TELGUIDE= '10'
     <a href="./pfs.ini">pfs.ini</a>: </dd>
 <dd><i>host lab-pi-01</i>: RaspberryPi host name ("-h") </dd>
 <dd><i>port 1</i>: rotator port ("-p") </dd>
+<dd><i>tcs 2</i>: telescope ("-t"), read at startup only <img src="./new.gif">  </dd>
 <dd><i>mode 2</i>: image geometry mode: 1000x1000 ("-m") <img src="./new.gif">  </dd>
 <dd><i>gnum 3</i>: guider number ("-g")  </dd>
 <dd><i>gmode 4</i>: guider mode ('gm')  </dd>
@@ -555,6 +556,26 @@ TELGUIDE= '10'
 <dd>Parity for the compass "L" display. </dd>
 <p> </p>
 <dt>"-v": vertical layout </dt>
+</dl>
+
+<a name="macosapp"></a>
+<dl>
+<dt>macOS application: <img src="./new.gif"> </dt>
+<dd>The macOS installer (<tt>gcamzwo-macos-*.run</tt>) copies
+    <i>gcamzwo.app</i> into /Applications (<tt>APPDIR</tt>) and the plain
+    <i>gcamzwo</i> into /usr/local/bin (<tt>PREFIX</tt>). </dd>
+<dd>A copy of the application loads the configuration file it is named
+    after: <br>
+    <tt>cp -R /Applications/gcamzwo.app /Applications/gcam-pfs-sv.app</tt> <br>
+    makes an application that runs <i>gcamzwo -f pfs-sv.ini</i>, the file
+    located in GCAMZWOINI or /usr/local/etc/gcam if not set. Everything
+    about a guider goes into that file, including the telescope
+    (<i>tcs</i>). <i>gcamzwo.app</i> itself loads no file. </dd>
+<dd>The application waits for XQuartz, writes its output to
+    ~/Library/Logs/gcam-pfs-sv.log and uses ~/gcam as data directory
+    unless GCAMZWOPATH is set. </dd>
+<dd>The installer does not update the copies; copy <i>gcamzwo.app</i>
+    again after installing a new version. </dd>
 </dl>
 
 <p>
