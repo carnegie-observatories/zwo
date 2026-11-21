@@ -96,6 +96,9 @@ static int eds_send(const char* line)
   fprintf(stderr,"%s(%s)\n",PREFUN,line);
 #endif
   assert(strlen(line) < sizeof(cmd)-2);
+  if (!eds_port) return 0;             /* no EDS (-t 0): no record, no wait;
+                                          the guide loop calls this with its
+                                          mutex held, three times a second */
  
   err = eds_open(EDS_TIMEOUT); if (err) return err;
   err = eds_lock(EDS_TIMEOUT); 
