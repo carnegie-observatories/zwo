@@ -209,6 +209,16 @@ int telio_init(int telescope,int port)
 
 /* ---------------------------------------------------------------- */
 
+int telio_server(char* host,int n,int* port)  /* the TCSIS in use */
+{
+  if (!telio_online || (telio_host[0] == '\0')) return -1;
+  snprintf(host,(size_t)n,"%s",telio_host);
+  *port = (int)telio_port;
+  return 0;
+}
+
+/* ---------------------------------------------------------------- */
+
 int telio_open(int timeout)            /* seconds */
 {
 #if (DEBUG > 2)
