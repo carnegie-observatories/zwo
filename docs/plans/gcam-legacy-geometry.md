@@ -126,9 +126,10 @@ in the .ini, or see the follow-ups below.
   [zwogcam.c:1706-1709](../../src/gcam/zwogcam.c#L1706-L1709)), and the
   default is `hi` ([zwogcam.c:345](../../src/gcam/zwogcam.c#L345)).
   `gcamserver` passes the number to the amplifier-gain DAC (0–4095;
-  gcam-linux decision 17). Put a number in the .ini: the DOS programs
-  default to 0 at Magellan and 1 at Swope (gcam-linux
-  `gcamserver-swope-plan.md`). `offset` has no effect on this camera.
+  gcam-linux decision 17), so `med` and `hi` would set it to 150 and
+  300. Match the DOS programs: `gain 0` (or `gain lo`) at Magellan and
+  `gain 1` at Swope (gcam-linux `gcamserver-swope-plan.md`). `offset` has
+  no effect on this camera.
 - **Frame rate.** The camera has no shutter, so the frame period is
   readout + exptime. A full frame at bin 2 takes 0.75 s to read, which
   limits the camera to about 1.3 frames/s. The GUI's `next` waits at most
@@ -167,12 +168,15 @@ in the .ini, or see the follow-ups below.
   with a buffer overflow in `message()`, reached from `load_mask()`, when
   `GCAMZWOPATH` was a long path. This is a separate bug that also affects
   ZWO cameras.
-- **`gcamserver`, server side.** Its `setup` stores the requested window
-  (in globals and in the rc file) before it validates the window, and
-  keeps it after rejecting it. A later `start` then sizes its video
-  buffers from the rejected window while the hardware still reads the old
-  one. The GUI check in § 2 stops gcam from sending `start` after a
-  refusal, but the server should not depend on that.
+- **`gcamserver`, server side** (found while writing this plan; fixed in
+  gcam-linux, decision 63, not yet on the bench host on 2026-11-21).
+  Its `setup` stored the requested window (in globals and in the rc
+  file) before validating it, and kept it after rejecting it. A later
+  `start` then sized its video buffers from the rejected window while
+  the hardware still read the old one; a smaller rejected window
+  overflowed them. The fix validates first and commits only after the
+  camera accepts the geometry, so a refused `setup` now leaves the
+  geometry unchanged behind the `-Eerr=26` that § 2 reports.
 
 ## Verification
 
