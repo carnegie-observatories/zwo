@@ -2908,6 +2908,7 @@ static int setup_m_switch(char m)       /* v0423 */
     case '5': baseD=2520; baseB=2; baseI=504; pHIGH=87;  break; /* MagE v0423 */
     case 'h': baseD=2048; baseB=1; baseI=512; pHIGH=88;  break;
     case 'f': baseD=2400; baseB=2; baseI=600; pHIGH=117; break;
+    case 'g': baseD= 500; baseB=2; baseI=500; pHIGH=82;  break; /* legacy gcam */
     default: r=0; break;
   }
   return r;

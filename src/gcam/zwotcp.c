@@ -201,6 +201,16 @@ int zwo_setup(ZwoStruct* self,int dim,int bin,int offx,int offy)
           offx+(self->sensorW/bin-dim)/2,offy+(self->sensorH/bin-dim)/2,
           dim,dim,bin,16);
   if (!err) err = zwo_request(self,cmd,buf,5);
+  if (!err) { int x,y,w,h,b,d;         /* run_cycle reads dim x dim, */
+    int n = sscanf(buf,"%d %d %d %d %d %d",&x,&y,&w,&h,&b,&d);
+    if (!strncmp(buf,"-E",2) ||        /* so stop if refused or resized */
+        ((n == 6) && ((w != dim) || (h != dim) || (d != 16)))) {
+      char msg[100];                   /* + time stamp < EditWindow.text */
+      snprintf(msg,sizeof(msg),"%s: server answered '%s'",cmd,buf);
+      message(self,msg,MSS_ERROR);
+      err = E_zwo_setpar;
+    }
+  }
   if (!err) self->aoiW = self->aoiH = dim;
   sim_cx = sim_cy = dim/2;
   sim_cx2 = sim_cy2 = dim/4;
