@@ -326,6 +326,7 @@ int main(int argc,char **argv)
     .slitW = 6,                   /* PFS:6, MIKE:13 */
     .px = 0.051,                  /* PFS:53, MIKE:54 */
     .lmag = 0,
+    .smooth = -1,                 /* 0 is a setting (off) */
     .name = "",
     .bx = 0,
     .pct = 0,
@@ -681,6 +682,8 @@ int main(int argc,char **argv)
                               g->status.dimx);
     g->qltool->gmode = g->gmode;
     if (g->lmag > 0) g->qltool->lmag = g->lmag;  /* overwrite v0415 */
+    if (g->smooth >= 0) g->qltool->smoothing = g->smooth;
+    sprintf(g->smbox.text,"sm %7d",g->qltool->smoothing);
     if (g->pct  > 0) { sprintf(buf,"%d",g->pct); qltool_scale(g->qltool,"pct",buf,""); }
     if (g->bkg  > 0) { sprintf(buf,"%d",g->bkg); qltool_scale(g->qltool,"bkg",buf,""); }
     if (g->span > 0) { sprintf(buf,"%d",g->span); qltool_scale(g->qltool,"spa",buf,""); }
@@ -2952,6 +2955,7 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"offy")) g->offy = atoi(val);
       else if (!strcmp(key,"px")) g->px = atof(val)/1000.0;
       else if (!strcmp(key,"lmag")) g->lmag = atoi(val);
+      else if (!strcmp(key,"sm")) g->smooth = abs(atoi(val));
       else if (!strcmp(key,"pct")) g->pct = atoi(val);
       else if (!strcmp(key,"bkg")) g->bkg = atoi(val);
       else if (!strcmp(key,"span")) g->span = atoi(val);
