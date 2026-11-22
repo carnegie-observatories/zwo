@@ -32,6 +32,8 @@ void  gframe_stop   (void);            /* close the port, end the thread */
 void  gframe_add    (double x,double y); /* arcsec, the axes rotate() gives */
 void  gframe_clear  (void);            /* drop what is pending */
 int   gframe_clients(void);            /* connected clients */
+int   gframe_fits   (double x,double y); /* a client, and one frame carries both */
+double gframe_period(void);            /* s between frames, at least */
 char* gframe_status (char* buf,int len); /* " gframe=N gpend=X,Y gsent=N" */
 int   gframe_encode (double* x,double* y,char* frame); /* the bench's entry */
 

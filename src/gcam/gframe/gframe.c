@@ -397,6 +397,31 @@ int gframe_clients(void)
 
 /* --- */
 
+int gframe_fits(double x,double y)     /* a mouse move short enough for one */
+{                                      /* frame (goffset/README.md) */
+  int ok;
+
+  if (!cfg.port) return 0;
+  pthread_mutex_lock(&lock);
+  ok = (nclient > 0) && (fabs(x) <= cfg.max) && (fabs(y) <= cfg.max);
+  pthread_mutex_unlock(&lock);
+  return ok;
+}
+
+/* --- */
+
+double gframe_period(void)
+{
+  double p;
+
+  pthread_mutex_lock(&lock);
+  p = cfg.period;
+  pthread_mutex_unlock(&lock);
+  return p;
+}
+
+/* --- */
+
 char* gframe_status(char* buf,int len)
 {
   if (len <= 0) return buf;

@@ -537,6 +537,18 @@ TELGUIDE= '10'
     <i>gframe_xsign</i>, <i>gframe_ysign</i> (&plusmn;1) tune it:
     <a href="https://github.com/carnegie-observatories/zwo/blob/main/src/gcam/gframe/README.md">src/gcam/gframe/README.md</a>.
     </dd>
+<dd><i>offset_port 51911</i>: send mouse-mode 2 and 3 clicks to the Swope
+    app's TCP command port as <tt>guider_offset</tt> and
+    <tt>tele_offset</tt>, and let the app move the guide probe or the
+    telescope (a mode-3 click that fits one G frame still goes as one).
+    One move at a time: clicks are refused until the move has ended and a
+    new image shows it. <tt>0</tt> disables it: modes 2 and 3 as before.
+    [default=0]
+    <i>offset_host</i> (127.0.0.1),
+    <i>offset_wait</i> (120 s for the app's answer),
+    <i>probe_xsign</i>, <i>probe_ysign</i> (&plusmn;1, the probe only):
+    <a href="https://github.com/carnegie-observatories/zwo/blob/main/src/gcam/goffset/README.md">src/gcam/goffset/README.md</a>.
+    </dd>
 </dl>
 <p>
 <dt>"-h" host: <dt>
@@ -658,9 +670,11 @@ TELGUIDE= '10'
 <dd>left click while holding down the right mouse button: move the full distance 
     (requires "Control" key)</dd>
 <dd>1 (or b): move guider box to the mouse position. Shows "bx" on mm label when active. </dd>
-<dd>2 (or p): move guider probe to the mouse position (not available for SV). Shows "pr" on mm label when active. </dd>
+<dd>2 (or p): move guider probe to the mouse position (not available for SV). Shows "pr" on mm label when active.
+    With <i>offset_port</i> (Swope) the Swope app moves the probe; without it and without a TCSIS (-t 0) a click only warns "no probe link". </dd>
 <dd>-2 (or t): move the SH- and PR-probes and the telescope to the mouse position. Shows "tl" on mm label when active. </dd>
-<dd>3 (or c): move the telescope to the mouse position. Shows "pt" on mm label when active. </dd>
+<dd>3 (or c): move the telescope to the mouse position. Shows "pt" on mm label when active.
+    With <i>offset_port</i> (Swope) the Swope app offsets the telescope; refused while guiding (F1 first). </dd>
 <p> </p>
 <dt><b>gm</b> # </dt>
 <dd>guider mode (paramter in 'gpaer' command when using mm-2 or mm2).  </dd>
