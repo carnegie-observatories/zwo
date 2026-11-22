@@ -63,6 +63,8 @@ Oget   	= getimages.o
 
 # G frames for the Swope TCS: src/gcam/gframe/README.md
 Ogui	+= gframe.o
+# mouse modes 2 and 3 through the Swope app: src/gcam/goffset/README.md
+Ogui	+= goffset.o
 
 # targets ---------------------------------------------------------
 
@@ -71,7 +73,7 @@ all: 	zwo getimages
 zwo:	gcamzwo
 
 clean: 
-	rm -f gcamzwo getimages gframe_test *.o
+	rm -f gcamzwo getimages gframe_test goffset_test *.o
 
 install: all
 	cp *gcam* $(BINDIR)
@@ -99,7 +101,7 @@ zwotcp.o:	zwotcp.c zwotcp.h zwogcam.h tcpip.h ptlib.h utils.h
 
 zwogcam.o:	zwogcam.c zwogcam.h $(HEADER) zwotcp.h guider.h \
 		qltool.h graph.h fits.h gcpho.h telio.h random.h \
-		gframe/gframe.h
+		gframe/gframe.h goffset/goffset.h
 		$(CC) $(CFLAGS) $(OPT) -c zwogcam.c
 
 eds.o:		eds.c eds.h tcpip.h utils.h
@@ -144,5 +146,10 @@ gframe.o:	gframe/gframe.c gframe/gframe.h
 gframe_test:	gframe/gframe_test.c gframe/gframe.c gframe/gframe.h
 		$(CC) $(CFLAGS) $(OPT) -o gframe_test gframe/gframe_test.c gframe/gframe.c $(LIBS)
 
-# -----------------------------------------------------------------
+goffset.o:	goffset/goffset.c goffset/goffset.h
+		$(CC) $(CFLAGS) $(OPT) -c goffset/goffset.c
 
+goffset_test:	goffset/goffset_test.c goffset/goffset.c goffset/goffset.h
+		$(CC) $(CFLAGS) $(OPT) -o goffset_test goffset/goffset_test.c goffset/goffset.c $(LIBS)
+
+# -----------------------------------------------------------------

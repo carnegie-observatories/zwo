@@ -146,7 +146,7 @@ The whole of gframe outside this directory:
 |---|---|
 | `guider.c` | `#include "gframe/gframe.h"`; `send_correction()`: `gframe_add()` when `gframe_enabled()`, else `telio_aeg()`; the three guide loops call it instead of `telio_aeg()` |
 | `guider.h` | `send_correction()`'s prototype |
-| `zwogcam.c` | `#include`; `handle_msmode()` mode 3 calls `send_correction()`; `gframe_log()` (messages to the window and log); `run_init()` calls `gframe_start()`; `read_inifile()` passes `gframe_*` keys to `gframe_ini()`; `fone` calls `gframe_clear()`; `status` appends `gframe_status()` |
+| `zwogcam.c` | `#include`; `handle_msmode()` mode 3 calls `send_correction()`; `gframe_log()` (messages to the window and log); `run_init()` calls `gframe_start()`; `read_inifile()` passes `gframe_*` keys to `gframe_ini()`; `fone` calls `gframe_clear()`; `status` appends `gframe_status()`. With `offset_port` set, mode 3 goes through goffset's `app_move()` instead, which sends a click that fits one frame with `gframe_add()` (`gframe_fits()`, `gframe_period()`: [../goffset/README.md](../goffset/README.md)) |
 | `makefile` | `gframe.o` in `Ogui`, its rule, `gframe_test`, `clean` |
 | `.gitignore` | `src/gcam/gframe_test` |
 

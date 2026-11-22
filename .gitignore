@@ -63,6 +63,7 @@ src/gcam/gcamzwo
 src/gcam/getimages
 src/gcam/gcamzwo.app/
 src/gcam/gframe_test
+src/gcam/goffset_test
 src/server/zwoserver
 
 ####

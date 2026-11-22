@@ -114,6 +114,7 @@
 #include "random.h"
 #include "eds.h"
 #include "gframe/gframe.h"           /* G frames, Swope TCS */
+#include "goffset/goffset.h"         /* mm 2 and 3 through the Swope app */
 
 /* DEFINEs -------------------------------------------------------- */
 
@@ -1131,6 +1132,167 @@ static int do_stop(Guider* g,int wait)
 }
 
 /* ---------------------------------------------------------------------- */
+/* Mouse modes 2 and 3 through the Swope app (goffset/README.md), one    */
+/* move at a time: a click measures the star on the image, so a second   */
+/* click before the image shows the first move would move it twice.      */
+/* Refused from a click until the move has ended and as many new frames  */
+/* as the rolling average needs are on the screen.                       */
+
+#define MOVE_PULSE   1.0               /* s, the TCS's RA pulse after a frame */
+#define MOVE_SLACK   0.7               /* s, readout, transfer, display poll */
+#define MOVE_CAP    10.0               /* s, the hold ends without frames */
+#define MOVE_RA_MIN  0.1               /* ", the TCS's guide dead band */
+#define MOVE_LINE    112               /* the window's line (EDIT_SIZE 128)
+                                          holds the time and 117 more */
+#define MOVE_RA_OFFSET 1.0             /* ", OFFSET makes no RA part under
+                                          1 HA-arcsec (Swope2.cpp:933) */
+
+typedef struct { int mm,gnum; double a,e; } MoveJob;
+
+static pthread_mutex_t moveLock=PTHREAD_MUTEX_INITIALIZER; /* all below */
+static int    moveBusy=0;              /* a thread waits for the app */
+static int    moveFrames=0;            /* new frames still to be shown */
+static double moveEnd=0;               /* walltime: the move has ended */
+static double moveCap=0;               /* walltime: the hold ends anyway */
+
+static void move_hold(Guider* g,double t_end,int hold) /* the move has ended */
+{
+  double tf = (g->server) ? g->server->expTime : 1.0;
+  int    av = (g->server) ? g->server->rolling : 0;
+
+  pthread_mutex_lock(&moveLock);
+  moveBusy   = 0;
+  moveEnd    = t_end;
+  moveFrames = (hold) ? 1+2*av : 0;    /* av: the old image is under a */
+  moveCap    = t_end + moveFrames*(tf+MOVE_SLACK) + MOVE_CAP; /* fifth then */
+  pthread_mutex_unlock(&moveLock);
+}
+
+static const char* move_held(void)     /* NULL: a click may move */
+{
+  const char* why=NULL;
+
+  pthread_mutex_lock(&moveLock);
+  if (moveBusy || ((moveFrames > 0) && (walltime(0) < moveEnd))) {
+    why = "the last move has not ended";   /* a G frame: until it is done */
+  } else
+  if ((moveFrames > 0) && (walltime(0) < moveCap)) {
+    why = "no image since the last move yet";
+  }
+  pthread_mutex_unlock(&moveLock);
+  return why;
+}
+
+static void move_frame(Guider* g,double t_shown) /* run_display: a frame */
+{
+  double tf = (g->server) ? g->server->expTime : 0.0;
+
+  pthread_mutex_lock(&moveLock);       /* exposed after the move ended */
+  if (!moveBusy && (moveFrames > 0) && (t_shown-tf-MOVE_SLACK >= moveEnd)) {
+    moveFrames--;
+  }
+  pthread_mutex_unlock(&moveLock);
+}
+
+static void move_say(Guider* g,const char* text,int flags)
+{                                      /* whole in the log, cut for the */
+  char line[MOVE_LINE];                /* window: message() would overrun */
+
+  if (strlen(text) < sizeof(line)) {   /* its line and abort gcamzwo */
+    message(g,text,flags);
+    return;
+  }
+  message(g,text,flags & ~MSS_WINDOW);
+  snprintf(line,sizeof(line),"%s",text);
+  memcpy(line+sizeof(line)-4,"...",4);
+  message(g,line,flags & (MSS_WINDOW | MSS_YELLOW | MSS_RED));
+}
+
+static void* run_move(void* param)     /* waits for the app's answer */
+{
+  MoveJob *j = (MoveJob*)param;
+  char    msg[GOFFSET_MSG],buf[GOFFSET_MSG+64];
+  const char* what = (j->mm == 2) ? "probe" : "tele";
+  int     err;
+
+  err = (j->mm == 2) ? goffset_probe(j->gnum,j->a,j->e,msg,sizeof(msg))
+                     : goffset_tele(j->a,j->e,msg,sizeof(msg));
+  if (err) {
+    snprintf(buf,sizeof(buf),"%s: %s",what,msg);
+    move_say(&sGuider,buf,MSS_WARN | MSS_FLUSH);
+  } else {
+    snprintf(buf,sizeof(buf),"%s: moved %+.1f\",%+.1f\"",what,j->a,j->e);
+    move_say(&sGuider,buf,MSS_INFO);
+  }
+  move_hold(&sGuider,walltime(0),     /* nothing sent: no hold */
+            (err != GOFFSET_NOLINK) && (err != GOFFSET_OFF));
+  free(j);
+  return NULL;
+}
+
+static int app_move(Guider* g,int mm,int x,int y,double r) /* the log */
+{                                      /* and the window say what it did */
+  MoveJob *j;
+  const char* why;
+  char    buf[128];
+  double  dx,dy,da,de;
+  int     err=0,gd = abs(g->qltool->guiding);
+
+  if ((why = move_held())) {
+    snprintf(buf,sizeof(buf),"mm %d: %s",mm,why);
+    move_say(g,buf,MSS_WARN | MSS_FLUSH);
+    return 0;
+  }
+  if ((mm == 3) && ((gd == 3) || (gd == 5))) { /* the loop sends: the TCS */
+    move_say(g,"mm 3: guiding is on (F1 first)", /* drops an OFFSET */
+             MSS_WARN | MSS_FLUSH);    /* during a correction */
+    return 0;
+  }
+  if (g->pamode) {                     /* the angle from the TCS, as v1.2 */
+    if (!(err = telio_open(2))) {
+      err = set_pa(g,g->pa,1);
+      telio_close();
+    }
+    if (err) return err;
+  }
+  qltool_cursor_off(g->qltool,QLT_BOX,x,y,r,&dx,&dy);
+  rotate(g->px*dx,g->px*dy,g->pa,g->parity,&da,&de);
+
+  if ((mm == 3) && gframe_fits(da,de)) { /* one G frame: whole, and RA */
+    gframe_add(da,de);                 /* under 1", which OFFSET skips */
+    move_hold(g,walltime(0)+gframe_period()+MOVE_PULSE,1);
+    snprintf(buf,sizeof(buf),"tele: %+.1f\",%+.1f\" as a G frame (%.1f)",
+             da,de,r);
+    move_say(g,buf,MSS_INFO);
+    return 0;
+  }
+  if ((mm == 3) && (fabs(da) > MOVE_RA_MIN) && (fabs(da) < MOVE_RA_OFFSET)) {
+    snprintf(buf,sizeof(buf),"mm 3: %+.1f\" in RA needs G frames: "
+             "the TCS is %s",da,(gframe_enabled()) ? "not connected" :
+             "not on gframe (gframe_port 0)"); /* OFFSET would skip it and */
+    move_say(g,buf,MSS_WARN | MSS_FLUSH); /* the app would book it */
+    return 0;
+  }
+
+  if (!(j = (MoveJob*)malloc(sizeof(MoveJob)))) return ENOMEM;
+  j->mm = mm; j->gnum = g->gnum; j->a = da; j->e = de;
+  pthread_mutex_lock(&moveLock);
+  moveBusy = 1;
+  pthread_mutex_unlock(&moveLock);
+  if ((err = thread_detach(run_move,j))) {
+    pthread_mutex_lock(&moveLock);
+    moveBusy = 0;
+    pthread_mutex_unlock(&moveLock);
+    free(j);
+    return err;
+  }
+  snprintf(buf,sizeof(buf),"%s: %+.1f\",%+.1f\" to the Swope app (%.1f)",
+           (mm == 2) ? "probe" : "tele",da,de,r);
+  move_say(g,buf,MSS_INFO);
+  return 0;
+}
+
+/* ---------------------------------------------------------------------- */
 
 static int handle_msmode(void* param,XEvent* event)
 {
@@ -1148,6 +1310,15 @@ static int handle_msmode(void* param,XEvent* event)
     qltool_cursor_set(g->qltool,QLT_BOX,x,y,r);
     break;
   case 2: case-2:            /* move probe(s) */
+    if ((g->msmode > 0) && goffset_enabled()) { /* Swope: the app */
+      err = app_move(g,2,x,y,r);
+      break;
+    }
+    if (!g->tmode) {         /* no TCSIS: telio would do nothing */
+      message(g,"mm 2: no probe link (no offset_port, no TCSIS)",
+              MSS_WARN | MSS_FLUSH);
+      break;
+    }
     if (g->msmode > 0) sprintf(buf,"probe-%d offset (%.1f)",g->gmode,r);
     else               sprintf(buf,"coordinated offset (%.1f)",r);
     err = telio_open(2); 
@@ -1167,6 +1338,10 @@ static int handle_msmode(void* param,XEvent* event)
     }
     break;
   case 3:                    /* move telescope */
+    if (goffset_enabled()) { /* Swope: the app, or one G frame */
+      err = app_move(g,3,x,y,r);
+      break;
+    }
     sprintf(buf,"tele: star at mouse to box (%.1f)",r); 
     err = telio_open(2); 
     if (!err) {
@@ -2287,6 +2462,7 @@ static void* run_display(void* param)
       zwo_frame_release(server,frame);
       qltool_redraw(qltool,True);
       t2 = walltime(0); 
+      move_frame(g,t2);                /* one move at a time: a new image */
       fps = 0.7*fps + 0.3/(t2-t1);
       update_fps(&g->fdbox,fps);
       t1 = t2;
@@ -2960,6 +3136,7 @@ static int read_inifile(Guider *g,const char* name) /* v0415 */
       else if (!strcmp(key,"sn")) g->sens = fmin(4.0,fmax(0.1,atof(val)));
       else if (!strcmp(key,"exptime")) g->status.exptime = atof(val);
       else if (gframe_ini(key,val)) {}  /* gframe/README.md */
+      else if (goffset_ini(key,val)) {} /* goffset/README.md */
       else n--;
 
     }
