@@ -2792,7 +2792,7 @@ void message(const void *param,const char* text,int flags)
 
   get_ut_timestr(tstr,cor_time(0));
   if (flags & MSS_OVERWRITE) {         /* overwrite */
-    sprintf(g->msbox[0].text,"%s: %s",tstr,text);
+    snprintf(g->msbox[0].text,sizeof(g->msbox[0].text),"%s: %s",tstr,text);
     CBX_UpdateEditWindow(&g->msbox[0]);
     return;
   }
@@ -2800,7 +2800,7 @@ void message(const void *param,const char* text,int flags)
   pthread_mutex_lock(&mesgMutex); 
   for (i=n_msg-1; i>=0; i--) {         /* prepend line */
     if (i == 0) {
-      sprintf(g->msbox[i].text,"%s: %s",tstr,text);
+      snprintf(g->msbox[i].text,sizeof(g->msbox[i].text),"%s: %s",tstr,text);
       if      (flags & MSS_RED)    CBX_ChangeLed(&g->led[i],app->red); 
       else if (flags & MSS_YELLOW) CBX_ChangeLed(&g->led[i],app->yellow); 
       else                         CBX_ChangeLed(&g->led[i],app->green); 
