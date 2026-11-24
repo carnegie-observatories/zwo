@@ -76,6 +76,7 @@ typedef struct guider_tag {
   int         rPort;                   /* rotator port */
   int         tmode;                   /* telescope ("-t") */
   int         lmag,bx;
+  int         smooth;                  /* display smoothing ('sm'), -1 = unset */
   int         pct,bkg,span;            /* default scaling */
   char        host[128],gain[32];
 } Guider;

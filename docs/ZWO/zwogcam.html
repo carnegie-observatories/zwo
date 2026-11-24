@@ -515,6 +515,8 @@ TELGUIDE= '10'
 <dd><i>offy 85</i>: "-o"  </dd>
 <dd><i>px 53</i>: pixel scale [milli-arcsec] ('px')   </dd>
 <dd><i>lmag</i>: lupe magnification ('lmag')  </dd>
+<dd><i>sm 2</i>: display smoothing, iterations of the box-car filter ('sm');
+    <tt>0</tt> turns it off. Display only, not the guiding. [default=1]  </dd>
 <dd><i>pct 60</i>: percent scaling ('pct)  </dd>
 <dd><i>bkg 24</i>: background scaling ('bkg')  </dd>
 <dd><i>span 5000</i>: imacs scaling ('span')   </dd>
@@ -782,6 +784,8 @@ TELGUIDE= '10'
 <dd>Smooth the displayed image using the box-car (4,2,1, weights) algorithm,
     running '#' iterations ('0' turns off the smoothing).  
     Please note, this does <b>not</b> affect the guiding. </dd>
+<dd>The <a href="#inifile">configuration file</a> keyword <i>sm</i> sets the
+    value at startup [default=1]. </dd>
 <p> </p>
 <dt><b>sw</b> # </dt>
 <dd>Set the slit width for the "gm4" fit (default=6 [pixels]).
