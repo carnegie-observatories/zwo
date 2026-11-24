@@ -189,7 +189,9 @@ Release notes for <b>ZWO-Gcam</b> after v0.423 were moved to GitHub:
 <dl><b>v0.355</b> (2023-12-21) </dt> 
 <dt><li>Use the (dimenionless) ratios 'dx' and 'dy' as a criterion whether
     to send a correction to the telescope and guider probes.  </dt>
-<dd>Require [abs(dx) .gt. 0.1] AND [abs(dy) .gt. 0.05]  </dd>
+<dd>Require [abs(dx) .gt. 0.1] OR [abs(dy) .gt. 0.05]  </dd>
+<dd><b>Corrected 2026-11</b>: this line said AND; the code tests OR
+    (<a href="#gm">gm</a>). </dd>
 <dt><li>Plot 'dx' and 'dy' on the 'tc' and 'fw' plots (temporary feature). <dt>
 <dt><li>The '-mp' (PFS) mode automatically applies the switch '-o -10,85'  </dt>
 </dl>
@@ -197,6 +199,7 @@ Release notes for <b>ZWO-Gcam</b> after v0.423 were moved to GitHub:
 <dl><b>v0.354</b> (2023-12-20) </dt> 
 <dt><li>Added a second (optional) parameter for the "gm" command. That parameter
     may be 't' or 'p' and is only relevant in 'gm3' mode. </dt>
+<dd><b>Note (2026-11)</b>: 'gm4' (v0.407) uses it too. </dd>
 <dt><li>In 'gm3' mode, limit sending corrections and graph updates to once every 
     5 seconds or every 'av+1' frames, whatever is longer. </dt>
 </dl>
@@ -230,6 +233,8 @@ Release notes for <b>ZWO-Gcam</b> after v0.423 were moved to GitHub:
 <dl><b>v0.347</b> (2023-12-08) </dt> 
 <dt><li>The EDS-801 message is sent every 'av' frames or 1 second,
     but never faster than 'tf'.  </dt>
+<dd><b>Note (2026-11)</b>: the code sends it once a second, in 'gm1' and
+    'gm5' only; the 'av' condition is commented out. </dd>
 <dt><li>Send EDS-82i messages (format: 82%d; %.1f %.1f ).  </dt>
 <dd>All cursors are sent at startup; thereafter only when a cursor position changes. </dd>
 <dd>Please note the spaces before and after the cursor coordinates. </dd>
@@ -248,6 +253,9 @@ Release notes for <b>ZWO-Gcam</b> after v0.423 were moved to GitHub:
 
 <dl><b>v0.344</b> (2023-10-31) </dt> 
 <dt><li>Send guider corrections (and EDS 801 messages) only every 'av' frame.  </dt>
+<dd><b>Note (2026-11)</b>: no longer so. 'gm1', 'gm4' and 'gm5' correct
+    every frame and use 'av' in the derivative term; only 'gm3' waits
+    'av'+1 frames (<a href="#gm">gm</a>). </dd>
 <dt><li>Keep open EDS connection during guiding (do not close the
      socket after each message).  </dt>
 </dl>
@@ -341,6 +349,8 @@ TELGUIDE= '10'
 <dt><li>Fixed the "gm" command (guider mode). </dt>
 <dd>The 'gm' parameter is the guider number by default. </dd>
 <dd>It is used in the "gpaer#" command in "mm2" mode. <dd>
+<dd><b>Note (2026-11)</b>: no longer so. "mm2" sends "gpaer#" with the
+    guider number ('-g'); 'gm' is not used. </dd>
 </dl>
 
 <dl><b>v0.323</b> (2023-04-28) </dt> 
@@ -375,6 +385,7 @@ TELGUIDE= '10'
 <dt><li>Changed some defaults:  </dt>
 <dd>-r: 'rosign' = -1 </dd>
 <dd>-e: 'elsign' =  0 </dd>
+<dd><b>Note (2026-11)</b>: the defaults are back to -e -1, -r 0. </dd>
 <dt><li>Take care of some more compiler warnings.  </dt>
 </dl>
 
@@ -396,6 +407,8 @@ TELGUIDE= '10'
 <dt><li>Implement the 'gm' command ('guider mode' {1=PR,2=SH,3=SV}).  </dt>
 <dd>In 'mm-2' (mm2) mouse mode this is the probe parameter of the 'gpaer' command. </dd>
 <dd>Eg. 'gm3' moves both probes (slitviewer mode). </dd>
+<dd><b>Note (2026-11)</b>: no longer so. "mm-2" always sends "gpaer3"
+    (both probes), whatever 'gm' is. </dd>
 <dt><li>Added the '-s' switch to preset the SH-image <em>SendHost</em>.  </dt>
 <dt><li>Use a separate 'sendFrame' number when sending images to 
      the <em>SendHost</em>. </dt>
@@ -544,7 +557,7 @@ TELGUIDE= '10'
 <p>
 <dt>"-t" telescope: </dt>
 <dd>-t2: Clay (host=mag2tcs, port=5801 or 5810+rotatorPort) </dd>
-<dd>-t1: Baade (host=mag1tcs, port=5801) </dd>
+<dd>-t1: Baade (host=mag1tcs, port=5801 or 5810+rotatorPort) </dd>
 <dd>-t0: no telescope [default] </dd>
 <p> </p>
 <dt>"-g" # {1,2,3}: </dt>
@@ -567,8 +580,9 @@ TELGUIDE= '10'
 <dt>"-r" rosign { -1 , +1 , 0 }: [default=0] </dt>
 <dd>rotator   sign in the camera angle formula 'PA = angle +elsign*ELEVATION +rosign*ROTATORE' </dd>
 <p> </p>
-<dt>"-i" parity { -1 , +1 }: [default=+1] 
-<dd>Parity for the compass "L" display. </dd>
+<dt>"-i" parity { -1 , +1 }: [default=-1]
+<dd>Parity for the compass "L" display and for turning box offsets into
+    telescope and probe corrections (flip X). </dd>
 <p> </p>
 <dt>"-v": vertical layout </dt>
 </dl>
@@ -632,9 +646,11 @@ TELGUIDE= '10'
 <dt><b>F3</b> </dt>
 <dd>start guiding (send corrections to TCS)  </dd>
 <dt><b>F4</b> </dt>
-<dd>move the guide-box to the centeroid and then start calculating  </dd>
+<dd>move the guide-box to the centeroid and then start calculating
+    ('gm1' and 'gm5'; in 'gm3' and 'gm4' the box stays put, as with F2)  </dd>
 <dt><b>F5</b> </dt>
-<dd>move the guide-box to the centeroid and the start guiding  </dd>
+<dd>move the guide-box to the centeroid and the start guiding
+    ('gm1' and 'gm5'; in 'gm3' and 'gm4' the box stays put, as with F3)  </dd>
 <dt><b>F9</b> </dt>
 <dd>send 'gpfld#' to the TCSIS, where '#' is the value of '-g gnum'. </dd>
 <dt><b>F10</b> </dt>
@@ -658,15 +674,79 @@ TELGUIDE= '10'
 <dd>left click while holding down the right mouse button: move the full distance 
     (requires "Control" key)</dd>
 <dd>1 (or b): move guider box to the mouse position. Shows "bx" on mm label when active. </dd>
-<dd>2 (or p): move guider probe to the mouse position (not available for SV). Shows "pr" on mm label when active. </dd>
-<dd>-2 (or t): move the SH- and PR-probes and the telescope to the mouse position. Shows "tl" on mm label when active. </dd>
-<dd>3 (or c): move the telescope to the mouse position. Shows "pt" on mm label when active. </dd>
+<dd>2 (or p): move this guider's probe ('gpaer#', '#' = '-g') to the mouse position ('gm1' and 'gm2' only). Shows "pr" on mm label when active. </dd>
+<dd>-2 (or c): coordinated: move both probes ('gpaer3') and the telescope to the mouse position ('gm3' and 'gm4' only). Shows "cd" on mm label when active. </dd>
+<dd>3 (or t): move the telescope to the mouse position. Shows "tl" on mm label when active. </dd>
+<dd>In 'gm5' the mouse mode cannot be changed. </dd>
 <p> </p>
-<dt><b>gm</b> # </dt>
-<dd>guider mode (paramter in 'gpaer' command when using mm-2 or mm2).  </dd>
+<a name="gm"></a>
+<dt><b>gm</b> #[t|p] <img src="./new.gif"> </dt>
+<dd>Guider mode {1..5}: selects the guide loop that F2..F5 start.
+    The default is the guider number ('-g'), or <i>gmode</i> and
+    <i>gmpar</i> in the <a href="#inifile">.ini file</a>.
+    It cannot be changed while guiding (F1 first). </dd>
+<dd>
+<table border>
+<tr><th>gm</th>
+    <th>name</th>
+    <th>measures</th>
+    <th>correction</th>
+    <th>mm</th>
+    </tr>
+<tr><td>1</td>
+    <td>PR: guide probe</td>
+    <td>2-dim gauss fit to the star in the box: 'dx', 'dy' [pixels]
+        from the box center, 'fw' [arcsec], 'tc' </td>
+    <td>every frame: (error + ('av'+1) * its change since the last
+        frame) * 0.35 (0.2 for a poor fit) * 'sn'.
+        EDS-801 and 82i (cursors 1 and 5) once a second. </td>
+    <td>1, 2, 3</td>
+    </tr>
+<tr><td>2</td>
+    <td>SH: Shack-Hartmann</td>
+    <td>nothing: there is no guide loop, F2..F5 report
+        "invalid guider mode" </td>
+    <td>none. As the start-up mode it sets the 'sh' flag in the
+        FITS header. </td>
+    <td>1, 2, 3</td>
+    </tr>
+<tr><td>3</td>
+    <td>SV: slitviewer, quadrants</td>
+    <td>sums the pixels left/right and above/below the cross hair:
+        ratios 'rx', 'ry' (dimensionless) </td>
+    <td>a fixed 0.1" * 'sn' step in the direction of the sign, if
+        abs(rx) &gt; 0.1 <b>or</b> abs(ry) &gt; 0.05; at most once
+        every 5 seconds or every 'av'+1 frames, whichever is longer. </td>
+    <td>1, -2, 3</td>
+    </tr>
+<tr><td>4</td>
+    <td>SV: slitviewer, fit</td>
+    <td>'dy' from a 1-dim gauss fit along the slit; 'dx' from the
+        left/right ratio, scaled for the slit width ('sw') </td>
+    <td>every frame in which 'dx' or 'dy', including the 'av' term,
+        exceeds 0.05": * 0.35 (0.2) * 'sn'. </td>
+    <td>1, -2, 3</td>
+    </tr>
+<tr><td>5</td>
+    <td>SV: offset guiding on a field star</td>
+    <td>as 'gm1', on a field star in the box (<i>cursor5</i>);
+        <i>cursor4</i> marks the object on the slit </td>
+    <td>as 'gm1'. When the position angle changes, the box is rotated
+        around <i>cursor4</i>. Cursors 4 and 5 cannot be moved while
+        guiding. </td>
+    <td>no change</td>
+    </tr>
+</table>
+</dd>
+<dd>'t' or 'p' (<i>gmpar</i>) matters in 'gm3' and 'gm4' only: 't'
+    corrects the telescope, 'p' also moves both guider probes by the
+    opposite amount ('gpaer3'). The mode box shows e.g. "gm 4t". </dd>
+<dd>Only 'gm1' and 'gm5' send EDS-801 messages. </dd>
+<dd>Graph labels: 'gm1', 'gm5': tc, fw, AZ, EL;
+    'gm3': rx, ry, AZ, EL; 'gm4': tc, fw, X, Y. </dd>
 <p> </p>
-<dt><b>sh</b> # </dt> 
-<dd>Shack-Hartman (mask) mode ('flag' in the header when sending data on port 5700).  </dd>
+<dt><b>sh</b> # </dt>
+<dd>Shack-Hartman (mask) mode: a flag in the FITS header ('SH'); it changes nothing else.  </dd>
 <p> </p>
 
 <dt><b>xys <i> c x y</i> </b> </dt>
@@ -680,6 +760,8 @@ TELGUIDE= '10'
 <dd>send the guider images to the 'SendHost' (Menu: GuiderX--SendHost)
     via TCP/IP every '#' seconds; '0' means 'off'. </dd>
 <dd>Without parameter the GUI will send one file. </dd>
+<dd><b>Deprecated</b>: superseded by the <a href="#imageserver">image
+    server</a> and scheduled for removal. </dd>
 <dt><b>write [#]</b> </dt>
 <dd>writes the next '#' images to disk as FITS files (default=1)  </dd>
 <p> </p>
@@ -732,7 +814,8 @@ TELGUIDE= '10'
 <li>"mask on"
 </ul>
 <dt>The mask will be stored in GCAMZWOPATH or /opt/gcamzwo if not set, as a file named 
-    "zwoSERIALNUMBER_gggg.mask" 
+    "zwoSERIALNUMBER_gggg.mask", or "zwoSERIALNUMBER_gggg_offx_offy.mask"
+    when an offset ('-o', <i>offx</i>/<i>offy</i>) is set,
     and automatically loaded at startup of the <em>zwogcam</em>
     ('gggg' is the geometry).
 </dt>
@@ -805,7 +888,7 @@ run like a terminal emulator (^D terminates the connection) or be used in script
 <p>
 xterm&gt; nc localhost 52201
 <br>version<return>
-<br>0.332
+<br>1.2
 <br>^D
 <br>xterm&gt;
 
@@ -820,7 +903,7 @@ xterm&gt; nc localhost 52201
 <dd>equivalent of "F3" on the keyboard. </dd>
 <dd>returns "OK". </dd>
 <dt><b>version</b> </dt>
-<dd>returns "0.322" </dd>
+<dd>returns the program version, e.g. "1.2" </dd>
 <a name="status"></a>
 <dt><b>status</b> </dt>
 <dd>returns the current guider state as a single line of
@@ -840,8 +923,10 @@ negative while the first correction is still pending &ndash;
 <tt>temp</tt>/<tt>setp</tt>/<tt>cooler</tt>: last values read by the
 housekeeping thread (stale if the cooler is off) &ndash;
 <tt>cfps</tt>: camera frame rate, <tt>gfps</tt>: guider loop rate &ndash;
+<tt>fwhm</tt>: [arcsec] &ndash;
 <tt>peak</tt>: peak pixel &ndash;
-<tt>dx</tt>/<tt>dy</tt>: centroid offset [pixels] &ndash;
+<tt>dx</tt>/<tt>dy</tt>: centroid offset [pixels]; in 'gm3' the
+dimensionless ratios 'rx'/'ry' (<a href="#gm">gm</a>) &ndash;
 <tt>az</tt>/<tt>el</tt>: last guider correction [arcsec] &ndash;
 <tt>x</tt>/<tt>y</tt>: guide box center [pixels], <tt>bx</tt>: box size &ndash;
 <tt>px</tt>: pixel scale [mas] &ndash; <tt>pa</tt>: position angle &ndash;
@@ -948,12 +1033,13 @@ snapshot, so the two cannot disagree:
 <dd><tt>GDMODE</tt>, <tt>GDFMODE</tt>, <tt>GDMMODE</tt>: guide, function
     and mouse mode ('gm', 'fm', 'mm') </dd>
 <dd><tt>GDAVG</tt>: frames in the rolling average ('av') </dd>
-<dd><tt>GDFWHM</tt> [pixels], <tt>GDFLUX</tt>, <tt>GDPEAK</tt>,
-    <tt>GDBACK</tt>: last measurement </dd>
+<dd><tt>GDFWHM</tt> [arcsec; the card comment wrongly says pixels],
+    <tt>GDFLUX</tt>, <tt>GDPEAK</tt>, <tt>GDBACK</tt>: last
+    measurement </dd>
 <dd><tt>GDDX</tt>, <tt>GDDY</tt>: centroid offset from the guide box
-    [pixels] </dd>
-<dd><tt>GDAZ</tt>, <tt>GDEL</tt>: last correction sent to the telescope
-    [arcsec] </dd>
+    [pixels]; in 'gm3' the dimensionless ratios 'rx'/'ry' </dd>
+<dd><tt>GDAZ</tt>, <tt>GDEL</tt>: last correction calculated [arcsec];
+    sent to the telescope only while guiding with F3/F5 </dd>
 <dd><tt>GDBOXX</tt>, <tt>GDBOXY</tt>, <tt>GDBOXSZ</tt>: guide box centre
     and size [pixels] ('bx') </dd>
 <dd><tt>GDPA</tt> [deg], <tt>GDSENS</tt> ('sn'), <tt>GDSEND</tt>
